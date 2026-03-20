@@ -138,6 +138,30 @@ serve(async (req) => {
 
     const parsed = JSON.parse(cleanContent);
 
+    // Validate CEP via ViaCEP API
+    if (parsed.triagem?.local_fato) {
+      const cepMatch = parsed.triagem.local_fato.match(/(\d{5})-?(\d{3})/);
+      if (cepMatch) {
+        const cep = `${cepMatch[1]}${cepMatch[2]}`;
+        try {
+          const viacepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+          if (viacepRes.ok) {
+            const viacepData = await viacepRes.json();
+            parsed.triagem.cep_valido = !viacepData.erro;
+            if (!viacepData.erro) {
+              parsed.triagem.cep_endereco = `${viacepData.logradouro}, ${viacepData.bairro} - ${viacepData.localidade}/${viacepData.uf}`;
+            }
+          } else {
+            parsed.triagem.cep_valido = false;
+          }
+        } catch (e) {
+          console.error("ViaCEP validation failed:", e);
+        }
+      } else {
+        parsed.triagem.cep_valido = false;
+      }
+    }
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
