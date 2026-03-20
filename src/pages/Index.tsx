@@ -1,13 +1,15 @@
-import { Shield } from "lucide-react";
+import { Shield, LogOut } from "lucide-react";
 import DropZone from "@/components/DropZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
 import AnalysisResultView from "@/components/AnalysisResult";
 import { useAnalysis } from "@/hooks/useAnalysis";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 
 const Index = () => {
   const { status, result, error, fileName, analyze, reset } = useAnalysis();
+  const { profile, signOut } = useAuth();
 
   const isProcessing = ["reading", "validating", "analyzing", "generating"].includes(status);
 
@@ -28,6 +30,16 @@ const Index = () => {
                 Processamento de Boletins de Ocorrência
               </p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {profile && (
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {profile.full_name || "Usuário"}
+              </span>
+            )}
+            <Button variant="ghost" size="icon" onClick={signOut} title="Sair">
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </header>
