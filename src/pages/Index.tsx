@@ -1,8 +1,9 @@
-import { Shield } from "lucide-react";
+import { Shield, LogOut } from "lucide-react";
 import DropZone from "@/components/DropZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
 import AnalysisResultView from "@/components/AnalysisResult";
 import { useAnalysis } from "@/hooks/useAnalysis";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 
