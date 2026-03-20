@@ -9,6 +9,7 @@ import { RotateCcw } from "lucide-react";
 
 const Index = () => {
   const { status, result, error, fileName, analyze, reset } = useAnalysis();
+  const { profile, signOut } = useAuth();
 
   const isProcessing = ["reading", "validating", "analyzing", "generating"].includes(status);
 
