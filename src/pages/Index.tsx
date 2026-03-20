@@ -31,6 +31,16 @@ const Index = () => {
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            {profile && (
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {profile.full_name || "Usuário"}
+              </span>
+            )}
+            <Button variant="ghost" size="icon" onClick={signOut} title="Sair">
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
