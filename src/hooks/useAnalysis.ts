@@ -14,27 +14,22 @@ export function useAnalysis() {
     setResult(null);
 
     try {
-      // Step 1: Read PDF
       setStatus("reading");
       const buffer = await file.arrayBuffer();
       const base64 = btoa(
         new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
       );
 
-      // Step 2: Validate
       setStatus("validating");
       await new Promise((r) => setTimeout(r, 600));
 
-      // Step 3: Analyze
       setStatus("analyzing");
-
       const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
         body: { pdf_base64: base64, file_name: file.name },
       });
 
       if (fnError) throw new Error(fnError.message || "Erro ao processar o documento");
 
-      // Step 4: Generate
       setStatus("generating");
       await new Promise((r) => setTimeout(r, 400));
 
@@ -42,7 +37,23 @@ export function useAnalysis() {
         throw new Error("Resposta inválida do servidor");
       }
 
-      setResult(data as AnalysisResult);
+      const analysisResult = data as AnalysisResult;
+
+      // Save to history
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("analyses").insert({
+          user_id: user.id,
+          file_name: file.name,
+          numero_bo: analysisResult.triagem.numero_bo || null,
+          natureza: analysisResult.triagem.natureza || null,
+          delegacia: analysisResult.triagem.delegacia || null,
+          data_fato: analysisResult.triagem.data_fato || null,
+          result: analysisResult as any,
+        } as any);
+      }
+
+      setResult(analysisResult);
       setStatus("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
