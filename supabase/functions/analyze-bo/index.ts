@@ -138,28 +138,37 @@ serve(async (req) => {
 
     const parsed = JSON.parse(cleanContent);
 
-    // Validate CEP via ViaCEP API
-    if (parsed.triagem?.local_fato) {
-      const cepMatch = parsed.triagem.local_fato.match(/(\d{5})-?(\d{3})/);
-      if (cepMatch) {
-        const cep = `${cepMatch[1]}${cepMatch[2]}`;
-        try {
-          const viacepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-          if (viacepRes.ok) {
-            const viacepData = await viacepRes.json();
-            parsed.triagem.cep_valido = !viacepData.erro;
-            if (!viacepData.erro) {
-              parsed.triagem.cep_endereco = `${viacepData.logradouro}, ${viacepData.bairro} - ${viacepData.localidade}/${viacepData.uf}`;
-            }
+    // Validate CEP via ViaCEP API — search across all triagem text fields and raw AI content
+    const triagemText = [
+      parsed.triagem?.local_fato,
+      parsed.triagem?.resumo,
+      cleanContent,
+    ].filter(Boolean).join(" ");
+
+    const cepMatch = triagemText.match(/(\d{5})-?(\d{3})/);
+    if (cepMatch) {
+      const cep = `${cepMatch[1]}${cepMatch[2]}`;
+      console.log(`Validating CEP: ${cep}`);
+      try {
+        const viacepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (viacepRes.ok) {
+          const viacepData = await viacepRes.json();
+          parsed.triagem.cep_valido = !viacepData.erro;
+          if (!viacepData.erro) {
+            parsed.triagem.cep_endereco = `${viacepData.logradouro}, ${viacepData.bairro} - ${viacepData.localidade}/${viacepData.uf}`;
+            console.log(`CEP ${cep} válido: ${parsed.triagem.cep_endereco}`);
           } else {
-            parsed.triagem.cep_valido = false;
+            console.log(`CEP ${cep} não encontrado no ViaCEP`);
           }
-        } catch (e) {
-          console.error("ViaCEP validation failed:", e);
+        } else {
+          parsed.triagem.cep_valido = false;
         }
-      } else {
-        parsed.triagem.cep_valido = false;
+      } catch (e) {
+        console.error("ViaCEP validation failed:", e);
       }
+    } else {
+      parsed.triagem.cep_valido = false;
+      console.log("Nenhum CEP encontrado no conteúdo");
     }
 
     return new Response(JSON.stringify(parsed), {
