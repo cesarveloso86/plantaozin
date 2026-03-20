@@ -38,7 +38,7 @@ export function useAnalysis() {
       setStatus("generating");
       await new Promise((r) => setTimeout(r, 400));
 
-      if (!data || !data.triagem || !data.depoimentos) {
+      if (!data || !data.triagem || !data.depoimentos || !data.despacho) {
         throw new Error("Resposta inválida do servidor");
       }
 

@@ -5,6 +5,18 @@ export interface DepoimentoPessoa {
   texto: string;
 }
 
+export interface Tipificacao {
+  artigo: string;
+  descricao: string;
+  lei?: string;
+}
+
+export interface Despacho {
+  texto: string;
+  tipificacoes: Tipificacao[];
+  providencias: string[];
+}
+
 export interface RelatorioTriagem {
   numero_bo: string;
   delegacia: string;
@@ -12,6 +24,7 @@ export interface RelatorioTriagem {
   natureza: string;
   local_fato: string;
   cep_valido: boolean;
+  cep_endereco?: string;
   resumo: string;
   alertas: string[];
 }
@@ -19,6 +32,7 @@ export interface RelatorioTriagem {
 export interface AnalysisResult {
   triagem: RelatorioTriagem;
   depoimentos: DepoimentoPessoa[];
+  despacho: Despacho;
 }
 
 export type AnalysisStatus =
@@ -35,7 +49,7 @@ export const STATUS_MESSAGES: Record<AnalysisStatus, string> = {
   reading: "Lendo documento PDF...",
   validating: "Validando dados cadastrais e CEP...",
   analyzing: "Analisando narrativa policial...",
-  generating: "Gerando minutas de depoimento...",
+  generating: "Gerando minutas e despacho...",
   done: "Análise concluída",
   error: "Erro na análise",
 };

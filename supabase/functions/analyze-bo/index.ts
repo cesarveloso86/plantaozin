@@ -27,11 +27,17 @@ Ao receber o conteúdo de um PDF de Boletim de Ocorrência, você deve:
    - Inclua as circunstâncias relatadas no BO adaptadas ao ponto de vista de cada depoente
    - Inclua qualificação completa (nome, RG, CPF, endereço, profissão quando disponível)
 
+3. GERAR um despacho baseado no boletim:
+   - Texto formal de despacho da autoridade policial
+   - Lista de tipificações penais aplicáveis (artigo, descrição e lei — ex: "Art. 155", "Furto", "Código Penal")
+   - Lista de providências a serem tomadas (ex: "Ouvir a vítima em sede policial", "Requisitar exame pericial")
+
 IMPORTANTE:
 - Mantenha fidelidade aos fatos descritos no BO
 - Use linguagem formal de delegacia
 - Cada depoimento deve iniciar com "Aos XX dias do mês de XX..."
 - Nunca invente fatos que não estejam no documento original
+- O despacho deve refletir as tipificações corretas baseadas nos fatos narrados
 
 Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, sem blocos de código):
 {
@@ -52,7 +58,18 @@ Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, s
       "qualificacao": "string com dados completos",
       "texto": "string com depoimento formal completo"
     }
-  ]
+  ],
+  "despacho": {
+    "texto": "string com despacho formal completo",
+    "tipificacoes": [
+      {
+        "artigo": "string (ex: Art. 155)",
+        "descricao": "string (ex: Furto simples)",
+        "lei": "string (ex: Código Penal)"
+      }
+    ],
+    "providencias": ["string"]
+  }
 }`;
 
 serve(async (req) => {
