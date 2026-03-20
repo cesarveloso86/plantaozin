@@ -1,0 +1,4 @@
+project_id = "kfxlsqybrzentiitebce"
+
+[functions.analyze-bo]
+verify_jwt = false
