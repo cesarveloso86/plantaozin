@@ -182,7 +182,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Tipo 2 (opcional)</Label>
-                <Select value={form.procedure_type_2 || ""} onValueChange={(v) => set("procedure_type_2", v)}>
+                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => set("procedure_type_2", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Nenhum</SelectItem>
