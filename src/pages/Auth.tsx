@@ -18,6 +18,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [nf, setNf] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,7 +59,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, nf: nf },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -128,20 +129,35 @@ const Auth = () => {
             className="space-y-4"
           >
             {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nome completo</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    placeholder="Seu nome"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nome completo</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      placeholder="Seu nome"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nf">Número Funcional (NF)</Label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="nf"
+                      placeholder="Ex: 4752619"
+                      value={nf}
+                      onChange={(e) => setNf(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

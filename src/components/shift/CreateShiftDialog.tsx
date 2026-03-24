@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { ShiftMember } from "@/types/shift";
+import { X } from "lucide-react";
+
+interface UserProfile {
+  id: string;
+  full_name: string;
+  nf: string | null;
+  role: string;
+}
 
 interface Props {
   open: boolean;
@@ -24,21 +34,45 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [teamName, setTeamName] = useState("");
   const [shiftDate, setShiftDate] = useState(new Date().toISOString().split("T")[0]);
   const [startHour, setStartHour] = useState("10:00");
-  const [authoritiesText, setAuthoritiesText] = useState("");
-  const [investigatorsText, setInvestigatorsText] = useState("");
-  const [iseoText, setIseoText] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const parseMembers = (text: string): ShiftMember[] =>
-    text
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const nfMatch = line.match(/NF\s*(\d+)/i);
-        const name = line.replace(/[-–]\s*NF\s*\d+/i, "").trim();
-        return { name, nf: nfMatch?.[1] || undefined };
-      });
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [authorities, setAuthorities] = useState<ShiftMember[]>([]);
+  const [investigators, setInvestigators] = useState<ShiftMember[]>([]);
+  const [iseo, setIseo] = useState<ShiftMember[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, nf, role")
+        .order("full_name");
+      setUsers((data as unknown as UserProfile[]) || []);
+    };
+    load();
+  }, [open]);
+
+  const addMember = (
+    userId: string,
+    list: ShiftMember[],
+    setList: React.Dispatch<React.SetStateAction<ShiftMember[]>>
+  ) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    if (list.some((m) => m.name === user.full_name)) {
+      toast.error("Membro já adicionado");
+      return;
+    }
+    setList((prev) => [...prev, { name: user.full_name, nf: user.nf || undefined }]);
+  };
+
+  const removeMember = (
+    name: string,
+    setList: React.Dispatch<React.SetStateAction<ShiftMember[]>>
+  ) => {
+    setList((prev) => prev.filter((m) => m.name !== name));
+  };
 
   const handleCreate = async () => {
     if (!teamName.trim()) {
@@ -52,22 +86,62 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
         team_name: teamName,
         shift_date: shiftDate,
         start_time: startTime,
-        authorities: parseMembers(authoritiesText),
-        investigators: parseMembers(investigatorsText),
-        iseo: parseMembers(iseoText),
+        authorities,
+        investigators,
+        iseo,
       });
       toast.success("Plantão criado com sucesso!");
       onOpenChange(false);
       setTeamName("");
-      setAuthoritiesText("");
-      setInvestigatorsText("");
-      setIseoText("");
+      setAuthorities([]);
+      setInvestigators([]);
+      setIseo([]);
     } catch (err) {
       toast.error("Erro ao criar plantão");
     } finally {
       setSaving(false);
     }
   };
+
+  const MemberSelector = ({
+    label,
+    members,
+    setMembers,
+  }: {
+    label: string;
+    members: ShiftMember[];
+    setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>>;
+  }) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Select onValueChange={(v) => addMember(v, members, setMembers)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Selecionar membro..." />
+        </SelectTrigger>
+        <SelectContent>
+          {users
+            .filter((u) => !members.some((m) => m.name === u.full_name))
+            .map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+      {members.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {members.map((m) => (
+            <Badge key={m.name} variant="secondary" className="gap-1 pr-1">
+              {m.name}{m.nf ? ` (${m.nf})` : ""}
+              <button onClick={() => removeMember(m.name, setMembers)} className="ml-1 hover:text-destructive">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,33 +164,9 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
             <Label>Horário de Início</Label>
             <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
           </div>
-          <div>
-            <Label>Autoridades Policiais (uma por linha)</Label>
-            <Textarea
-              rows={4}
-              value={authoritiesText}
-              onChange={(e) => setAuthoritiesText(e.target.value)}
-              placeholder="DR ALDARI DOS SANTOS PIMENTEL&#10;DRª IVINA QUEIROZ DE OLIVEIRA"
-            />
-          </div>
-          <div>
-            <Label>OIPs - Oficiais Investigadores (uma por linha)</Label>
-            <Textarea
-              rows={4}
-              value={investigatorsText}
-              onChange={(e) => setInvestigatorsText(e.target.value)}
-              placeholder="CESAR CURY VELOSO - NF 4752619&#10;CHRISTIANY FRASSON - NF 2557100"
-            />
-          </div>
-          <div>
-            <Label>ISEO (uma por linha, opcional)</Label>
-            <Textarea
-              rows={2}
-              value={iseoText}
-              onChange={(e) => setIseoText(e.target.value)}
-              placeholder="18H00 ÀS 02H00 - VANESSA LUBE - NF 3087573"
-            />
-          </div>
+          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
+          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} />
           <Button onClick={handleCreate} disabled={saving} className="w-full">
             {saving ? "Criando..." : "Criar Plantão"}
           </Button>

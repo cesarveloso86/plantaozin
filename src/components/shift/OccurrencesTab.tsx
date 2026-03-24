@@ -182,20 +182,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Tipo 2 (opcional)</Label>
-                <Select value={form.procedure_type_2 || ""} onValueChange={(v) => set("procedure_type_2", v)}>
+                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => set("procedure_type_2", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Tipo 3 (opcional)</Label>
-                <Select value={form.procedure_type_3 || ""} onValueChange={(v) => set("procedure_type_3", v)}>
+                <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => set("procedure_type_3", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>

@@ -19,6 +19,7 @@ import { toast } from "sonner";
 interface UserWithRole {
   id: string;
   full_name: string;
+  nf: string | null;
   role: string;
   created_at: string;
   db_role: string | null;
@@ -53,6 +54,7 @@ const AdminUsuarios = () => {
     const merged: UserWithRole[] = (profiles || []).map((p: any) => ({
       id: p.id,
       full_name: p.full_name || "Sem nome",
+      nf: p.nf || null,
       role: p.role,
       created_at: p.created_at,
       db_role: roleMap.get(p.id) || "analista",
@@ -129,9 +131,10 @@ const AdminUsuarios = () => {
           <Card>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
+                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>NF</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead>Função</TableHead>
                     <TableHead>Cadastro</TableHead>
@@ -149,7 +152,7 @@ const AdminUsuarios = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{user.role}</span>
+                        <span className="text-sm font-mono text-muted-foreground">{user.nf || "—"}</span>
                       </TableCell>
                       <TableCell>
                         <Select
@@ -172,7 +175,7 @@ const AdminUsuarios = () => {
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
