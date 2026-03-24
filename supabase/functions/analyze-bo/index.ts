@@ -77,6 +77,36 @@ Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, s
   }
 }`;
 
+async function validateCep(parsed: any, cleanContent: string) {
+  const triagemText = [
+    parsed.triagem?.local_fato,
+    parsed.triagem?.resumo,
+    cleanContent,
+  ].filter(Boolean).join(" ");
+
+  const cepMatch = triagemText.match(/(\d{5})-?(\d{3})/);
+  if (cepMatch) {
+    const cep = `${cepMatch[1]}${cepMatch[2]}`;
+    console.log(`Validating CEP: ${cep}`);
+    try {
+      const viacepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (viacepRes.ok) {
+        const viacepData = await viacepRes.json();
+        parsed.triagem.cep_valido = !viacepData.erro;
+        if (!viacepData.erro) {
+          parsed.triagem.cep_endereco = `${viacepData.logradouro}, ${viacepData.bairro} - ${viacepData.localidade}/${viacepData.uf}`;
+        }
+      } else {
+        parsed.triagem.cep_valido = false;
+      }
+    } catch (e) {
+      console.error("ViaCEP validation failed:", e);
+    }
+  } else {
+    parsed.triagem.cep_valido = false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -84,11 +114,9 @@ serve(async (req) => {
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { pdf_base64, file_name } = await req.json();
+    const { pdf_base64, file_name, instructions, previous_result } = await req.json();
     if (!pdf_base64) {
       return new Response(
         JSON.stringify({ error: "PDF não fornecido" }),
@@ -96,7 +124,36 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing file: ${file_name || "unknown"}`);
+    console.log(`Processing file: ${file_name || "unknown"}${instructions ? " (re-analysis)" : ""}`);
+
+    const messages: any[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Analise o Boletim de Ocorrência anexado e gere o relatório de triagem e as minutas de depoimento conforme instruído.",
+          },
+          {
+            type: "image_url",
+            image_url: { url: `data:application/pdf;base64,${pdf_base64}` },
+          },
+        ],
+      },
+    ];
+
+    // If re-analyzing, add the previous result and instructions
+    if (instructions && previous_result) {
+      messages.push({
+        role: "assistant",
+        content: JSON.stringify(previous_result),
+      });
+      messages.push({
+        role: "user",
+        content: `Reanalisar com as seguintes instruções do usuário:\n\n${instructions}\n\nMantenha o mesmo formato JSON. Corrija ou complemente conforme solicitado. Retorne o JSON completo atualizado.`,
+      });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -106,24 +163,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analise o Boletim de Ocorrência anexado e gere o relatório de triagem e as minutas de depoimento conforme instruído.",
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${pdf_base64}`,
-                },
-              },
-            ],
-          },
-        ],
+        messages,
       }),
     });
 
@@ -147,51 +187,15 @@ serve(async (req) => {
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
+    if (!content) throw new Error("Resposta vazia da IA");
 
-    if (!content) {
-      throw new Error("Resposta vazia da IA");
-    }
-
-    // Parse the JSON response, handling potential markdown code blocks
     let cleanContent = content.trim();
     if (cleanContent.startsWith("```")) {
       cleanContent = cleanContent.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     }
 
     const parsed = JSON.parse(cleanContent);
-
-    // Validate CEP via ViaCEP API — search across all triagem text fields and raw AI content
-    const triagemText = [
-      parsed.triagem?.local_fato,
-      parsed.triagem?.resumo,
-      cleanContent,
-    ].filter(Boolean).join(" ");
-
-    const cepMatch = triagemText.match(/(\d{5})-?(\d{3})/);
-    if (cepMatch) {
-      const cep = `${cepMatch[1]}${cepMatch[2]}`;
-      console.log(`Validating CEP: ${cep}`);
-      try {
-        const viacepRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-        if (viacepRes.ok) {
-          const viacepData = await viacepRes.json();
-          parsed.triagem.cep_valido = !viacepData.erro;
-          if (!viacepData.erro) {
-            parsed.triagem.cep_endereco = `${viacepData.logradouro}, ${viacepData.bairro} - ${viacepData.localidade}/${viacepData.uf}`;
-            console.log(`CEP ${cep} válido: ${parsed.triagem.cep_endereco}`);
-          } else {
-            console.log(`CEP ${cep} não encontrado no ViaCEP`);
-          }
-        } else {
-          parsed.triagem.cep_valido = false;
-        }
-      } catch (e) {
-        console.error("ViaCEP validation failed:", e);
-      }
-    } else {
-      parsed.triagem.cep_valido = false;
-      console.log("Nenhum CEP encontrado no conteúdo");
-    }
+    await validateCep(parsed, cleanContent);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
