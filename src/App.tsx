@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index.tsx";
+import Plantao from "./pages/Plantao.tsx";
 import Historico from "./pages/Historico.tsx";
 import AdminUsuarios from "./pages/AdminUsuarios.tsx";
 import Auth from "./pages/Auth.tsx";
