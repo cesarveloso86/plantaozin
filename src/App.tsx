@@ -37,6 +37,16 @@ const App = () => (
               }
             />
             <Route
+              path="/plantao"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Plantao />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/historico"
               element={
                 <ProtectedRoute>

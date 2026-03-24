@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 
 const mainItems = [
   { title: "Nova Análise", url: "/", icon: FilePlus },
+  { title: "Plantão", url: "/plantao", icon: ClipboardList },
   { title: "Histórico", url: "/historico", icon: History },
 ];
 
