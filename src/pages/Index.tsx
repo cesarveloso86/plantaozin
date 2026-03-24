@@ -70,7 +70,7 @@ const Index = () => {
             data={result}
             onReset={reset}
             onReanalyze={reanalyze}
-            reanalyzing={status === "analyzing"}
+            reanalyzing={isProcessing}
             onSendToShift={handleSendToShift}
           />
         </div>
