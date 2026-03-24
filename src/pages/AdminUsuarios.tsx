@@ -19,6 +19,7 @@ import { toast } from "sonner";
 interface UserWithRole {
   id: string;
   full_name: string;
+  nf: string | null;
   role: string;
   created_at: string;
   db_role: string | null;
