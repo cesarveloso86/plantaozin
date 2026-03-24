@@ -185,7 +185,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 <Select value={form.procedure_type_2 || ""} onValueChange={(v) => set("procedure_type_2", v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
