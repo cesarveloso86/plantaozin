@@ -77,6 +77,144 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_occurrences: {
+        Row: {
+          analysis_id: string | null
+          authority: string | null
+          bu_number: string
+          conducted_names: string | null
+          created_at: string
+          created_by: string
+          final_time: string | null
+          first_hearing_time: string | null
+          has_report: boolean
+          id: string
+          investigator: string | null
+          num_hearings: number
+          observations: string | null
+          po_status: string | null
+          procedure_type: string | null
+          procedure_type_2: string | null
+          procedure_type_3: string | null
+          regional: string | null
+          shift_id: string
+          suspect_names: string | null
+          tipification: string | null
+          tramitation_time: string | null
+          victim_names: string | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          authority?: string | null
+          bu_number: string
+          conducted_names?: string | null
+          created_at?: string
+          created_by: string
+          final_time?: string | null
+          first_hearing_time?: string | null
+          has_report?: boolean
+          id?: string
+          investigator?: string | null
+          num_hearings?: number
+          observations?: string | null
+          po_status?: string | null
+          procedure_type?: string | null
+          procedure_type_2?: string | null
+          procedure_type_3?: string | null
+          regional?: string | null
+          shift_id: string
+          suspect_names?: string | null
+          tipification?: string | null
+          tramitation_time?: string | null
+          victim_names?: string | null
+        }
+        Update: {
+          analysis_id?: string | null
+          authority?: string | null
+          bu_number?: string
+          conducted_names?: string | null
+          created_at?: string
+          created_by?: string
+          final_time?: string | null
+          first_hearing_time?: string | null
+          has_report?: boolean
+          id?: string
+          investigator?: string | null
+          num_hearings?: number
+          observations?: string | null
+          po_status?: string | null
+          procedure_type?: string | null
+          procedure_type_2?: string | null
+          procedure_type_3?: string | null
+          regional?: string | null
+          shift_id?: string
+          suspect_names?: string | null
+          tipification?: string | null
+          tramitation_time?: string | null
+          victim_names?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_occurrences_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_occurrences_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          authorities: Json
+          created_at: string
+          created_by: string
+          end_time: string | null
+          id: string
+          investigators: Json
+          iseo: Json
+          observations: string[]
+          shift_date: string
+          start_time: string
+          status: string
+          team_name: string
+        }
+        Insert: {
+          authorities?: Json
+          created_at?: string
+          created_by: string
+          end_time?: string | null
+          id?: string
+          investigators?: Json
+          iseo?: Json
+          observations?: string[]
+          shift_date: string
+          start_time: string
+          status?: string
+          team_name: string
+        }
+        Update: {
+          authorities?: Json
+          created_at?: string
+          created_by?: string
+          end_time?: string | null
+          id?: string
+          investigators?: Json
+          iseo?: Json
+          observations?: string[]
+          shift_date?: string
+          start_time?: string
+          status?: string
+          team_name?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
