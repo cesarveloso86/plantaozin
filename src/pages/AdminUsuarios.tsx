@@ -54,6 +54,7 @@ const AdminUsuarios = () => {
     const merged: UserWithRole[] = (profiles || []).map((p: any) => ({
       id: p.id,
       full_name: p.full_name || "Sem nome",
+      nf: p.nf || null,
       role: p.role,
       created_at: p.created_at,
       db_role: roleMap.get(p.id) || "analista",
