@@ -152,7 +152,7 @@ const AdminUsuarios = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{user.role}</span>
+                        <span className="text-sm font-mono text-muted-foreground">{user.nf || "—"}</span>
                       </TableCell>
                       <TableCell>
                         <Select
