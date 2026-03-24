@@ -131,9 +131,10 @@ const AdminUsuarios = () => {
           <Card>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
+                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>NF</TableHead>
                     <TableHead>Cargo</TableHead>
                     <TableHead>Função</TableHead>
                     <TableHead>Cadastro</TableHead>
