@@ -2,17 +2,23 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Copy, Check, RotateCcw, FileText, User, AlertTriangle,
-  Shield, Scale, ChevronRight, MapPin, Calendar, Building2, Gavel
+  Shield, Scale, ChevronRight, MapPin, Calendar, Building2, Gavel,
+  RefreshCw, Send, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { AnalysisResult as AnalysisResultType } from "@/types/analysis";
 
 interface AnalysisResultProps {
   data: AnalysisResultType;
   onReset: () => void;
+  onReanalyze?: (instructions: string) => void;
+  reanalyzing?: boolean;
+  onSendToShift?: () => void;
 }
 
 const CopyButton = ({ text, label = "Copiar" }: { text: string; label?: string }) => {
@@ -42,8 +48,10 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
-const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
+const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
   const { triagem, depoimentos, despacho } = data;
+  const [showReanalyze, setShowReanalyze] = useState(false);
+  const [instructions, setInstructions] = useState("");
 
   const triagemText = [
     `RELATÓRIO DE TRIAGEM`, ``,
@@ -66,6 +74,14 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
     ...(despacho?.providencias || []).map((p, i) => `${i + 1}. ${p}`),
   ].join("\n");
 
+  const handleReanalyze = () => {
+    if (onReanalyze && instructions.trim()) {
+      onReanalyze(instructions.trim());
+      setShowReanalyze(false);
+      setInstructions("");
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-5xl mx-auto space-y-6 pb-8">
       {/* Header */}
@@ -79,10 +95,24 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
           </div>
           <p className="text-sm text-muted-foreground">{triagem.delegacia}</p>
         </div>
-        <Button variant="outline" onClick={onReset} className="gap-2">
-          <RotateCcw className="w-4 h-4" />
-          Nova Ocorrência
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          {onSendToShift && (
+            <Button variant="default" size="sm" onClick={onSendToShift} className="gap-2">
+              <Send className="w-4 h-4" />
+              Enviar ao Plantão
+            </Button>
+          )}
+          {onReanalyze && (
+            <Button variant="outline" size="sm" onClick={() => setShowReanalyze(true)} disabled={reanalyzing} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${reanalyzing ? "animate-spin" : ""}`} />
+              {reanalyzing ? "Reanalisando..." : "Reanalisar"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onReset} className="gap-2">
+            <RotateCcw className="w-4 h-4" />
+            Nova Ocorrência
+          </Button>
+        </div>
       </motion.div>
 
       {/* CEP Alert */}
@@ -108,7 +138,6 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <InfoItem icon={Calendar} label="Data do Fato" value={triagem.data_fato} />
               <InfoItem icon={Building2} label="Delegacia" value={triagem.delegacia} />
@@ -118,16 +147,11 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
                 <InfoItem icon={MapPin} label="Endereço (ViaCEP)" value={triagem.cep_endereco} />
               )}
             </div>
-
             <Separator />
-
-            {/* Resumo */}
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumo dos Fatos</h4>
               <p className="text-sm leading-relaxed text-foreground">{triagem.resumo}</p>
             </div>
-
-            {/* Alertas */}
             {triagem.alertas.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Alertas</h4>
@@ -159,7 +183,6 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{despacho.texto}</p>
-
               {despacho.tipificacoes?.length > 0 && (
                 <>
                   <Separator />
@@ -180,7 +203,6 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
                   </div>
                 </>
               )}
-
               {despacho.providencias?.length > 0 && (
                 <>
                   <Separator />
@@ -252,6 +274,33 @@ const AnalysisResultView = ({ data, onReset }: AnalysisResultProps) => {
           })}
         </div>
       </motion.div>
+
+      {/* Re-analyze Dialog */}
+      <Dialog open={showReanalyze} onOpenChange={setShowReanalyze}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              Reanalisar com Instrução
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Informe o que a IA deve corrigir ou complementar na análise atual.
+            </p>
+            <Textarea
+              rows={4}
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder="Ex: Incluir depoimento do segundo PM condutor. Corrigir a tipificação para Art. 33 da Lei 11.343/06."
+            />
+            <Button onClick={handleReanalyze} disabled={!instructions.trim()} className="w-full gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Reanalisar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

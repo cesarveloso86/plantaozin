@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { AnalysisResult, AnalysisStatus } from "@/types/analysis";
 
@@ -7,9 +7,12 @@ export function useAnalysis() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const lastBase64 = useRef<string>("");
+  const lastFileName = useRef<string>("");
 
   const analyze = useCallback(async (file: File) => {
     setFileName(file.name);
+    lastFileName.current = file.name;
     setError(null);
     setResult(null);
 
@@ -19,6 +22,7 @@ export function useAnalysis() {
       const base64 = btoa(
         new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
       );
+      lastBase64.current = base64;
 
       setStatus("validating");
       await new Promise((r) => setTimeout(r, 600));
@@ -61,12 +65,43 @@ export function useAnalysis() {
     }
   }, []);
 
+  const reanalyze = useCallback(async (instructions: string) => {
+    if (!lastBase64.current) return;
+    setError(null);
+
+    try {
+      setStatus("analyzing");
+      const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
+        body: {
+          pdf_base64: lastBase64.current,
+          file_name: lastFileName.current,
+          instructions,
+          previous_result: result,
+        },
+      });
+
+      if (fnError) throw new Error(fnError.message || "Erro ao reprocessar");
+
+      if (!data || !data.triagem || !data.depoimentos || !data.despacho) {
+        throw new Error("Resposta inválida do servidor");
+      }
+
+      setResult(data as AnalysisResult);
+      setStatus("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+      setStatus("error");
+    }
+  }, [result]);
+
   const reset = useCallback(() => {
     setStatus("idle");
     setResult(null);
     setError(null);
     setFileName("");
+    lastBase64.current = "";
+    lastFileName.current = "";
   }, []);
 
-  return { status, result, error, fileName, analyze, reset };
+  return { status, result, error, fileName, analyze, reanalyze, reset };
 }
