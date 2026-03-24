@@ -59,7 +59,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, nf: nf },
         emailRedirectTo: window.location.origin,
       },
     });
