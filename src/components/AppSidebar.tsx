@@ -1,4 +1,4 @@
-import { Shield, FilePlus, History, Users, Settings, LogOut, Moon, Sun } from "lucide-react";
+import { Shield, FilePlus, History, Users, LogOut, Moon, Sun, ClipboardList } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
