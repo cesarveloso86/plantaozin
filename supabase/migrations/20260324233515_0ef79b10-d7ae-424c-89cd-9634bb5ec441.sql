@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN nf text DEFAULT NULL;
