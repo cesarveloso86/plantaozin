@@ -177,6 +177,7 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
     });
   }
 
+  const doc = new Document({
     numbering: {
       config: [{
         reference: "bullets",
