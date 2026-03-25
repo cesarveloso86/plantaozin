@@ -84,6 +84,7 @@ export function useShift() {
           authorities: params.authorities as any,
           investigators: params.investigators as any,
           iseo: params.iseo as any,
+          absences: (params.absences || []) as any,
         } as any)
         .select()
         .single();
