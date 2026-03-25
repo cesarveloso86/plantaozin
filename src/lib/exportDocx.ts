@@ -162,7 +162,21 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
     });
   });
 
-  const doc = new Document({
+  // Observations at the end of the document
+  if (shift.observations && shift.observations.length > 0) {
+    children.push(new Paragraph({
+      spacing: { before: 400, after: 100 },
+      children: [new TextRun({ text: "OBSERVAÇÕES ADMINISTRATIVAS:", bold: true, underline: {}, size: 22, font: "Arial" })],
+      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000", space: 1 } },
+    }));
+    shift.observations.forEach((obs) => {
+      children.push(new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: obs, size: 22, font: "Arial" })],
+      }));
+    });
+  }
+
     numbering: {
       config: [{
         reference: "bullets",
