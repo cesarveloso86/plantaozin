@@ -65,6 +65,8 @@ const AdminUsuarios = () => {
       id: p.id,
       full_name: p.full_name || "Sem nome",
       nf: p.nf || null,
+      funcao: p.funcao || null,
+      matricula: p.matricula || null,
       role: p.role,
       created_at: p.created_at,
       db_role: roleMap.get(p.id) || "analista",
