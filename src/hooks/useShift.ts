@@ -66,6 +66,7 @@ export function useShift() {
       team_name: string;
       shift_date: string;
       start_time: string;
+      end_time?: string;
       authorities: ShiftMember[];
       investigators: ShiftMember[];
       iseo: ShiftMember[];
@@ -78,6 +79,7 @@ export function useShift() {
           team_name: params.team_name,
           shift_date: params.shift_date,
           start_time: params.start_time,
+          end_time: params.end_time || null,
           authorities: params.authorities as any,
           investigators: params.investigators as any,
           iseo: params.iseo as any,
@@ -169,6 +171,28 @@ export function useShift() {
     await loadOccurrences(shift.id);
   }, []);
 
+  const updateShift = useCallback(
+    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo">>) => {
+      if (!activeShift) return;
+      const payload: any = {};
+      if (updates.team_name !== undefined) payload.team_name = updates.team_name;
+      if (updates.shift_date !== undefined) payload.shift_date = updates.shift_date;
+      if (updates.start_time !== undefined) payload.start_time = updates.start_time;
+      if (updates.end_time !== undefined) payload.end_time = updates.end_time;
+      if (updates.authorities !== undefined) payload.authorities = updates.authorities;
+      if (updates.investigators !== undefined) payload.investigators = updates.investigators;
+      if (updates.iseo !== undefined) payload.iseo = updates.iseo;
+      const { error } = await supabase
+        .from("shifts")
+        .update(payload)
+        .eq("id", activeShift.id);
+      if (error) throw error;
+      setActiveShift((prev) => prev ? { ...prev, ...updates } : null);
+      setShifts((prev) => prev.map((s) => s.id === activeShift.id ? { ...s, ...updates } : s));
+    },
+    [activeShift]
+  );
+
   return {
     activeShift,
     occurrences,
@@ -181,6 +205,7 @@ export function useShift() {
     closeShift,
     addObservation,
     selectShift,
+    updateShift,
   };
 }
 

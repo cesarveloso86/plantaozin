@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useShift } from "@/hooks/useShift";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, ClipboardList, BarChart3, FileText, Plus } from "lucide-react";
+import { Loader2, ClipboardList, BarChart3, FileText, Plus, Pencil } from "lucide-react";
 import { CreateShiftDialog } from "@/components/shift/CreateShiftDialog";
+import { EditShiftDialog } from "@/components/shift/EditShiftDialog";
 import { OccurrencesTab } from "@/components/shift/OccurrencesTab";
 import { StatisticsTab } from "@/components/shift/StatisticsTab";
 import { ResumoTab } from "@/components/shift/ResumoTab";
@@ -12,6 +13,7 @@ import { ShiftSelector } from "@/components/shift/ShiftSelector";
 const Plantao = () => {
   const shift = useShift();
   const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   if (shift.loading) {
     return (
@@ -61,6 +63,11 @@ const Plantao = () => {
         </div>
         <div className="flex gap-2">
           <ShiftSelector shifts={shift.shifts} onSelect={shift.selectShift} />
+          {shift.activeShift.status === "active" && (
+            <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
+              <Pencil className="w-4 h-4 mr-1" /> Editar
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4 mr-1" /> Novo
           </Button>
@@ -109,6 +116,14 @@ const Plantao = () => {
         onOpenChange={setShowCreate}
         onCreate={shift.createShift}
       />
+      {shift.activeShift && (
+        <EditShiftDialog
+          open={showEdit}
+          onOpenChange={setShowEdit}
+          shift={shift.activeShift}
+          onUpdate={shift.updateShift}
+        />
+      )}
     </div>
   );
 };

@@ -24,6 +24,7 @@ interface Props {
     team_name: string;
     shift_date: string;
     start_time: string;
+    end_time?: string;
     authorities: ShiftMember[];
     investigators: ShiftMember[];
     iseo: ShiftMember[];
@@ -92,10 +93,14 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     setSaving(true);
     try {
       const startTime = new Date(`${shiftDate}T${startHour}:00`).toISOString();
+      const endDate = new Date(`${shiftDate}T${startHour}:00`);
+      endDate.setHours(endDate.getHours() + 24);
+      const endTime = endDate.toISOString();
       await onCreate({
         team_name: teamName,
         shift_date: shiftDate,
         start_time: startTime,
+        end_time: endTime,
         authorities,
         investigators,
         iseo,
@@ -181,6 +186,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
           <div>
             <Label>Horário de Início</Label>
             <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">Término padrão: +24h</p>
           </div>
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
