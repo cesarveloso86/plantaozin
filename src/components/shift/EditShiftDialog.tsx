@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { Shift, ShiftMember } from "@/types/shift";
+import type { Shift, ShiftMember, ShiftAbsence } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
+import { AbsenceSelector } from "./AbsenceSelector";
 import { TEAM_NAMES } from "./shiftConstants";
 
 interface UserProfile {
