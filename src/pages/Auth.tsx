@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Mail, Lock, User, Eye, EyeOff, Loader2, Hash, Briefcase } from "lucide-react";
+import { Shield, Mail, Lock, User, Eye, EyeOff, Loader2, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [nf, setNf] = useState("");
-  const [funcao, setFuncao] = useState("");
-  const [matricula, setMatricula] = useState("");
+  const [cargo, setCargo] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,7 +60,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        data: { full_name: fullName, nf, funcao, matricula },
+        data: { full_name: fullName, nf, cargo },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -161,34 +160,19 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="matricula">Matrícula</Label>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="matricula"
-                      placeholder="Ex: 123456"
-                      value={matricula}
-                      onChange={(e) => setMatricula(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="funcao">Função Institucional</Label>
+                  <Label htmlFor="cargo">Cargo</Label>
                   <div className="relative">
                     <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <select
-                      id="funcao"
-                      value={funcao}
-                      onChange={(e) => setFuncao(e.target.value)}
+                      id="cargo"
+                      value={cargo}
+                      onChange={(e) => setCargo(e.target.value)}
                       className="w-full h-10 pl-10 pr-3 rounded-md border border-input bg-background text-sm text-foreground"
                       required
                     >
                       <option value="">Selecione...</option>
                       <option value="Autoridade Policial">Autoridade Policial</option>
                       <option value="OIP">OIP — Oficial Investigador</option>
-                      <option value="ISEO">ISEO</option>
                     </select>
                   </div>
                 </div>

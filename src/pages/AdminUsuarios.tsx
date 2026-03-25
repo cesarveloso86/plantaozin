@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Loader2, Shield, User, Search, Pencil, Check, X } from "lucide-react";
+import { Loader2, Shield, User, Search, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -24,8 +23,7 @@ interface UserWithRole {
   id: string;
   full_name: string;
   nf: string | null;
-  funcao: string | null;
-  matricula: string | null;
+  cargo: string | null;
   role: string;
   created_at: string;
   db_role: string | null;
@@ -39,8 +37,7 @@ const AdminUsuarios = () => {
   const [editUser, setEditUser] = useState<UserWithRole | null>(null);
   const [editName, setEditName] = useState("");
   const [editNf, setEditNf] = useState("");
-  const [editFuncao, setEditFuncao] = useState("");
-  const [editMatricula, setEditMatricula] = useState("");
+  const [editCargo, setEditCargo] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -65,8 +62,7 @@ const AdminUsuarios = () => {
       id: p.id,
       full_name: p.full_name || "Sem nome",
       nf: p.nf || null,
-      funcao: p.funcao || null,
-      matricula: p.matricula || null,
+      cargo: p.cargo || null,
       role: p.role,
       created_at: p.created_at,
       db_role: roleMap.get(p.id) || "analista",
@@ -83,22 +79,21 @@ const AdminUsuarios = () => {
       .insert({ user_id: userId, role: newRole } as any);
 
     if (error) {
-      toast.error("Erro ao alterar função: " + error.message);
+      toast.error("Erro ao alterar permissão: " + error.message);
       return;
     }
 
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, db_role: newRole } : u))
     );
-    toast.success("Função alterada com sucesso");
+    toast.success("Permissão alterada com sucesso");
   };
 
   const openEdit = (user: UserWithRole) => {
     setEditUser(user);
     setEditName(user.full_name);
     setEditNf(user.nf || "");
-    setEditFuncao(user.funcao || "");
-    setEditMatricula(user.matricula || "");
+    setEditCargo(user.cargo || "");
   };
 
   const handleSaveEdit = async () => {
@@ -106,7 +101,7 @@ const AdminUsuarios = () => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: editName, nf: editNf || null, funcao: editFuncao || null, matricula: editMatricula || null } as any)
+      .update({ full_name: editName, nf: editNf || null, cargo: editCargo || null } as any)
       .eq("id", editUser.id);
 
     if (error) {
@@ -114,7 +109,7 @@ const AdminUsuarios = () => {
     } else {
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === editUser.id ? { ...u, full_name: editName, nf: editNf || null, funcao: editFuncao || null, matricula: editMatricula || null } : u
+          u.id === editUser.id ? { ...u, full_name: editName, nf: editNf || null, cargo: editCargo || null } : u
         )
       );
       toast.success("Perfil atualizado");
@@ -176,8 +171,7 @@ const AdminUsuarios = () => {
                   <TableRow>
                      <TableHead>Nome</TableHead>
                      <TableHead>NF</TableHead>
-                     <TableHead>Função Institucional</TableHead>
-                     <TableHead>Matrícula</TableHead>
+                     <TableHead>Cargo</TableHead>
                      <TableHead>Permissão</TableHead>
                      <TableHead>Cadastro</TableHead>
                      <TableHead className="w-16">Ações</TableHead>
@@ -198,10 +192,7 @@ const AdminUsuarios = () => {
                         <span className="text-sm font-mono text-muted-foreground">{user.nf || "—"}</span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{user.funcao || "—"}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-mono text-muted-foreground">{user.matricula || "—"}</span>
+                        <span className="text-sm text-muted-foreground">{user.cargo || "—"}</span>
                       </TableCell>
                       <TableCell>
                         <Select
@@ -229,7 +220,7 @@ const AdminUsuarios = () => {
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
@@ -256,20 +247,15 @@ const AdminUsuarios = () => {
               <Input value={editNf} onChange={(e) => setEditNf(e.target.value)} placeholder="Ex: 4752619" />
             </div>
             <div>
-              <Label>Matrícula</Label>
-              <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Ex: 123456" />
-            </div>
-            <div>
-              <Label>Função Institucional</Label>
+              <Label>Cargo</Label>
               <select
-                value={editFuncao}
-                onChange={(e) => setEditFuncao(e.target.value)}
+                value={editCargo}
+                onChange={(e) => setEditCargo(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground"
               >
-                <option value="">Sem função</option>
+                <option value="">Sem cargo</option>
                 <option value="Autoridade Policial">Autoridade Policial</option>
                 <option value="OIP">OIP — Oficial Investigador</option>
-                <option value="ISEO">ISEO</option>
               </select>
             </div>
             <Button onClick={handleSaveEdit} disabled={saving} className="w-full">
