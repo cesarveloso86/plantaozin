@@ -145,13 +145,18 @@ serve(async (req) => {
 
     // If re-analyzing, add the previous result and instructions
     if (instructions && previous_result) {
+      const fieldLabel = field === "triagem" ? "a triagem/relatório" 
+        : field === "despacho" ? "o despacho (tipificações e providências)"
+        : field === "depoimentos" ? "os depoimentos"
+        : "o resultado completo";
+      
       messages.push({
         role: "assistant",
         content: JSON.stringify(previous_result),
       });
       messages.push({
         role: "user",
-        content: `Reanalisar com as seguintes instruções do usuário:\n\n${instructions}\n\nMantenha o mesmo formato JSON. Corrija ou complemente conforme solicitado. Retorne o JSON completo atualizado.`,
+        content: `Reanalisar APENAS ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS as demais seções do JSON. Corrija ou complemente APENAS ${fieldLabel} conforme solicitado. Retorne o JSON completo atualizado.`,
       });
     }
 
