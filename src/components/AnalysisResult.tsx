@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   Copy, Check, RotateCcw, FileText, User, AlertTriangle,
   Shield, Scale, ChevronRight, MapPin, Calendar, Building2, Gavel,
-  RefreshCw, Send, MessageSquare
+  RefreshCw, Send, MessageSquare, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import type { AnalysisResult as AnalysisResultType } from "@/types/analysis";
 interface AnalysisResultProps {
   data: AnalysisResultType;
   onReset: () => void;
-  onReanalyze?: (instructions: string) => void;
+  onReanalyze?: (instructions: string, field?: string) => void;
   reanalyzing?: boolean;
   onSendToShift?: () => void;
 }
@@ -48,9 +48,23 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
+type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | null;
+
+const FIELD_LABELS: Record<string, string> = {
+  triagem: "Triagem",
+  despacho: "Despacho",
+  depoimentos: "Depoimentos",
+};
+
+const FIELD_PLACEHOLDERS: Record<string, string> = {
+  triagem: "Ex: Corrigir a natureza para 'Roubo'. O local do fato está incorreto.",
+  despacho: "Ex: Alterar tipificação para Art. 33 da Lei 11.343/06. Adicionar providência de apreensão.",
+  depoimentos: "Ex: Incluir depoimento do segundo PM condutor. Corrigir nome da testemunha.",
+};
+
 const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
   const { triagem, depoimentos, despacho } = data;
-  const [showReanalyze, setShowReanalyze] = useState(false);
+  const [reanalyzeField, setReanalyzeField] = useState<ReanalyzeField>(null);
   const [instructions, setInstructions] = useState("");
 
   const triagemText = [
@@ -75,11 +89,33 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
   ].join("\n");
 
   const handleReanalyze = () => {
-    if (onReanalyze && instructions.trim()) {
-      onReanalyze(instructions.trim());
-      setShowReanalyze(false);
+    if (onReanalyze && instructions.trim() && reanalyzeField) {
+      onReanalyze(instructions.trim(), reanalyzeField);
+      setReanalyzeField(null);
       setInstructions("");
     }
+  };
+
+  const openFieldReanalyze = (field: ReanalyzeField) => {
+    setReanalyzeField(field);
+    setInstructions("");
+  };
+
+  const FieldEditButton = ({ field }: { field: ReanalyzeField }) => {
+    if (!onReanalyze || !field) return null;
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => openFieldReanalyze(field)}
+        disabled={reanalyzing}
+        className="gap-1.5 text-xs h-7"
+        title={`Corrigir ${FIELD_LABELS[field]}`}
+      >
+        <Pencil className="w-3 h-3" />
+        Corrigir
+      </Button>
+    );
   };
 
   return (
@@ -102,11 +138,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               Enviar ao Plantão
             </Button>
           )}
-          {onReanalyze && (
-            <Button variant="outline" size="sm" onClick={() => setShowReanalyze(true)} disabled={reanalyzing} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${reanalyzing ? "animate-spin" : ""}`} />
-              {reanalyzing ? "Reanalisando..." : "Reanalisar"}
-            </Button>
+          {reanalyzing && (
+            <Badge variant="secondary" className="gap-1.5 py-1">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Reanalisando...
+            </Badge>
           )}
           <Button variant="outline" size="sm" onClick={onReset} className="gap-2">
             <RotateCcw className="w-4 h-4" />
@@ -134,7 +170,10 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                 <FileText className="w-4 h-4 text-primary" />
                 Relatório de Triagem
               </CardTitle>
-              <CopyButton text={triagemText} />
+              <div className="flex items-center gap-1">
+                <FieldEditButton field="triagem" />
+                <CopyButton text={triagemText} />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -178,7 +217,10 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                   <Gavel className="w-4 h-4 text-primary" />
                   Despacho
                 </CardTitle>
-                <CopyButton text={despachoText} />
+                <div className="flex items-center gap-1">
+                  <FieldEditButton field="despacho" />
+                  <CopyButton text={despachoText} />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -226,10 +268,13 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
 
       {/* Depoimentos */}
       <motion.div {...fadeUp} transition={{ delay: 0.25 }}>
-        <h3 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-          <User className="w-4 h-4 text-primary" />
-          Depoimentos ({depoimentos.length})
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <User className="w-4 h-4 text-primary" />
+            Depoimentos ({depoimentos.length})
+          </h3>
+          <FieldEditButton field="depoimentos" />
+        </div>
         <div className="space-y-4">
           {depoimentos.map((dep, i) => {
             const config = TIPO_CONFIG[dep.tipo] || TIPO_CONFIG.testemunha;
@@ -275,28 +320,29 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
         </div>
       </motion.div>
 
-      {/* Re-analyze Dialog */}
-      <Dialog open={showReanalyze} onOpenChange={setShowReanalyze}>
+      {/* Per-field Re-analyze Dialog */}
+      <Dialog open={!!reanalyzeField} onOpenChange={(v) => !v && setReanalyzeField(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
-              Reanalisar com Instrução
+              Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Informe o que a IA deve corrigir ou complementar na análise atual.
+              Informe o que a IA deve corrigir ou complementar {reanalyzeField === "triagem" ? "na triagem" : reanalyzeField === "despacho" ? "no despacho" : "nos depoimentos"}.
+              As demais seções não serão alteradas.
             </p>
             <Textarea
               rows={4}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Ex: Incluir depoimento do segundo PM condutor. Corrigir a tipificação para Art. 33 da Lei 11.343/06."
+              placeholder={reanalyzeField ? FIELD_PLACEHOLDERS[reanalyzeField] : ""}
             />
             <Button onClick={handleReanalyze} disabled={!instructions.trim()} className="w-full gap-2">
               <RefreshCw className="w-4 h-4" />
-              Reanalisar
+              Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
             </Button>
           </div>
         </DialogContent>
