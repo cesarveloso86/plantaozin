@@ -191,7 +191,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           </div>
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo}  />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
