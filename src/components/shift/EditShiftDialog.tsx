@@ -14,6 +14,7 @@ interface UserProfile {
   id: string;
   full_name: string;
   nf: string | null;
+  funcao: string | null;
   role: string;
 }
 
