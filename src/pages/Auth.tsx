@@ -61,7 +61,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        data: { full_name: fullName, nf: nf },
+        data: { full_name: fullName, nf, funcao, matricula },
         emailRedirectTo: window.location.origin,
       },
     });
