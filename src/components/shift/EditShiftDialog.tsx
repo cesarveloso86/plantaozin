@@ -42,6 +42,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
   const [authorities, setAuthorities] = useState<ShiftMember[]>(shift.authorities);
   const [investigators, setInvestigators] = useState<ShiftMember[]>(shift.investigators);
   const [iseo, setIseo] = useState<ShiftMember[]>(shift.iseo);
+  const [absences, setAbsences] = useState<ShiftAbsence[]>(shift.absences || []);
 
   useEffect(() => {
     if (!open) return;
