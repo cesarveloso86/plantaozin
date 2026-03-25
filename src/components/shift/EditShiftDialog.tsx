@@ -88,6 +88,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
         authorities,
         investigators,
         iseo,
+        absences,
       });
       toast.success("Plantão atualizado!");
       onOpenChange(false);
