@@ -14,6 +14,7 @@ interface UserProfile {
   id: string;
   full_name: string;
   nf: string | null;
+  funcao: string | null;
   role: string;
 }
 
@@ -51,7 +52,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
     const load = async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, nf, role").order("full_name");
+      const { data } = await supabase.from("profiles").select("id, full_name, nf, funcao, role").order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
     };
     load();
@@ -105,14 +106,37 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     }
   };
 
-  const MemberSelector = ({ label, members, setMembers }: { label: string; members: ShiftMember[]; setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>> }) => (
+  const MemberSelector = ({ label, members, setMembers, filterFuncao }: { label: string; members: ShiftMember[]; setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>>; filterFuncao?: string }) => {
+    const filteredUsers = users.filter((u) => {
+      if (members.some((m) => m.name === u.full_name)) return false;
+      if (filterFuncao && u.funcao !== filterFuncao) return false;
+      return true;
+    });
+    const allUsers = users.filter((u) => !members.some((m) => m.name === u.full_name));
+    return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <Select onValueChange={(v) => addMember(v, members, setMembers)}>
         <SelectTrigger><SelectValue placeholder="Selecionar membro..." /></SelectTrigger>
         <SelectContent>
-          {users.filter((u) => !members.some((m) => m.name === u.full_name)).map((u) => (
-            <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}</SelectItem>
+          {filteredUsers.length > 0 && (
+            <>
+              {filterFuncao && <SelectItem value="__header_match" disabled className="text-xs text-muted-foreground">— {filterFuncao} —</SelectItem>}
+              {filteredUsers.map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}</SelectItem>
+              ))}
+            </>
+          )}
+          {filterFuncao && allUsers.filter((u) => u.funcao !== filterFuncao).length > 0 && (
+            <>
+              <SelectItem value="__header_other" disabled className="text-xs text-muted-foreground">— Outros —</SelectItem>
+              {allUsers.filter((u) => u.funcao !== filterFuncao).map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}</SelectItem>
+              ))}
+            </>
+          )}
+          {!filterFuncao && allUsers.map((u) => (
+            <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -136,6 +160,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
       )}
     </div>
   );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,9 +189,9 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
               <Input type="time" value={endHour} onChange={(e) => setEndHour(e.target.value)} placeholder="Padrão: +24h" />
             </div>
           </div>
-          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
-          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} />
+          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
+          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
