@@ -217,9 +217,9 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
             <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
             <p className="text-xs text-muted-foreground mt-1">Término padrão: +24h</p>
           </div>
-          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
-          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} />
+          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
+          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
           <Button onClick={handleCreate} disabled={saving} className="w-full">
             {saving ? "Criando..." : "Criar Plantão"}
           </Button>
