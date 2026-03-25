@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Shield, Mail, Lock, User, Eye, EyeOff, Loader2, Hash, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
