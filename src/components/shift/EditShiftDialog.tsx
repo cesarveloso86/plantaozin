@@ -14,7 +14,7 @@ interface UserProfile {
   id: string;
   full_name: string;
   nf: string | null;
-  funcao: string | null;
+  cargo: string | null;
   role: string;
 }
 
@@ -52,7 +52,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
     const load = async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, nf, funcao, role").order("full_name");
+      const { data } = await supabase.from("profiles").select("id, full_name, nf, cargo, role").order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
     };
     load();
@@ -109,7 +109,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
   const MemberSelector = ({ label, members, setMembers, filterFuncao }: { label: string; members: ShiftMember[]; setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>>; filterFuncao?: string }) => {
     const filteredUsers = users.filter((u) => {
       if (members.some((m) => m.name === u.full_name)) return false;
-      if (filterFuncao && u.funcao !== filterFuncao) return false;
+      if (filterFuncao && u.cargo !== filterFuncao) return false;
       return true;
     });
     const allUsers = users.filter((u) => !members.some((m) => m.name === u.full_name));
@@ -127,16 +127,16 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
               ))}
             </>
           )}
-          {filterFuncao && allUsers.filter((u) => u.funcao !== filterFuncao).length > 0 && (
+          {filterFuncao && allUsers.filter((u) => u.cargo !== filterFuncao).length > 0 && (
             <>
               <SelectItem value="__header_other" disabled className="text-xs text-muted-foreground">— Outros —</SelectItem>
-              {allUsers.filter((u) => u.funcao !== filterFuncao).map((u) => (
-                <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}</SelectItem>
+              {allUsers.filter((u) => u.cargo !== filterFuncao).map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}</SelectItem>
               ))}
             </>
           )}
           {!filterFuncao && allUsers.map((u) => (
-            <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}</SelectItem>
+            <SelectItem key={u.id} value={u.id}>{u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -191,7 +191,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           </div>
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo}  />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>

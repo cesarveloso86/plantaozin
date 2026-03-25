@@ -14,7 +14,7 @@ interface UserProfile {
   id: string;
   full_name: string;
   nf: string | null;
-  funcao: string | null;
+  cargo: string | null;
   role: string;
 }
 
@@ -48,7 +48,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     const load = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, nf, funcao, role")
+        .select("id, full_name, nf, cargo, role")
         .order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
     };
@@ -132,7 +132,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   }) => {
     const filteredUsers = users.filter((u) => {
       if (members.some((m) => m.name === u.full_name)) return false;
-      if (filterFuncao && u.funcao !== filterFuncao) return false;
+      if (filterFuncao && u.cargo !== filterFuncao) return false;
       return true;
     });
     const allUsers = users.filter((u) => !members.some((m) => m.name === u.full_name));
@@ -154,19 +154,19 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
               ))}
             </>
           )}
-          {filterFuncao && allUsers.filter((u) => u.funcao !== filterFuncao).length > 0 && (
+          {filterFuncao && allUsers.filter((u) => u.cargo !== filterFuncao).length > 0 && (
             <>
               <SelectItem value="__header_other" disabled className="text-xs text-muted-foreground">— Outros —</SelectItem>
-              {allUsers.filter((u) => u.funcao !== filterFuncao).map((u) => (
+              {allUsers.filter((u) => u.cargo !== filterFuncao).map((u) => (
                 <SelectItem key={u.id} value={u.id}>
-                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}
+                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}
                 </SelectItem>
               ))}
             </>
           )}
           {!filterFuncao && allUsers.map((u) => (
             <SelectItem key={u.id} value={u.id}>
-              {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}
+              {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}
             </SelectItem>
           ))}
         </SelectContent>
@@ -219,7 +219,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
           </div>
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo}  />
           <Button onClick={handleCreate} disabled={saving} className="w-full">
             {saving ? "Criando..." : "Criar Plantão"}
           </Button>
