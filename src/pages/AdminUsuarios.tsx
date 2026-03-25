@@ -39,6 +39,8 @@ const AdminUsuarios = () => {
   const [editUser, setEditUser] = useState<UserWithRole | null>(null);
   const [editName, setEditName] = useState("");
   const [editNf, setEditNf] = useState("");
+  const [editFuncao, setEditFuncao] = useState("");
+  const [editMatricula, setEditMatricula] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
