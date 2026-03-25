@@ -205,6 +205,7 @@ export function useShift() {
     closeShift,
     addObservation,
     selectShift,
+    updateShift,
   };
 }
 

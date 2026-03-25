@@ -116,6 +116,14 @@ const Plantao = () => {
         onOpenChange={setShowCreate}
         onCreate={shift.createShift}
       />
+      {shift.activeShift && (
+        <EditShiftDialog
+          open={showEdit}
+          onOpenChange={setShowEdit}
+          shift={shift.activeShift}
+          onUpdate={shift.updateShift}
+        />
+      )}
     </div>
   );
 };
