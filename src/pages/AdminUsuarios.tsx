@@ -174,11 +174,13 @@ const AdminUsuarios = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>NF</TableHead>
-                    <TableHead>Função</TableHead>
-                    <TableHead>Cadastro</TableHead>
-                    <TableHead className="w-16">Ações</TableHead>
+                     <TableHead>Nome</TableHead>
+                     <TableHead>NF</TableHead>
+                     <TableHead>Função Institucional</TableHead>
+                     <TableHead>Matrícula</TableHead>
+                     <TableHead>Permissão</TableHead>
+                     <TableHead>Cadastro</TableHead>
+                     <TableHead className="w-16">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
