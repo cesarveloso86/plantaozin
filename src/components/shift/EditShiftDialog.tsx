@@ -53,6 +53,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setAuthorities(shift.authorities);
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
+    setAbsences(shift.absences || []);
     const load = async () => {
       const { data } = await supabase.from("profiles").select("id, full_name, nf, cargo, role").order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
