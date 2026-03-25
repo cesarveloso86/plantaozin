@@ -114,7 +114,7 @@ const AdminUsuarios = () => {
     } else {
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === editUser.id ? { ...u, full_name: editName, nf: editNf || null } : u
+          u.id === editUser.id ? { ...u, full_name: editName, nf: editNf || null, funcao: editFuncao || null, matricula: editMatricula || null } : u
         )
       );
       toast.success("Perfil atualizado");
