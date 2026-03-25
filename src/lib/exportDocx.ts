@@ -104,20 +104,6 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
     });
   }
 
-  // Observations
-  if (shift.observations.length > 0) {
-    children.push(new Paragraph({
-      spacing: { before: 300, after: 100 },
-      children: [new TextRun({ text: "OBSERVAÇÕES:", bold: true, underline: {}, size: 22, font: "Arial" })],
-    }));
-    shift.observations.forEach((obs) => {
-      children.push(new Paragraph({
-        bullet: { level: 0 },
-        children: [new TextRun({ text: obs, size: 22, font: "Arial" })],
-      }));
-    });
-  }
-
   // PARTE ADMINISTRATIVA header
   children.push(new Paragraph({
     spacing: { before: 400, after: 100 },
@@ -175,6 +161,21 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
       }
     });
   });
+
+  // Observations at the end of the document
+  if (shift.observations && shift.observations.length > 0) {
+    children.push(new Paragraph({
+      spacing: { before: 400, after: 100 },
+      children: [new TextRun({ text: "OBSERVAÇÕES ADMINISTRATIVAS:", bold: true, underline: {}, size: 22, font: "Arial" })],
+      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000", space: 1 } },
+    }));
+    shift.observations.forEach((obs) => {
+      children.push(new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: obs, size: 22, font: "Arial" })],
+      }));
+    });
+  }
 
   const doc = new Document({
     numbering: {
