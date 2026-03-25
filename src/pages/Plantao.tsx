@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useShift } from "@/hooks/useShift";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, ClipboardList, BarChart3, FileText, Plus } from "lucide-react";
+import { Loader2, ClipboardList, BarChart3, FileText, Plus, Pencil } from "lucide-react";
 import { CreateShiftDialog } from "@/components/shift/CreateShiftDialog";
+import { EditShiftDialog } from "@/components/shift/EditShiftDialog";
 import { OccurrencesTab } from "@/components/shift/OccurrencesTab";
 import { StatisticsTab } from "@/components/shift/StatisticsTab";
 import { ResumoTab } from "@/components/shift/ResumoTab";
@@ -12,6 +13,7 @@ import { ShiftSelector } from "@/components/shift/ShiftSelector";
 const Plantao = () => {
   const shift = useShift();
   const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   if (shift.loading) {
     return (
