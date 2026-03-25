@@ -189,9 +189,9 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
               <Input type="time" value={endHour} onChange={(e) => setEndHour(e.target.value)} placeholder="Padrão: +24h" />
             </div>
           </div>
-          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
-          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} />
+          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} filterFuncao="Autoridade Policial" />
+          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} filterFuncao="OIP" />
+          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} filterFuncao="ISEO" />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
