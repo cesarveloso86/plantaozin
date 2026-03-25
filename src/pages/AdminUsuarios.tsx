@@ -255,6 +255,23 @@ const AdminUsuarios = () => {
               <Label>Número Funcional (NF)</Label>
               <Input value={editNf} onChange={(e) => setEditNf(e.target.value)} placeholder="Ex: 4752619" />
             </div>
+            <div>
+              <Label>Matrícula</Label>
+              <Input value={editMatricula} onChange={(e) => setEditMatricula(e.target.value)} placeholder="Ex: 123456" />
+            </div>
+            <div>
+              <Label>Função Institucional</Label>
+              <select
+                value={editFuncao}
+                onChange={(e) => setEditFuncao(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground"
+              >
+                <option value="">Sem função</option>
+                <option value="Autoridade Policial">Autoridade Policial</option>
+                <option value="OIP">OIP — Oficial Investigador</option>
+                <option value="ISEO">ISEO</option>
+              </select>
+            </div>
             <Button onClick={handleSaveEdit} disabled={saving} className="w-full">
               {saving ? "Salvando..." : "Salvar Alterações"}
             </Button>
