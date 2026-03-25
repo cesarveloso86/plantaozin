@@ -70,6 +70,7 @@ export function useShift() {
       authorities: ShiftMember[];
       investigators: ShiftMember[];
       iseo: ShiftMember[];
+      absences?: ShiftAbsence[];
     }) => {
       if (!user) return null;
       const { data, error } = await supabase
