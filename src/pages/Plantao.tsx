@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { useShift } from "@/hooks/useShift";
+import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, ClipboardList, BarChart3, FileText, Plus, Pencil } from "lucide-react";
+import { Loader2, ClipboardList, BarChart3, FileText, Plus, Pencil, Trash2 } from "lucide-react";
 import { CreateShiftDialog } from "@/components/shift/CreateShiftDialog";
 import { EditShiftDialog } from "@/components/shift/EditShiftDialog";
 import { OccurrencesTab } from "@/components/shift/OccurrencesTab";
 import { StatisticsTab } from "@/components/shift/StatisticsTab";
 import { ResumoTab } from "@/components/shift/ResumoTab";
 import { ShiftSelector } from "@/components/shift/ShiftSelector";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const Plantao = () => {
   const shift = useShift();
+  const { isAdmin } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -50,6 +58,15 @@ const Plantao = () => {
     );
   }
 
+  const handleDeleteShift = async () => {
+    try {
+      await shift.deleteShift(shift.activeShift!.id);
+      toast.success("Plantão excluído com sucesso");
+    } catch {
+      toast.error("Erro ao excluir plantão");
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col p-4 sm:p-6 gap-4 overflow-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -71,6 +88,29 @@ const Plantao = () => {
           <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4 mr-1" /> Novo
           </Button>
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação é irreversível. Todas as ocorrências deste plantão também serão excluídas.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteShift} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 

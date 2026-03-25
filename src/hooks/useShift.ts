@@ -193,6 +193,16 @@ export function useShift() {
     [activeShift]
   );
 
+  const deleteShift = useCallback(async (shiftId: string) => {
+    await supabase.from("shift_occurrences").delete().eq("shift_id", shiftId);
+    await supabase.from("shifts").delete().eq("id", shiftId);
+    setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+    if (activeShift?.id === shiftId) {
+      setActiveShift(null);
+      setOccurrences([]);
+    }
+  }, [activeShift]);
+
   return {
     activeShift,
     occurrences,
@@ -206,6 +216,7 @@ export function useShift() {
     addObservation,
     selectShift,
     updateShift,
+    deleteShift,
   };
 }
 
