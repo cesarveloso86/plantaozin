@@ -195,11 +195,33 @@ serve(async (req) => {
     if (!content) throw new Error("Resposta vazia da IA");
 
     let cleanContent = content.trim();
-    if (cleanContent.startsWith("```")) {
-      cleanContent = cleanContent.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+    // Remove markdown code blocks
+    cleanContent = cleanContent
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .trim();
+
+    // Find JSON boundaries
+    const jsonStart = cleanContent.search(/[\{\[]/);
+    const jsonEnd = cleanContent.lastIndexOf(
+      jsonStart !== -1 && cleanContent[jsonStart] === "[" ? "]" : "}"
+    );
+
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
     }
 
-    const parsed = JSON.parse(cleanContent);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleanContent);
+    } catch (_e) {
+      // Fix common LLM JSON issues: trailing commas, control chars
+      cleanContent = cleanContent
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
+      parsed = JSON.parse(cleanContent);
+    }
     await validateCep(parsed, cleanContent);
 
     return new Response(JSON.stringify(parsed), {
