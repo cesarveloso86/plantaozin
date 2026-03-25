@@ -52,7 +52,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
     const load = async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, nf, role").order("full_name");
+      const { data } = await supabase.from("profiles").select("id, full_name, nf, funcao, role").order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
     };
     load();
