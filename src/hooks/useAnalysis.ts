@@ -65,7 +65,7 @@ export function useAnalysis() {
     }
   }, []);
 
-  const reanalyze = useCallback(async (instructions: string) => {
+  const reanalyze = useCallback(async (instructions: string, field?: string) => {
     if (!lastBase64.current) return;
     setError(null);
 
@@ -77,6 +77,7 @@ export function useAnalysis() {
           file_name: lastFileName.current,
           instructions,
           previous_result: result,
+          field,
         },
       });
 
