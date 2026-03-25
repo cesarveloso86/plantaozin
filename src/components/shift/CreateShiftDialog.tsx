@@ -92,10 +92,14 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     setSaving(true);
     try {
       const startTime = new Date(`${shiftDate}T${startHour}:00`).toISOString();
+      const endDate = new Date(`${shiftDate}T${startHour}:00`);
+      endDate.setHours(endDate.getHours() + 24);
+      const endTime = endDate.toISOString();
       await onCreate({
         team_name: teamName,
         shift_date: shiftDate,
         start_time: startTime,
+        end_time: endTime,
         authorities,
         investigators,
         iseo,

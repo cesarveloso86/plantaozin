@@ -66,6 +66,7 @@ export function useShift() {
       team_name: string;
       shift_date: string;
       start_time: string;
+      end_time?: string;
       authorities: ShiftMember[];
       investigators: ShiftMember[];
       iseo: ShiftMember[];
@@ -78,6 +79,7 @@ export function useShift() {
           team_name: params.team_name,
           shift_date: params.shift_date,
           start_time: params.start_time,
+          end_time: params.end_time || null,
           authorities: params.authorities as any,
           investigators: params.investigators as any,
           iseo: params.iseo as any,
