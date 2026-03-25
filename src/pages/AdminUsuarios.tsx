@@ -106,7 +106,7 @@ const AdminUsuarios = () => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: editName, nf: editNf || null } as any)
+      .update({ full_name: editName, nf: editNf || null, funcao: editFuncao || null, matricula: editMatricula || null } as any)
       .eq("id", editUser.id);
 
     if (error) {
