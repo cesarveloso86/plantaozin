@@ -174,7 +174,7 @@ export function useShift() {
   }, []);
 
   const updateShift = useCallback(
-    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo">>) => {
+    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences">>) => {
       if (!activeShift) return;
       const payload: any = {};
       if (updates.team_name !== undefined) payload.team_name = updates.team_name;
@@ -184,6 +184,7 @@ export function useShift() {
       if (updates.authorities !== undefined) payload.authorities = updates.authorities;
       if (updates.investigators !== undefined) payload.investigators = updates.investigators;
       if (updates.iseo !== undefined) payload.iseo = updates.iseo;
+      if (updates.absences !== undefined) payload.absences = updates.absences;
       const { error } = await supabase
         .from("shifts")
         .update(payload)
