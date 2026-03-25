@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { ShiftMember } from "@/types/shift";
+import type { ShiftMember, ShiftAbsence } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
+import { AbsenceSelector } from "./AbsenceSelector";
 import { TEAM_NAMES } from "./shiftConstants";
 
 interface UserProfile {
@@ -29,6 +30,7 @@ interface Props {
     authorities: ShiftMember[];
     investigators: ShiftMember[];
     iseo: ShiftMember[];
+    absences?: ShiftAbsence[];
   }) => Promise<any>;
 }
 
@@ -41,6 +43,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [authorities, setAuthorities] = useState<ShiftMember[]>([]);
   const [investigators, setInvestigators] = useState<ShiftMember[]>([]);
   const [iseo, setIseo] = useState<ShiftMember[]>([]);
+  const [absences, setAbsences] = useState<ShiftAbsence[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +82,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
         authorities,
         investigators,
         iseo,
+        absences,
       });
       toast.success("Plantão criado com sucesso!");
       onOpenChange(false);
@@ -86,6 +90,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
       setAuthorities([]);
       setInvestigators([]);
       setIseo([]);
+      setAbsences([]);
     } catch (err) {
       toast.error("Erro ao criar plantão");
     } finally {
@@ -127,6 +132,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} users={users} allSelectedNames={allSelectedNames} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} users={users} allSelectedNames={allSelectedNames} filterFuncao="OIP" />
           <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} users={users} allSelectedNames={allSelectedNames} />
+          <AbsenceSelector absences={absences} setAbsences={setAbsences} />
           <Button onClick={handleCreate} disabled={saving} className="w-full">
             {saving ? "Criando..." : "Criar Plantão"}
           </Button>

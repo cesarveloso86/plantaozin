@@ -90,6 +90,20 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
     });
   }
 
+  // Absences
+  if (shift.absences && shift.absences.length > 0) {
+    children.push(new Paragraph({
+      spacing: { before: 200, after: 100 },
+      children: [new TextRun({ text: "AUSÊNCIAS:", bold: true, underline: {}, size: 22, font: "Arial" })],
+    }));
+    shift.absences.forEach((abs) => {
+      children.push(new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `${abs.name.toUpperCase()} — ${abs.reason.toUpperCase()}`, size: 22, font: "Arial" })],
+      }));
+    });
+  }
+
   // Observations
   if (shift.observations.length > 0) {
     children.push(new Paragraph({

@@ -229,6 +229,7 @@ function parseShift(data: any): Shift {
     authorities: Array.isArray(data.authorities) ? data.authorities : JSON.parse(data.authorities || "[]"),
     investigators: Array.isArray(data.investigators) ? data.investigators : JSON.parse(data.investigators || "[]"),
     iseo: Array.isArray(data.iseo) ? data.iseo : JSON.parse(data.iseo || "[]"),
+    absences: Array.isArray(data.absences) ? data.absences : JSON.parse(data.absences || "[]"),
     observations: Array.isArray(data.observations) ? data.observations : [],
   } as Shift;
 }
