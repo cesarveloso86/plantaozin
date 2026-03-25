@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Loader2, Shield, User, Search } from "lucide-react";
+import { Loader2, Shield, User, Search, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -30,6 +34,10 @@ const AdminUsuarios = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [editUser, setEditUser] = useState<UserWithRole | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNf, setEditNf] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -37,13 +45,11 @@ const AdminUsuarios = () => {
   }, [isAdmin]);
 
   const loadUsers = async () => {
-    // Get all profiles (admin can read all)
     const { data: profiles } = await supabase
       .from("profiles")
       .select("*")
       .order("created_at", { ascending: false });
 
-    // Get all roles
     const { data: roles } = await supabase
       .from("user_roles")
       .select("*");
@@ -65,9 +71,7 @@ const AdminUsuarios = () => {
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    // Delete existing role
     await supabase.from("user_roles").delete().eq("user_id", userId);
-    // Insert new role
     const { error } = await supabase
       .from("user_roles")
       .insert({ user_id: userId, role: newRole } as any);
@@ -83,6 +87,34 @@ const AdminUsuarios = () => {
     toast.success("Função alterada com sucesso");
   };
 
+  const openEdit = (user: UserWithRole) => {
+    setEditUser(user);
+    setEditName(user.full_name);
+    setEditNf(user.nf || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editUser) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editName, nf: editNf || null } as any)
+      .eq("id", editUser.id);
+
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+    } else {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === editUser.id ? { ...u, full_name: editName, nf: editNf || null } : u
+        )
+      );
+      toast.success("Perfil atualizado");
+      setEditUser(null);
+    }
+    setSaving(false);
+  };
+
   if (authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -94,7 +126,8 @@ const AdminUsuarios = () => {
   if (!isAdmin) return <Navigate to="/" replace />;
 
   const filtered = users.filter((u) =>
-    u.full_name.toLowerCase().includes(search.toLowerCase())
+    u.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    (u.nf && u.nf.includes(search))
   );
 
   return (
@@ -110,7 +143,7 @@ const AdminUsuarios = () => {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome..."
+            placeholder="Buscar por nome ou NF..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -131,13 +164,13 @@ const AdminUsuarios = () => {
           <Card>
             <CardContent className="p-0">
               <Table>
-                 <TableHeader>
+                <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>NF</TableHead>
-                    <TableHead>Cargo</TableHead>
                     <TableHead>Função</TableHead>
                     <TableHead>Cadastro</TableHead>
+                    <TableHead className="w-16">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -171,11 +204,16 @@ const AdminUsuarios = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString("pt-BR")}
                       </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(user)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
@@ -186,6 +224,27 @@ const AdminUsuarios = () => {
           </Card>
         </motion.div>
       )}
+
+      <Dialog open={!!editUser} onOpenChange={(v) => !v && setEditUser(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Número Funcional (NF)</Label>
+              <Input value={editNf} onChange={(e) => setEditNf(e.target.value)} placeholder="Ex: 4752619" />
+            </div>
+            <Button onClick={handleSaveEdit} disabled={saving} className="w-full">
+              {saving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

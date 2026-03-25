@@ -2,6 +2,7 @@ export interface ShiftMember {
   name: string;
   nf?: string;
   role?: string;
+  substituting?: string; // nome do servidor que está sendo substituído
 }
 
 export interface Shift {
