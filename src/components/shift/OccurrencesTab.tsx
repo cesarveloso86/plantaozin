@@ -258,7 +258,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <Label className="text-xs">Nº BU</Label>
-              <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-8 text-xs" className="h-8 text-xs"
+              <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-8 text-xs"
                 onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
             </div>
             <div className="w-[100px]">
