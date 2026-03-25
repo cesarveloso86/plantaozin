@@ -144,13 +144,31 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
           <SelectValue placeholder="Selecionar membro..." />
         </SelectTrigger>
         <SelectContent>
-          {users
-            .filter((u) => !members.some((m) => m.name === u.full_name))
-            .map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}
-              </SelectItem>
-            ))}
+          {filteredUsers.length > 0 && (
+            <>
+              {filterFuncao && <SelectItem value="__header_match" disabled className="text-xs text-muted-foreground">— {filterFuncao} —</SelectItem>}
+              {filteredUsers.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}
+                </SelectItem>
+              ))}
+            </>
+          )}
+          {filterFuncao && allUsers.filter((u) => u.funcao !== filterFuncao).length > 0 && (
+            <>
+              <SelectItem value="__header_other" disabled className="text-xs text-muted-foreground">— Outros —</SelectItem>
+              {allUsers.filter((u) => u.funcao !== filterFuncao).map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}
+                </SelectItem>
+              ))}
+            </>
+          )}
+          {!filterFuncao && allUsers.map((u) => (
+            <SelectItem key={u.id} value={u.id}>
+              {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.funcao ? ` [${u.funcao}]` : ""}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       {members.length > 0 && (
@@ -175,6 +193,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
       )}
     </div>
   );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
