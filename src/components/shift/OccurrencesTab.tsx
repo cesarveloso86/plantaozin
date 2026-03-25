@@ -258,7 +258,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <Label className="text-xs">Nº BU</Label>
-              <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="60805037" className="h-8 text-xs"
+              <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-8 text-xs"
                 onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
             </div>
             <div className="w-[100px]">
@@ -391,7 +391,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           <DialogHeader><DialogTitle>{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="60805037" /></div>
+              <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
               <div>
                 <Label>Tipo Procedimento</Label>
                 <Select value={form.procedure_type || ""} onValueChange={(v) => set("procedure_type", v)}>
