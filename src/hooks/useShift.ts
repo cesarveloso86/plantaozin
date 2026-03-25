@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Shift, ShiftOccurrence, ShiftMember } from "@/types/shift";
+import type { Shift, ShiftOccurrence, ShiftMember, ShiftAbsence } from "@/types/shift";
 
 export function useShift() {
   const { user } = useAuth();
