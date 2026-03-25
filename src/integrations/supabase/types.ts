@@ -178,6 +178,7 @@ export type Database = {
       }
       shifts: {
         Row: {
+          absences: Json
           authorities: Json
           created_at: string
           created_by: string
@@ -192,6 +193,7 @@ export type Database = {
           team_name: string
         }
         Insert: {
+          absences?: Json
           authorities?: Json
           created_at?: string
           created_by: string
@@ -206,6 +208,7 @@ export type Database = {
           team_name: string
         }
         Update: {
+          absences?: Json
           authorities?: Json
           created_at?: string
           created_by?: string
