@@ -261,9 +261,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-8 text-xs"
                 onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
             </div>
-            <div className="w-[100px]">
+            <div className="w-[120px]">
               <Label className="text-xs">Horário</Label>
-              <Input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-8 text-xs" />
+              <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-8 text-xs" />
             </div>
             <Button size="sm" variant="outline" onClick={addToQueue} className="h-8 gap-1 shrink-0">
               <Plus className="w-3 h-3" /> Fila
