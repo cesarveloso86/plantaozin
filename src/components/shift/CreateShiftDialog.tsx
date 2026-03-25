@@ -48,7 +48,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     const load = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, nf, role")
+        .select("id, full_name, nf, funcao, role")
         .order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
     };
