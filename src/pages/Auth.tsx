@@ -19,6 +19,8 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [nf, setNf] = useState("");
+  const [funcao, setFuncao] = useState("");
+  const [matricula, setMatricula] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
