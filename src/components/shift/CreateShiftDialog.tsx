@@ -123,11 +123,20 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     label,
     members,
     setMembers,
+    filterFuncao,
   }: {
     label: string;
     members: ShiftMember[];
     setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>>;
-  }) => (
+    filterFuncao?: string;
+  }) => {
+    const filteredUsers = users.filter((u) => {
+      if (members.some((m) => m.name === u.full_name)) return false;
+      if (filterFuncao && u.funcao !== filterFuncao) return false;
+      return true;
+    });
+    const allUsers = users.filter((u) => !members.some((m) => m.name === u.full_name));
+    return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <Select onValueChange={(v) => addMember(v, members, setMembers)}>
