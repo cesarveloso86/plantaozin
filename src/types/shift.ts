@@ -2,7 +2,12 @@ export interface ShiftMember {
   name: string;
   nf?: string;
   role?: string;
-  substituting?: string; // nome do servidor que está sendo substituído
+  substituting?: string;
+}
+
+export interface ShiftAbsence {
+  name: string;
+  reason: string;
 }
 
 export interface Shift {
@@ -16,6 +21,7 @@ export interface Shift {
   authorities: ShiftMember[];
   investigators: ShiftMember[];
   iseo: ShiftMember[];
+  absences: ShiftAbsence[];
   observations: string[];
   created_at: string;
 }

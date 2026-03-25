@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Shift, ShiftOccurrence, ShiftMember } from "@/types/shift";
+import type { Shift, ShiftOccurrence, ShiftMember, ShiftAbsence } from "@/types/shift";
 
 export function useShift() {
   const { user } = useAuth();
@@ -70,6 +70,7 @@ export function useShift() {
       authorities: ShiftMember[];
       investigators: ShiftMember[];
       iseo: ShiftMember[];
+      absences?: ShiftAbsence[];
     }) => {
       if (!user) return null;
       const { data, error } = await supabase
@@ -83,6 +84,7 @@ export function useShift() {
           authorities: params.authorities as any,
           investigators: params.investigators as any,
           iseo: params.iseo as any,
+          absences: (params.absences || []) as any,
         } as any)
         .select()
         .single();
@@ -172,7 +174,7 @@ export function useShift() {
   }, []);
 
   const updateShift = useCallback(
-    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo">>) => {
+    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences">>) => {
       if (!activeShift) return;
       const payload: any = {};
       if (updates.team_name !== undefined) payload.team_name = updates.team_name;
@@ -182,6 +184,7 @@ export function useShift() {
       if (updates.authorities !== undefined) payload.authorities = updates.authorities;
       if (updates.investigators !== undefined) payload.investigators = updates.investigators;
       if (updates.iseo !== undefined) payload.iseo = updates.iseo;
+      if (updates.absences !== undefined) payload.absences = updates.absences;
       const { error } = await supabase
         .from("shifts")
         .update(payload)
@@ -226,6 +229,7 @@ function parseShift(data: any): Shift {
     authorities: Array.isArray(data.authorities) ? data.authorities : JSON.parse(data.authorities || "[]"),
     investigators: Array.isArray(data.investigators) ? data.investigators : JSON.parse(data.investigators || "[]"),
     iseo: Array.isArray(data.iseo) ? data.iseo : JSON.parse(data.iseo || "[]"),
+    absences: Array.isArray(data.absences) ? data.absences : JSON.parse(data.absences || "[]"),
     observations: Array.isArray(data.observations) ? data.observations : [],
   } as Shift;
 }

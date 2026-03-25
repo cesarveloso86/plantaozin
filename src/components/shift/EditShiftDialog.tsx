@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { Shift, ShiftMember } from "@/types/shift";
+import type { Shift, ShiftMember, ShiftAbsence } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
+import { AbsenceSelector } from "./AbsenceSelector";
 import { TEAM_NAMES } from "./shiftConstants";
 
 interface UserProfile {
@@ -22,7 +23,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shift: Shift;
-  onUpdate: (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo">>) => Promise<void>;
+  onUpdate: (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences">>) => Promise<void>;
 }
 
 export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) {
@@ -41,6 +42,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
   const [authorities, setAuthorities] = useState<ShiftMember[]>(shift.authorities);
   const [investigators, setInvestigators] = useState<ShiftMember[]>(shift.investigators);
   const [iseo, setIseo] = useState<ShiftMember[]>(shift.iseo);
+  const [absences, setAbsences] = useState<ShiftAbsence[]>(shift.absences || []);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +53,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setAuthorities(shift.authorities);
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
+    setAbsences(shift.absences || []);
     const load = async () => {
       const { data } = await supabase.from("profiles").select("id, full_name, nf, cargo, role").order("full_name");
       setUsers((data as unknown as UserProfile[]) || []);
@@ -85,6 +88,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
         authorities,
         investigators,
         iseo,
+        absences,
       });
       toast.success("Plantão atualizado!");
       onOpenChange(false);
@@ -134,6 +138,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} users={users} allSelectedNames={allSelectedNames} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} users={users} allSelectedNames={allSelectedNames} filterFuncao="OIP" />
           <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} users={users} allSelectedNames={allSelectedNames} />
+          <AbsenceSelector absences={absences} setAbsences={setAbsences} />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>

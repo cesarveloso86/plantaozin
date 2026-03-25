@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Edit, X } from "lucide-react";
+import { Plus, Trash2, Edit, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
@@ -36,6 +35,34 @@ const emptyForm = (): Partial<ShiftOccurrence> => ({
   po_status: "",
 });
 
+/** Round-robin: retorna o próximo índice baseado na contagem de ocorrências existentes */
+function getNextRoundRobin(members: string[], occurrences: ShiftOccurrence[], field: "investigator" | "authority"): string {
+  if (members.length === 0) return "";
+  // Conta quantas ocorrências cada membro já tem
+  const counts: Record<string, number> = {};
+  members.forEach((m) => (counts[m] = 0));
+  occurrences.forEach((o) => {
+    const val = o[field];
+    if (val && counts[val] !== undefined) counts[val]++;
+  });
+  // Retorna o membro com menor contagem
+  let min = Infinity;
+  let pick = members[0];
+  for (const m of members) {
+    if (counts[m] < min) {
+      min = counts[m];
+      pick = m;
+    }
+  }
+  return pick;
+}
+
+function getNextInList(members: string[], current: string): string {
+  if (members.length === 0) return "";
+  const idx = members.indexOf(current);
+  return members[(idx + 1) % members.length];
+}
+
 export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,8 +72,21 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const investigators = shift.investigators.map((i) => i.name);
   const authorities = shift.authorities.map((a) => a.name);
 
+  const suggestedInvestigator = useMemo(
+    () => getNextRoundRobin(investigators, occurrences, "investigator"),
+    [investigators, occurrences]
+  );
+  const suggestedAuthority = useMemo(
+    () => getNextRoundRobin(authorities, occurrences, "authority"),
+    [authorities, occurrences]
+  );
+
   const openNew = () => {
-    setForm(emptyForm());
+    setForm({
+      ...emptyForm(),
+      investigator: suggestedInvestigator,
+      authority: suggestedAuthority,
+    });
     setEditingId(null);
     setShowForm(true);
   };
@@ -79,11 +119,68 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     }
   };
 
+  const handleSkip = async (occ: ShiftOccurrence) => {
+    const nextInv = getNextInList(investigators, occ.investigator || "");
+    const nextAuth = getNextInList(authorities, occ.authority || "");
+    try {
+      await onUpdate(occ.id, { investigator: nextInv, authority: nextAuth });
+      toast.success("Dupla remanejada");
+    } catch {
+      toast.error("Erro ao pular vez");
+    }
+  };
+
+  const handleInlineChange = async (occId: string, field: "investigator" | "authority", value: string) => {
+    try {
+      await onUpdate(occId, { [field]: value });
+    } catch {
+      toast.error("Erro ao atualizar");
+    }
+  };
+
   const set = (key: keyof ShiftOccurrence, value: any) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   return (
     <div className="space-y-4">
+      {/* Fila de distribuição */}
+      {shift.status === "active" && occurrences.length > 0 && (
+        <div className="border border-border rounded-lg p-3 bg-muted/30">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Fila de Distribuição — Próxima dupla sugerida: <span className="text-foreground">{suggestedInvestigator || "—"}</span> + <span className="text-foreground">{suggestedAuthority || "—"}</span></p>
+          <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+            {occurrences.slice().reverse().slice(0, 5).map((occ) => (
+              <div key={occ.id} className="flex items-center gap-2 text-xs bg-background rounded px-2 py-1.5 border border-border">
+                <span className="font-mono font-semibold min-w-[80px]">{occ.bu_number}</span>
+                <span className="text-muted-foreground">
+                  {occ.tramitation_time
+                    ? new Date(occ.tramitation_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                    : "—"}
+                </span>
+                <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                  <SelectTrigger className="h-6 text-xs w-[130px]">
+                    <SelectValue placeholder="OIP" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                  <SelectTrigger className="h-6 text-xs w-[130px]">
+                    <SelectValue placeholder="Autoridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Pular Vez" onClick={() => handleSkip(occ)}>
+                  <SkipForward className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{occurrences.length} ocorrência(s)</p>
         {shift.status === "active" && (
