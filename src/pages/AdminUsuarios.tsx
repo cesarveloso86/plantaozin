@@ -198,6 +198,12 @@ const AdminUsuarios = () => {
                         <span className="text-sm font-mono text-muted-foreground">{user.nf || "—"}</span>
                       </TableCell>
                       <TableCell>
+                        <span className="text-sm text-muted-foreground">{user.funcao || "—"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-mono text-muted-foreground">{user.matricula || "—"}</span>
+                      </TableCell>
+                      <TableCell>
                         <Select
                           value={user.db_role || "analista"}
                           onValueChange={(val) => handleRoleChange(user.id, val)}
