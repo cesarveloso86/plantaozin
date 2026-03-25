@@ -97,6 +97,8 @@ const AdminUsuarios = () => {
     setEditUser(user);
     setEditName(user.full_name);
     setEditNf(user.nf || "");
+    setEditFuncao(user.funcao || "");
+    setEditMatricula(user.matricula || "");
   };
 
   const handleSaveEdit = async () => {
