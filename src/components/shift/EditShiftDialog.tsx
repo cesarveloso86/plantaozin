@@ -138,7 +138,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} users={users} allSelectedNames={allSelectedNames} filterFuncao="Autoridade Policial" />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} users={users} allSelectedNames={allSelectedNames} filterFuncao="OIP" />
           <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} users={users} allSelectedNames={allSelectedNames} />
-          <AbsenceSelector absences={absences} setAbsences={setAbsences} />
+          <AbsenceSelector absences={absences} setAbsences={setAbsences} scheduledMembers={[...authorities.map(m => m.name), ...investigators.map(m => m.name), ...iseo.map(m => m.name)]} />
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
