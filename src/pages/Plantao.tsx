@@ -63,6 +63,11 @@ const Plantao = () => {
         </div>
         <div className="flex gap-2">
           <ShiftSelector shifts={shift.shifts} onSelect={shift.selectShift} />
+          {shift.activeShift.status === "active" && (
+            <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
+              <Pencil className="w-4 h-4 mr-1" /> Editar
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4 mr-1" /> Novo
           </Button>
