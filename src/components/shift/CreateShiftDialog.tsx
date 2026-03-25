@@ -186,6 +186,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
           <div>
             <Label>Horário de Início</Label>
             <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
+            <p className="text-xs text-muted-foreground mt-1">Término padrão: +24h</p>
           </div>
           <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} />
           <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} />
