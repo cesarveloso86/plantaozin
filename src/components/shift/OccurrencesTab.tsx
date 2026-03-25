@@ -391,7 +391,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           <DialogHeader><DialogTitle>{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
+              <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
               <div>
                 <Label>Tipo Procedimento</Label>
                 <Select value={form.procedure_type || ""} onValueChange={(v) => set("procedure_type", v)}>
