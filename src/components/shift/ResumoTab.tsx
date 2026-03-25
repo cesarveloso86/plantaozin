@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Download, Plus, Lock, FileText, Sheet } from "lucide-react";
+import { Plus, Lock, FileText, Sheet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { REGIONALS } from "@/types/shift";
+import { exportPODocx } from "@/lib/exportDocx";
+import { exportShiftXlsx } from "@/lib/exportXlsx";
 
 interface Props {
   shift: Shift;
@@ -18,6 +20,8 @@ interface Props {
 export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }: Props) {
   const [newObs, setNewObs] = useState("");
   const [closing, setClosing] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   const occByRegional = useMemo(() => {
     const grouped: Record<string, ShiftOccurrence[]> = {};
@@ -26,7 +30,6 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(occ);
     });
-    // Sort by regional order
     const sorted: Record<string, ShiftOccurrence[]> = {};
     [...REGIONALS, "Sem Regional"].forEach((r) => {
       if (grouped[r]) sorted[r] = grouped[r];
@@ -52,11 +55,29 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
   };
 
   const handleExportDOCX = async () => {
-    toast.info("Gerando DOCX... (funcionalidade em desenvolvimento)");
+    setExportingDocx(true);
+    try {
+      await exportPODocx(shift, occurrences);
+      toast.success("PO exportada com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao gerar DOCX");
+      console.error(err);
+    } finally {
+      setExportingDocx(false);
+    }
   };
 
   const handleExportXLSX = async () => {
-    toast.info("Gerando XLSX... (funcionalidade em desenvolvimento)");
+    setExportingXlsx(true);
+    try {
+      await exportShiftXlsx(shift, occurrences);
+      toast.success("Planilha exportada com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao gerar XLSX");
+      console.error(err);
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   return (
@@ -78,7 +99,10 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
               <strong>Autoridades:</strong>
               <ul className="list-disc list-inside ml-2">
                 {shift.authorities.map((a, i) => (
-                  <li key={i}>{a.name}</li>
+                  <li key={i}>
+                    {a.name}
+                    {a.substituting && <span className="text-muted-foreground"> (substituindo {a.substituting})</span>}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -88,7 +112,10 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
               <strong>OIPs:</strong>
               <ul className="list-disc list-inside ml-2">
                 {shift.investigators.map((inv, i) => (
-                  <li key={i}>{inv.name}{inv.nf ? ` - NF ${inv.nf}` : ""}</li>
+                  <li key={i}>
+                    {inv.name}{inv.nf ? ` - NF ${inv.nf}` : ""}
+                    {inv.substituting && <span className="text-muted-foreground"> (substituindo {inv.substituting})</span>}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -98,7 +125,10 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
               <strong>ISEO:</strong>
               <ul className="list-disc list-inside ml-2">
                 {shift.iseo.map((is, i) => (
-                  <li key={i}>{is.name}{is.nf ? ` - NF ${is.nf}` : ""}</li>
+                  <li key={i}>
+                    {is.name}{is.nf ? ` - NF ${is.nf}` : ""}
+                    {is.substituting && <span className="text-muted-foreground"> (substituindo {is.substituting})</span>}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -179,11 +209,13 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={handleExportDOCX} className="gap-2">
-          <FileText className="w-4 h-4" /> Exportar PO (DOCX)
+        <Button variant="outline" onClick={handleExportDOCX} disabled={exportingDocx} className="gap-2">
+          {exportingDocx ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+          Exportar PO (DOCX)
         </Button>
-        <Button variant="outline" onClick={handleExportXLSX} className="gap-2">
-          <Sheet className="w-4 h-4" /> Exportar Planilha (XLSX)
+        <Button variant="outline" onClick={handleExportXLSX} disabled={exportingXlsx} className="gap-2">
+          {exportingXlsx ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sheet className="w-4 h-4" />}
+          Exportar Planilha (XLSX)
         </Button>
         {shift.status === "active" && (
           <Button variant="destructive" onClick={handleClose} disabled={closing} className="gap-2 ml-auto">

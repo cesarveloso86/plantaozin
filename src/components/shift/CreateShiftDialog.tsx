@@ -74,6 +74,16 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
     setList((prev) => prev.filter((m) => m.name !== name));
   };
 
+  const setSubstituting = (
+    name: string,
+    value: string,
+    setList: React.Dispatch<React.SetStateAction<ShiftMember[]>>
+  ) => {
+    setList((prev) =>
+      prev.map((m) => m.name === name ? { ...m, substituting: value || undefined } : m)
+    );
+  };
+
   const handleCreate = async () => {
     if (!teamName.trim()) {
       toast.error("Informe o nome da equipe");
@@ -129,14 +139,22 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
         </SelectContent>
       </Select>
       {members.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <div className="space-y-1.5 mt-1">
           {members.map((m) => (
-            <Badge key={m.name} variant="secondary" className="gap-1 pr-1">
-              {m.name}{m.nf ? ` (${m.nf})` : ""}
-              <button onClick={() => removeMember(m.name, setMembers)} className="ml-1 hover:text-destructive">
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
+            <div key={m.name} className="flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1 pr-1 shrink-0">
+                {m.name}{m.nf ? ` (${m.nf})` : ""}
+                <button onClick={() => removeMember(m.name, setMembers)} className="ml-1 hover:text-destructive">
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+              <Input
+                placeholder="Substituto de..."
+                value={m.substituting || ""}
+                onChange={(e) => setSubstituting(m.name, e.target.value, setMembers)}
+                className="h-7 text-xs flex-1 min-w-0"
+              />
+            </div>
           ))}
         </div>
       )}
