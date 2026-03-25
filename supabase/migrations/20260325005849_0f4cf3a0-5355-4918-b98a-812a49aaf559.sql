@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS funcao text DEFAULT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS matricula text DEFAULT NULL;
