@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Loader2, Shield, User, Search, Pencil } from "lucide-react";
+import { Loader2, Shield, User, Search, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,14 @@ const AdminUsuarios = () => {
   const [editNf, setEditNf] = useState("");
   const [editCargo, setEditCargo] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Create user state
+  const [showCreate, setShowCreate] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newNf, setNewNf] = useState("");
+  const [newCargo, setNewCargo] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -118,6 +126,32 @@ const AdminUsuarios = () => {
     setSaving(false);
   };
 
+  const handleCreateUser = async () => {
+    if (!newEmail.trim() || !newName.trim()) {
+      toast.error("Email e nome são obrigatórios");
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: { email: newEmail, full_name: newName, nf: newNf || null, cargo: newCargo || null },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Usuário criado! O usuário deve usar 'Esqueci minha senha' para definir a senha.");
+      setShowCreate(false);
+      setNewEmail("");
+      setNewName("");
+      setNewNf("");
+      setNewCargo("");
+      loadUsers();
+    } catch (err: any) {
+      toast.error("Erro ao criar usuário: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -143,14 +177,19 @@ const AdminUsuarios = () => {
           </h2>
           <p className="text-sm text-muted-foreground">{users.length} usuário(s) cadastrado(s)</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou NF..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou NF..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={() => setShowCreate(true)} size="sm" className="shrink-0 gap-1">
+            <Plus className="w-4 h-4" /> Criar Usuário
+          </Button>
         </div>
       </div>
 
@@ -232,6 +271,7 @@ const AdminUsuarios = () => {
         </motion.div>
       )}
 
+      {/* Edit user dialog */}
       <Dialog open={!!editUser} onOpenChange={(v) => !v && setEditUser(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -248,19 +288,62 @@ const AdminUsuarios = () => {
             </div>
             <div>
               <Label>Cargo</Label>
-              <select
-                value={editCargo}
-                onChange={(e) => setEditCargo(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground"
-              >
-                <option value="">Sem cargo</option>
-                <option value="Autoridade Policial">Autoridade Policial</option>
-                <option value="OIP">OIP — Oficial Investigador</option>
-              </select>
+              <Select value={editCargo || "__none"} onValueChange={(v) => setEditCargo(v === "__none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Sem cargo</SelectItem>
+                  <SelectItem value="Autoridade Policial">Autoridade Policial</SelectItem>
+                  <SelectItem value="OIP">OIP — Oficial Investigador</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={handleSaveEdit} disabled={saving} className="w-full">
               {saving ? "Salvando..." : "Salvar Alterações"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create user dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Criar Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="usuario@email.com" />
+            </div>
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome Sobrenome" />
+            </div>
+            <div>
+              <Label>Número Funcional (NF)</Label>
+              <Input value={newNf} onChange={(e) => setNewNf(e.target.value)} placeholder="Ex: 4752619" />
+            </div>
+            <div>
+              <Label>Cargo</Label>
+              <Select value={newCargo || "__none"} onValueChange={(v) => setNewCargo(v === "__none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Sem cargo</SelectItem>
+                  <SelectItem value="Autoridade Policial">Autoridade Policial</SelectItem>
+                  <SelectItem value="OIP">OIP — Oficial Investigador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleCreateUser} disabled={creating} className="w-full">
+              {creating ? "Criando..." : "Criar Usuário"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              O usuário receberá acesso e deverá usar "Esqueci minha senha" para definir sua senha.
+            </p>
           </div>
         </DialogContent>
       </Dialog>
