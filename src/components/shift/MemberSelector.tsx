@@ -10,6 +10,7 @@ interface UserProfile {
   nf: string | null;
   cargo: string | null;
   role: string;
+  is_operational?: boolean;
 }
 
 interface MemberSelectorProps {

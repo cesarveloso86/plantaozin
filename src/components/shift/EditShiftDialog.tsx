@@ -5,19 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import type { Shift, ShiftMember, ShiftAbsence } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
 import { AbsenceSelector } from "./AbsenceSelector";
 import { TEAM_NAMES } from "./shiftConstants";
-
-interface UserProfile {
-  id: string;
-  full_name: string;
-  nf: string | null;
-  cargo: string | null;
-  role: string;
-}
+import { useAllShiftMembers } from "@/hooks/useTeamMembers";
 
 interface Props {
   open: boolean;
@@ -38,11 +30,12 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
       : ""
   );
   const [saving, setSaving] = useState(false);
-  const [users, setUsers] = useState<UserProfile[]>([]);
   const [authorities, setAuthorities] = useState<ShiftMember[]>(shift.authorities);
   const [investigators, setInvestigators] = useState<ShiftMember[]>(shift.investigators);
   const [iseo, setIseo] = useState<ShiftMember[]>(shift.iseo);
   const [absences, setAbsences] = useState<ShiftAbsence[]>(shift.absences || []);
+
+  const { users } = useAllShiftMembers(open);
 
   useEffect(() => {
     if (!open) return;
@@ -54,11 +47,6 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setInvestigators(shift.investigators);
     setIseo(shift.iseo);
     setAbsences(shift.absences || []);
-    const load = async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, nf, cargo, role").order("full_name");
-      setUsers((data as unknown as UserProfile[]) || []);
-    };
-    load();
   }, [open, shift]);
 
   const allSelectedNames = [
