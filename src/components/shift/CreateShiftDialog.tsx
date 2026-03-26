@@ -1,23 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import type { ShiftMember, ShiftAbsence } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
 import { AbsenceSelector } from "./AbsenceSelector";
 import { TEAM_NAMES } from "./shiftConstants";
-
-interface UserProfile {
-  id: string;
-  full_name: string;
-  nf: string | null;
-  cargo: string | null;
-  role: string;
-}
+import { useAllShiftMembers } from "@/hooks/useTeamMembers";
 
 interface Props {
   open: boolean;
@@ -39,23 +31,12 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [shiftDate, setShiftDate] = useState(new Date().toISOString().split("T")[0]);
   const [startHour, setStartHour] = useState("10:00");
   const [saving, setSaving] = useState(false);
-  const [users, setUsers] = useState<UserProfile[]>([]);
   const [authorities, setAuthorities] = useState<ShiftMember[]>([]);
   const [investigators, setInvestigators] = useState<ShiftMember[]>([]);
   const [iseo, setIseo] = useState<ShiftMember[]>([]);
   const [absences, setAbsences] = useState<ShiftAbsence[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, nf, cargo, role")
-        .order("full_name");
-      setUsers((data as unknown as UserProfile[]) || []);
-    };
-    load();
-  }, [open]);
+  const { users } = useAllShiftMembers(open);
 
   const allSelectedNames = [
     ...authorities.map((m) => m.name),
