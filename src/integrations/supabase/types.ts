@@ -224,6 +224,36 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          cargo: string | null
+          created_at: string
+          created_by: string
+          full_name: string
+          id: string
+          is_active: boolean
+          nf: string | null
+        }
+        Insert: {
+          cargo?: string | null
+          created_at?: string
+          created_by: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          nf?: string | null
+        }
+        Update: {
+          cargo?: string | null
+          created_at?: string
+          created_by?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          nf?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
