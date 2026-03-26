@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Loader2, Shield, User, Search, Pencil, Plus } from "lucide-react";
+import { Loader2, Shield, User, Search, Pencil, Plus, UserPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -29,8 +31,17 @@ interface UserWithRole {
   db_role: string | null;
 }
 
+interface TeamMember {
+  id: string;
+  full_name: string;
+  nf: string | null;
+  cargo: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 const AdminUsuarios = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, loading: authLoading, user } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,9 +59,19 @@ const AdminUsuarios = () => {
   const [newCargo, setNewCargo] = useState("");
   const [creating, setCreating] = useState(false);
 
+  // Operational members state
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [showCreateOp, setShowCreateOp] = useState(false);
+  const [opName, setOpName] = useState("");
+  const [opNf, setOpNf] = useState("");
+  const [opCargo, setOpCargo] = useState("");
+  const [creatingOp, setCreatingOp] = useState(false);
+  const [searchOp, setSearchOp] = useState("");
+
   useEffect(() => {
     if (!isAdmin) return;
     loadUsers();
+    loadTeamMembers();
   }, [isAdmin]);
 
   const loadUsers = async () => {
@@ -78,6 +99,62 @@ const AdminUsuarios = () => {
 
     setUsers(merged);
     setLoading(false);
+  };
+
+  const loadTeamMembers = async () => {
+    const { data } = await supabase
+      .from("team_members")
+      .select("*")
+      .order("full_name");
+    setTeamMembers((data as unknown as TeamMember[]) || []);
+  };
+
+  const handleCreateOperational = async () => {
+    if (!opName.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    if (!opCargo) {
+      toast.error("Cargo é obrigatório");
+      return;
+    }
+    setCreatingOp(true);
+    const { error } = await supabase.from("team_members").insert({
+      full_name: opName.trim(),
+      nf: opNf || null,
+      cargo: opCargo || null,
+      created_by: user?.id,
+    } as any);
+    if (error) {
+      toast.error("Erro ao criar membro: " + error.message);
+    } else {
+      toast.success("Membro operacional adicionado!");
+      setShowCreateOp(false);
+      setOpName("");
+      setOpNf("");
+      setOpCargo("");
+      loadTeamMembers();
+    }
+    setCreatingOp(false);
+  };
+
+  const handleDeleteOperational = async (id: string) => {
+    const { error } = await supabase.from("team_members").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao remover: " + error.message);
+    } else {
+      toast.success("Membro removido");
+      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
+    }
+  };
+
+  const handleToggleActive = async (id: string, active: boolean) => {
+    const { error } = await supabase.from("team_members").update({ is_active: !active } as any).eq("id", id);
+    if (error) {
+      toast.error("Erro: " + error.message);
+    } else {
+      setTeamMembers((prev) => prev.map((m) => m.id === id ? { ...m, is_active: !active } : m));
+    }
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
