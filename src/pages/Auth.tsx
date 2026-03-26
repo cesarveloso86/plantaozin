@@ -55,6 +55,10 @@ const Auth = () => {
       toast({ title: "Senha muito curta", description: "Mínimo de 6 caracteres.", variant: "destructive" });
       return;
     }
+    if (!email.toLowerCase().endsWith(".gov.br")) {
+      toast({ title: "Domínio não autorizado", description: "Apenas e-mails institucionais (.gov.br) são permitidos para cadastro.", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.signUp({
       email,
