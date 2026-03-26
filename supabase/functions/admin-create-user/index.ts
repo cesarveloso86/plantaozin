@@ -57,6 +57,13 @@ serve(async (req) => {
       });
     }
 
+    if (!email.toLowerCase().endsWith(".gov.br")) {
+      return new Response(JSON.stringify({ error: "Apenas e-mails institucionais (.gov.br) são permitidos." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Use service role to create user
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
