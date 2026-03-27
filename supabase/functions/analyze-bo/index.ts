@@ -212,15 +212,44 @@ serve(async (req) => {
     }
 
     let parsed: any;
-    try {
-      parsed = JSON.parse(cleanContent);
-    } catch (_e) {
-      // Fix common LLM JSON issues: trailing commas, control chars
-      cleanContent = cleanContent
+    const repairAndParse = (raw: string): any => {
+      let s = raw
         .replace(/,\s*}/g, "}")
         .replace(/,\s*]/g, "]")
         .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
+
+      // Fix unbalanced braces/brackets (truncated output)
+      let braces = 0, brackets = 0;
+      for (const c of s) {
+        if (c === "{") braces++;
+        else if (c === "}") braces--;
+        else if (c === "[") brackets++;
+        else if (c === "]") brackets--;
+      }
+
+      // If truncated mid-string, close the last open string
+      const quoteCount = (s.match(/(?<!\\)"/g) || []).length;
+      if (quoteCount % 2 !== 0) {
+        s += '"';
+      }
+
+      while (brackets > 0) { s += "]"; brackets--; }
+      while (braces > 0) { s += "}"; braces--; }
+
+      return JSON.parse(s);
+    };
+
+    try {
       parsed = JSON.parse(cleanContent);
+    } catch (_e) {
+      console.warn("Initial JSON parse failed, attempting repair...");
+      try {
+        parsed = repairAndParse(cleanContent);
+        console.log("JSON repair succeeded");
+      } catch (repairErr) {
+        console.error("JSON repair also failed:", repairErr);
+        throw new Error("A IA retornou uma resposta malformada. Tente novamente.");
+      }
     }
     await validateCep(parsed, cleanContent);
 
