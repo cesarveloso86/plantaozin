@@ -77,6 +77,7 @@ Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, s
   }
 }`;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function validateCep(parsed: any, cleanContent: string) {
   const triagemText = [
     parsed.triagem?.local_fato,
@@ -126,6 +127,7 @@ serve(async (req) => {
 
     console.log(`Processing file: ${file_name || "unknown"}${instructions ? " (re-analysis)" : ""}`);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages: any[] = [
       { role: "system", content: SYSTEM_PROMPT },
       {
@@ -202,7 +204,7 @@ serve(async (req) => {
       .trim();
 
     // Find JSON boundaries
-    const jsonStart = cleanContent.search(/[\{\[]/);
+    const jsonStart = cleanContent.search(/[{[]/);
     const jsonEnd = cleanContent.lastIndexOf(
       jsonStart !== -1 && cleanContent[jsonStart] === "[" ? "]" : "}"
     );
@@ -211,12 +213,15 @@ serve(async (req) => {
       cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const repairAndParse = (raw: string): any => {
       let s = raw
         .replace(/,\s*}/g, "}")
         .replace(/,\s*]/g, "]")
-        .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\u0000-\u001F\u007F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
 
       // Fix unbalanced braces/brackets (truncated output)
       let braces = 0, brackets = 0;

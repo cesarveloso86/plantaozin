@@ -99,10 +99,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       toast.error("BU já existe na fila ou nas ocorrências");
       return;
     }
+
+    // Evaluate suggested values directly based on current state to avoid stale closure issues
+    const currentSuggestedInvestigator = getNextRoundRobin(investigators, occurrences, pendingQueue, "investigator");
+    const currentSuggestedAuthority = getNextRoundRobin(authorities, occurrences, pendingQueue, "authority");
+
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     setPendingQueue((prev) => [
       ...prev,
-      { bu_number: newBu.trim(), tramitation_time: timeVal, investigator: suggestedInvestigator, authority: suggestedAuthority },
+      { bu_number: newBu.trim(), tramitation_time: timeVal, investigator: currentSuggestedInvestigator, authority: currentSuggestedAuthority },
     ]);
     setNewBu("");
     setNewTime("");
