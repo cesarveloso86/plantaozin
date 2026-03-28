@@ -50,6 +50,7 @@ export function useShift() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeShift?.id]);
 
   const loadOccurrences = async (shiftId: string) => {
@@ -81,11 +82,11 @@ export function useShift() {
           shift_date: params.shift_date,
           start_time: params.start_time,
           end_time: params.end_time || null,
-          authorities: params.authorities as any,
-          investigators: params.investigators as any,
-          iseo: params.iseo as any,
-          absences: (params.absences || []) as any,
-        } as any)
+          authorities: params.authorities,
+          investigators: params.investigators,
+          iseo: params.iseo,
+          absences: params.absences || [],
+        })
         .select()
         .single();
       if (error) throw error;
@@ -120,7 +121,7 @@ export function useShift() {
         po_status: occ.po_status || null,
         analysis_id: occ.analysis_id || null,
         created_by: user.id,
-      } as any);
+      });
       if (error) throw error;
     },
     [user, activeShift]
@@ -130,7 +131,7 @@ export function useShift() {
     async (id: string, updates: Partial<ShiftOccurrence>) => {
       const { error } = await supabase
         .from("shift_occurrences")
-        .update(updates as any)
+        .update(updates)
         .eq("id", id);
       if (error) throw error;
       setOccurrences((prev) =>
@@ -150,7 +151,7 @@ export function useShift() {
     const now = new Date().toISOString();
     await supabase
       .from("shifts")
-      .update({ status: "closed", end_time: now } as any)
+      .update({ status: "closed", end_time: now })
       .eq("id", activeShift.id);
     setActiveShift((prev) => prev ? { ...prev, status: "closed", end_time: now } : null);
   }, [activeShift]);
@@ -161,7 +162,7 @@ export function useShift() {
       const newObs = [...activeShift.observations, text];
       await supabase
         .from("shifts")
-        .update({ observations: newObs } as any)
+        .update({ observations: newObs })
         .eq("id", activeShift.id);
       setActiveShift((prev) => prev ? { ...prev, observations: newObs } : null);
     },
@@ -176,18 +177,10 @@ export function useShift() {
   const updateShift = useCallback(
     async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences">>) => {
       if (!activeShift) return;
-      const payload: any = {};
-      if (updates.team_name !== undefined) payload.team_name = updates.team_name;
-      if (updates.shift_date !== undefined) payload.shift_date = updates.shift_date;
-      if (updates.start_time !== undefined) payload.start_time = updates.start_time;
-      if (updates.end_time !== undefined) payload.end_time = updates.end_time;
-      if (updates.authorities !== undefined) payload.authorities = updates.authorities;
-      if (updates.investigators !== undefined) payload.investigators = updates.investigators;
-      if (updates.iseo !== undefined) payload.iseo = updates.iseo;
-      if (updates.absences !== undefined) payload.absences = updates.absences;
+
       const { error } = await supabase
         .from("shifts")
-        .update(payload)
+        .update(updates)
         .eq("id", activeShift.id);
       if (error) throw error;
       setActiveShift((prev) => prev ? { ...prev, ...updates } : null);
@@ -223,6 +216,7 @@ export function useShift() {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseShift(data: any): Shift {
   return {
     ...data,
