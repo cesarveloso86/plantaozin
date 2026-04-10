@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Shift, ShiftOccurrence, ShiftMember, ShiftAbsence } from "@/types/shift";
+import type { Json } from "@/integrations/supabase/types";
 
 export function useShift() {
   const { user } = useAuth();
@@ -82,10 +83,10 @@ export function useShift() {
           shift_date: params.shift_date,
           start_time: params.start_time,
           end_time: params.end_time || null,
-          authorities: params.authorities,
-          investigators: params.investigators,
-          iseo: params.iseo,
-          absences: params.absences || [],
+          authorities: params.authorities as unknown as Json,
+          investigators: params.investigators as unknown as Json,
+          iseo: params.iseo as unknown as Json,
+          absences: (params.absences || []) as unknown as Json,
         })
         .select()
         .single();
@@ -180,7 +181,7 @@ export function useShift() {
 
       const { error } = await supabase
         .from("shifts")
-        .update(updates)
+        .update(updates as Record<string, unknown>)
         .eq("id", activeShift.id);
       if (error) throw error;
       setActiveShift((prev) => prev ? { ...prev, ...updates } : null);
