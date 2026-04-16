@@ -16,7 +16,7 @@ import type { AnalysisResult as AnalysisResultType } from "@/types/analysis";
 interface AnalysisResultProps {
   data: AnalysisResultType;
   onReset: () => void;
-  onReanalyze?: (instructions: string, field?: string) => void;
+  onReanalyze?: (instructions: string, field?: string, depoimentoIndex?: number) => void;
   reanalyzing?: boolean;
   onSendToShift?: () => void;
 }
@@ -273,7 +273,6 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             <User className="w-4 h-4 text-primary" />
             Depoimentos ({depoimentos.length})
           </h3>
-          <FieldEditButton field="depoimentos" />
         </div>
         <div className="space-y-4">
           {depoimentos.map((dep, i) => {
@@ -305,7 +304,10 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                           <p className="text-xs text-muted-foreground truncate">{dep.qualificacao}</p>
                         </div>
                       </div>
-                      <CopyButton text={fullText} />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <FieldEditButton field="depoimento" index={i} />
+                        <CopyButton text={fullText} />
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>

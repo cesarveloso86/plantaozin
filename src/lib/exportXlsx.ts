@@ -34,29 +34,29 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
     cell.alignment = { horizontal: "center", wrapText: true };
   });
 
-  // Data rows
-  occurrences.forEach((occ) => {
-    const tramTime = occ.tramitation_time
-      ? new Date(occ.tramitation_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-      : "";
-    const finalTime = occ.final_time
-      ? new Date(occ.final_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-      : "";
-    const firstHearing = occ.first_hearing_time
-      ? new Date(occ.first_hearing_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-      : "";
+  // Sort by tramitation_time ASC (ordem de atendimento)
+  const sortedOccs = [...occurrences].sort((a, b) => {
+    const ta = a.tramitation_time ? new Date(a.tramitation_time).getTime() : Number.MAX_SAFE_INTEGER;
+    const tb = b.tramitation_time ? new Date(b.tramitation_time).getTime() : Number.MAX_SAFE_INTEGER;
+    return ta - tb;
+  });
 
+  const fmtTime = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "";
+
+  // Data rows
+  sortedOccs.forEach((occ) => {
     const row = ws.addRow([
       occ.bu_number,
-      tramTime,
+      fmtTime(occ.tramitation_time),
       occ.procedure_type || "",
       occ.procedure_type_2 || "",
       occ.procedure_type_3 || "",
       occ.investigator || "",
       occ.authority || "",
       occ.regional || "",
-      finalTime,
-      firstHearing,
+      fmtTime(occ.final_time),
+      fmtTime(occ.first_hearing_time),
       occ.has_report ? "SIM" : "NÃO",
       occ.num_hearings,
       occ.observations || "",
