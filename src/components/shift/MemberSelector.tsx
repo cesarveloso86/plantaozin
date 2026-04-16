@@ -7,6 +7,7 @@ import type { ShiftMember } from "@/types/shift";
 interface UserProfile {
   id: string;
   full_name: string;
+  nickname?: string | null;
   nf: string | null;
   cargo: string | null;
   role: string;
@@ -21,6 +22,9 @@ interface MemberSelectorProps {
   allSelectedNames: string[];
   filterFuncao?: string;
 }
+
+const labelOf = (u: UserProfile) =>
+  u.nickname && u.nickname.trim() ? `${u.full_name} (${u.nickname})` : u.full_name;
 
 export function MemberSelector({ label, members, setMembers, users, allSelectedNames, filterFuncao }: MemberSelectorProps) {
   const addMember = (userId: string) => {
@@ -39,7 +43,6 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
     );
   };
 
-  // Users not already selected in ANY role across the shift
   const availableUsers = users.filter((u) => !allSelectedNames.includes(u.full_name));
 
   const filteredUsers = filterFuncao
@@ -50,9 +53,14 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
     ? availableUsers.filter((u) => u.cargo !== filterFuncao)
     : [];
 
-  // For substitute dropdown: all users except the member themselves
   const getSubstituteOptions = (memberName: string) =>
     users.filter((u) => u.full_name !== memberName);
+
+  // Resolve nickname for a selected member by looking up the source user.
+  const nicknameOf = (memberName: string) => {
+    const u = users.find((x) => x.full_name === memberName);
+    return u?.nickname && u.nickname.trim() ? u.nickname : null;
+  };
 
   return (
     <div className="space-y-2">
@@ -71,7 +79,7 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
               )}
               {filteredUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id}>
-                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}
+                  {labelOf(u)}{u.nf ? ` — NF ${u.nf}` : ""}
                 </SelectItem>
               ))}
             </>
@@ -83,7 +91,7 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
               </SelectItem>
               {otherUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id}>
-                  {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}
+                  {labelOf(u)}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}
                 </SelectItem>
               ))}
             </>
@@ -97,32 +105,35 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
       </Select>
       {members.length > 0 && (
         <div className="space-y-1.5 mt-1">
-          {members.map((m) => (
-            <div key={m.name} className="flex items-center gap-2">
-              <Badge variant="secondary" className="gap-1 pr-1 shrink-0">
-                {m.name}{m.nf ? ` (${m.nf})` : ""}
-                <button onClick={() => removeMember(m.name)} className="ml-1 hover:text-destructive">
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-              <Select
-                value={m.substituting || ""}
-                onValueChange={(v) => setSubstituting(m.name, v === "__clear" ? "" : v)}
-              >
-                <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
-                  <SelectValue placeholder="Substituto de..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__clear" className="text-xs text-muted-foreground">Nenhum</SelectItem>
-                  {getSubstituteOptions(m.name).map((u) => (
-                    <SelectItem key={u.id} value={u.full_name}>
-                      {u.full_name}{u.nf ? ` — NF ${u.nf}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {members.map((m) => {
+            const apelido = nicknameOf(m.name);
+            return (
+              <div key={m.name} className="flex items-center gap-2">
+                <Badge variant="secondary" className="gap-1 pr-1 shrink-0">
+                  {m.name}{apelido ? ` (${apelido})` : ""}{m.nf ? ` — NF ${m.nf}` : ""}
+                  <button onClick={() => removeMember(m.name)} className="ml-1 hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+                <Select
+                  value={m.substituting || ""}
+                  onValueChange={(v) => setSubstituting(m.name, v === "__clear" ? "" : v)}
+                >
+                  <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
+                    <SelectValue placeholder="Substituto de..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__clear" className="text-xs text-muted-foreground">Nenhum</SelectItem>
+                    {getSubstituteOptions(m.name).map((u) => (
+                      <SelectItem key={u.id} value={u.full_name}>
+                        {labelOf(u)}{u.nf ? ` — NF ${u.nf}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

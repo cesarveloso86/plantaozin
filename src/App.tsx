@@ -10,6 +10,7 @@ import Index from "./pages/Index.tsx";
 import Plantao from "./pages/Plantao.tsx";
 import Historico from "./pages/Historico.tsx";
 import AdminUsuarios from "./pages/AdminUsuarios.tsx";
+import Perfil from "./pages/Perfil.tsx";
 import Auth from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -52,6 +53,16 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <Historico />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/perfil"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Perfil />
                   </AppLayout>
                 </ProtectedRoute>
               }
