@@ -71,10 +71,10 @@ const Plantao = () => {
     <div className="flex-1 flex flex-col p-4 sm:p-6 gap-4 overflow-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="text-xl font-semibold text-foreground">
             {shift.activeShift.team_name} — {new Date(shift.activeShift.shift_date).toLocaleDateString("pt-BR")}
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {shift.activeShift.status === "active" ? "🟢 Plantão ativo" : "🔴 Plantão encerrado"} · {shift.occurrences.length} ocorrência(s)
           </p>
         </div>
