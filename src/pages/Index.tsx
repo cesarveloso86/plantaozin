@@ -8,6 +8,19 @@ import { useShift } from "@/hooks/useShift";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { REGIONALS } from "@/types/shift";
+
+// Tenta mapear texto livre da delegacia/unidade para uma das REGIONALS oficiais.
+function matchRegionalByKeyword(input: string | undefined): string {
+  if (!input) return "";
+  const norm = input.toUpperCase();
+  for (const r of REGIONALS) {
+    const key = r.split(" - ")[1] || r;
+    if (norm.includes(key.toUpperCase())) return r;
+  }
+  if (norm.includes("DEACLE")) return "DEACLE";
+  return "";
+}
 
 const Index = () => {
   const { status, result, error, fileName, analyze, reanalyze, reset } = useAnalysis();
@@ -25,6 +38,15 @@ const Index = () => {
       return;
     }
 
+    // Resolve regional: 1) IA; 2) fallback por palavra-chave; 3) vazio + alerta.
+    let regional = result.triagem.regional_codigo || "";
+    if (!regional || !REGIONALS.includes(regional as typeof REGIONALS[number])) {
+      regional = matchRegionalByKeyword(result.triagem.unidade_registro || result.triagem.delegacia);
+    }
+    if (!regional) {
+      toast.warning("Não foi possível identificar a regional automaticamente — selecione manualmente.");
+    }
+
     try {
       await shift.addOccurrence({
         bu_number: result.triagem.numero_bo || "",
@@ -37,7 +59,7 @@ const Index = () => {
           ?.filter(d => d.tipo === "vitima")
           .map(d => d.nome)
           .join(", ") || "",
-        regional: result.triagem.delegacia || "",
+        regional,
         observations: result.triagem.resumo?.substring(0, 200) || "",
         tramitation_time: new Date().toISOString(),
       });

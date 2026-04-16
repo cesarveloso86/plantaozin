@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Lock, FileText, Sheet, Loader2 } from "lucide-react";
+import { Plus, Lock, FileText, Sheet, Loader2, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { REGIONALS } from "@/types/shift";
@@ -14,14 +14,18 @@ interface Props {
   shift: Shift;
   occurrences: ShiftOccurrence[];
   onAddObservation: (text: string) => Promise<void>;
+  onUpdateObservation?: (idx: number, text: string) => Promise<void>;
+  onDeleteObservation?: (idx: number) => Promise<void>;
   onCloseShift: () => Promise<void>;
 }
 
-export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }: Props) {
+export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObservation, onDeleteObservation, onCloseShift }: Props) {
   const [newObs, setNewObs] = useState("");
   const [closing, setClosing] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
 
   const occByRegional = useMemo(() => {
     const grouped: Record<string, ShiftOccurrence[]> = {};
@@ -42,6 +46,31 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
     await onAddObservation(newObs.trim());
     setNewObs("");
     toast.success("Observação adicionada");
+  };
+
+  const startEdit = (idx: number, text: string) => {
+    setEditingIdx(idx);
+    setEditText(text);
+  };
+
+  const saveEdit = async () => {
+    if (editingIdx === null || !onUpdateObservation) return;
+    if (!editText.trim()) { toast.error("Texto vazio"); return; }
+    await onUpdateObservation(editingIdx, editText.trim());
+    toast.success("Observação atualizada");
+    setEditingIdx(null);
+    setEditText("");
+  };
+
+  const cancelEdit = () => {
+    setEditingIdx(null);
+    setEditText("");
+  };
+
+  const handleDelete = async (idx: number) => {
+    if (!onDeleteObservation) return;
+    await onDeleteObservation(idx);
+    toast.success("Observação removida");
   };
 
   const handleClose = async () => {
@@ -143,9 +172,43 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
         </CardHeader>
         <CardContent className="space-y-2">
           {shift.observations.length > 0 ? (
-            <ol className="list-decimal list-inside text-sm space-y-1">
+            <ol className="text-sm space-y-2">
               {shift.observations.map((obs, i) => (
-                <li key={i}>{obs}</li>
+                <li key={i} className="flex items-start gap-2 group">
+                  <span className="text-muted-foreground shrink-0 mt-1.5">{i + 1}.</span>
+                  {editingIdx === i ? (
+                    <div className="flex-1 flex items-start gap-1.5">
+                      <Textarea
+                        rows={2}
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="flex-1 text-sm"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveEdit}>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEdit}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="flex-1 leading-relaxed">{obs}</span>
+                      {shift.status === "active" && onUpdateObservation && onDeleteObservation && (
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(i, obs)} title="Editar">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(i)} title="Excluir">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
               ))}
             </ol>
           ) : (

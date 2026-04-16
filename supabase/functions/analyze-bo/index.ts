@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const REGIONAIS_OFICIAIS = [
+  "1ª - VITÓRIA","2ª - VILA VELHA","3ª - SERRA","4ª - CARIACICA","5ª - GUARAPARI",
+  "6ª - ALEGRE","7ª - CACHOEIRO DE ITAPEMIRIM","8ª - CASTELO","9ª - ITAPEMIRIM",
+  "10ª - VIANA","11ª - VENDA NOVA DO IMIGRANTE","12ª - SANTA TERESA","13ª - ARACRUZ",
+  "14ª - BARRA DE SÃO FRANCISCO","15ª - COLATINA","16ª - LINHARES","17ª - NOVA VENÉCIA",
+  "18ª - SÃO MATEUS","DEACLE",
+];
+
 const SYSTEM_PROMPT = `Você é um assistente especializado em análise de Boletins de Ocorrência policiais brasileiros.
 
 Ao receber o conteúdo de um PDF de Boletim de Ocorrência, você deve:
@@ -20,6 +28,11 @@ Ao receber o conteúdo de um PDF de Boletim de Ocorrência, você deve:
    - Validar se o CEP existe (marque cep_valido como true se parece válido, false se ausente ou claramente inválido)
    - Resumo dos fatos em 3-5 linhas
    - Lista de alertas relevantes (ex: menor envolvido, arma de fogo, drogas)
+   - **unidade_registro**: texto LITERAL do campo "Unidade de Registro" do BU (copie exatamente como aparece)
+   - **regional_codigo**: tente mapear a unidade_registro para UMA das regionais oficiais abaixo. Se NÃO casar com nenhuma, retorne string vazia "" e adicione um alerta: "Unidade de Registro fora da lista oficial — verifique o BU".
+
+   REGIONAIS OFICIAIS (use EXATAMENTE este texto):
+   ${REGIONAIS_OFICIAIS.join("\n   ")}
 
 2. GERAR minutas de depoimento para TODAS as pessoas mencionadas no BO, incluindo obrigatoriamente:
    - Policiais Militares condutores (SEMPRE gerar depoimento para cada PM que participou da ocorrência)
@@ -54,6 +67,8 @@ Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, s
     "natureza": "string",
     "local_fato": "string",
     "cep_valido": boolean,
+    "unidade_registro": "string (texto literal do BU)",
+    "regional_codigo": "string (uma das oficiais ou vazio)",
     "resumo": "string",
     "alertas": ["string"]
   },
@@ -141,7 +156,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { pdf_base64, file_name, instructions, previous_result, field, signature_style } = await req.json();
+    const { pdf_base64, file_name, instructions, previous_result, field, depoimento_index, signature_style } = await req.json();
     if (!pdf_base64) {
       return new Response(
         JSON.stringify({ error: "PDF não fornecido" }),
@@ -196,18 +211,21 @@ serve(async (req) => {
 
     // If re-analyzing, add the previous result and instructions
     if (instructions && previous_result) {
-      const fieldLabel = field === "triagem" ? "a triagem/relatório" 
+      const isSingleDep = field === "depoimento" && typeof depoimento_index === "number";
+      const depTarget = isSingleDep && previous_result?.depoimentos?.[depoimento_index];
+      const fieldLabel = field === "triagem" ? "a triagem/relatório"
         : field === "despacho" ? "o despacho (tipificações e providências)"
+        : isSingleDep ? `APENAS o depoimento de índice ${depoimento_index} (${depTarget?.nome || "desconhecido"})`
         : field === "depoimentos" ? "os depoimentos"
         : "o resultado completo";
-      
+
       messages.push({
         role: "assistant",
         content: JSON.stringify(previous_result),
       });
       messages.push({
         role: "user",
-        content: `Reanalisar APENAS ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS as demais seções do JSON. Corrija ou complemente APENAS ${fieldLabel} conforme solicitado. Retorne o JSON completo atualizado.`,
+        content: `Reanalisar ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS todas as demais seções e os demais itens do array. ${isSingleDep ? `Altere SOMENTE o item de índice ${depoimento_index} no array "depoimentos". Os demais depoimentos devem permanecer EXATAMENTE iguais.` : ""} Retorne o JSON completo atualizado.`,
       });
     }
 

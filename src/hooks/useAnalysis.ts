@@ -27,7 +27,6 @@ export function useAnalysis() {
       setStatus("validating");
       await new Promise((r) => setTimeout(r, 600));
 
-      // Fetch user signature_style preferences (best-effort).
       let signatureStyle: any = null;
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -55,7 +54,6 @@ export function useAnalysis() {
 
       const analysisResult = data as AnalysisResult;
 
-      // Save to history (reuse the same `user` fetched above)
       if (user) {
         await supabase.from("analyses").insert({
           user_id: user.id,
@@ -76,35 +74,39 @@ export function useAnalysis() {
     }
   }, []);
 
-  const reanalyze = useCallback(async (instructions: string, field?: string) => {
-    if (!lastBase64.current) return;
-    setError(null);
+  const reanalyze = useCallback(
+    async (instructions: string, field?: string, depoimentoIndex?: number) => {
+      if (!lastBase64.current) return;
+      setError(null);
 
-    try {
-      setStatus("analyzing");
-      const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
-        body: {
-          pdf_base64: lastBase64.current,
-          file_name: lastFileName.current,
-          instructions,
-          previous_result: result,
-          field,
-        },
-      });
+      try {
+        setStatus("analyzing");
+        const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
+          body: {
+            pdf_base64: lastBase64.current,
+            file_name: lastFileName.current,
+            instructions,
+            previous_result: result,
+            field,
+            depoimento_index: typeof depoimentoIndex === "number" ? depoimentoIndex : undefined,
+          },
+        });
 
-      if (fnError) throw new Error(fnError.message || "Erro ao reprocessar");
+        if (fnError) throw new Error(fnError.message || "Erro ao reprocessar");
 
-      if (!data || !data.triagem || !data.depoimentos || !data.despacho) {
-        throw new Error("Resposta inválida do servidor");
+        if (!data || !data.triagem || !data.depoimentos || !data.despacho) {
+          throw new Error("Resposta inválida do servidor");
+        }
+
+        setResult(data as AnalysisResult);
+        setStatus("done");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro desconhecido");
+        setStatus("error");
       }
-
-      setResult(data as AnalysisResult);
-      setStatus("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
-      setStatus("error");
-    }
-  }, [result]);
+    },
+    [result],
+  );
 
   const reset = useCallback(() => {
     setStatus("idle");

@@ -1,9 +1,12 @@
+import type { MemberSchedule } from "@/components/shift/scheduleConstants";
+
 export interface ShiftMember {
   name: string;
   nf?: string;
   nickname?: string;
   role?: string;
   substituting?: string;
+  schedule?: MemberSchedule;
 }
 
 export interface ShiftAbsence {

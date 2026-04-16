@@ -16,7 +16,7 @@ import type { AnalysisResult as AnalysisResultType } from "@/types/analysis";
 interface AnalysisResultProps {
   data: AnalysisResultType;
   onReset: () => void;
-  onReanalyze?: (instructions: string, field?: string) => void;
+  onReanalyze?: (instructions: string, field?: string, depoimentoIndex?: number) => void;
   reanalyzing?: boolean;
   onSendToShift?: () => void;
 }
@@ -48,23 +48,26 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
-type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | null;
+type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | "depoimento" | null;
 
 const FIELD_LABELS: Record<string, string> = {
   triagem: "Triagem",
   despacho: "Despacho",
   depoimentos: "Depoimentos",
+  depoimento: "Depoimento",
 };
 
 const FIELD_PLACEHOLDERS: Record<string, string> = {
   triagem: "Ex: Corrigir a natureza para 'Roubo'. O local do fato está incorreto.",
   despacho: "Ex: Alterar tipificação para Art. 33 da Lei 11.343/06. Adicionar providência de apreensão.",
   depoimentos: "Ex: Incluir depoimento do segundo PM condutor. Corrigir nome da testemunha.",
+  depoimento: "Ex: Corrigir o nome para 'João da Silva'. Reforçar que o depoente avistou o veículo se evadindo.",
 };
 
 const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
   const { triagem, depoimentos, despacho } = data;
   const [reanalyzeField, setReanalyzeField] = useState<ReanalyzeField>(null);
+  const [reanalyzeIndex, setReanalyzeIndex] = useState<number | null>(null);
   const [instructions, setInstructions] = useState("");
 
   const triagemText = [
@@ -90,24 +93,30 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
 
   const handleReanalyze = () => {
     if (onReanalyze && instructions.trim() && reanalyzeField) {
-      onReanalyze(instructions.trim(), reanalyzeField);
+      onReanalyze(
+        instructions.trim(),
+        reanalyzeField,
+        reanalyzeField === "depoimento" && reanalyzeIndex !== null ? reanalyzeIndex : undefined,
+      );
       setReanalyzeField(null);
+      setReanalyzeIndex(null);
       setInstructions("");
     }
   };
 
-  const openFieldReanalyze = (field: ReanalyzeField) => {
+  const openFieldReanalyze = (field: ReanalyzeField, index: number | null = null) => {
     setReanalyzeField(field);
+    setReanalyzeIndex(index);
     setInstructions("");
   };
 
-  const FieldEditButton = ({ field }: { field: ReanalyzeField }) => {
+  const FieldEditButton = ({ field, index }: { field: ReanalyzeField; index?: number }) => {
     if (!onReanalyze || !field) return null;
     return (
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => openFieldReanalyze(field)}
+        onClick={() => openFieldReanalyze(field, index ?? null)}
         disabled={reanalyzing}
         className="gap-1.5 text-xs h-7"
         title={`Corrigir ${FIELD_LABELS[field]}`}
@@ -273,7 +282,6 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             <User className="w-4 h-4 text-primary" />
             Depoimentos ({depoimentos.length})
           </h3>
-          <FieldEditButton field="depoimentos" />
         </div>
         <div className="space-y-4">
           {depoimentos.map((dep, i) => {
@@ -305,7 +313,10 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                           <p className="text-xs text-muted-foreground truncate">{dep.qualificacao}</p>
                         </div>
                       </div>
-                      <CopyButton text={fullText} />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <FieldEditButton field="depoimento" index={i} />
+                        <CopyButton text={fullText} />
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -321,18 +332,20 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
       </motion.div>
 
       {/* Per-field Re-analyze Dialog */}
-      <Dialog open={!!reanalyzeField} onOpenChange={(v) => !v && setReanalyzeField(null)}>
+      <Dialog open={!!reanalyzeField} onOpenChange={(v) => { if (!v) { setReanalyzeField(null); setReanalyzeIndex(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
               Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
+              {reanalyzeField === "depoimento" && reanalyzeIndex !== null && depoimentos[reanalyzeIndex] && (
+                <span className="text-sm text-muted-foreground font-normal">— {depoimentos[reanalyzeIndex].nome}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Informe o que a IA deve corrigir ou complementar {reanalyzeField === "triagem" ? "na triagem" : reanalyzeField === "despacho" ? "no despacho" : "nos depoimentos"}.
-              As demais seções não serão alteradas.
+              Informe o que a IA deve corrigir ou complementar. As demais seções não serão alteradas.
             </p>
             <Textarea
               rows={4}
@@ -342,7 +355,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             />
             <Button onClick={handleReanalyze} disabled={!instructions.trim()} className="w-full gap-2">
               <RefreshCw className="w-4 h-4" />
-              Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
+              Corrigir
             </Button>
           </div>
         </DialogContent>

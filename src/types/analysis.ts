@@ -27,6 +27,10 @@ export interface RelatorioTriagem {
   cep_endereco?: string;
   resumo: string;
   alertas: string[];
+  /** Texto literal extraído do campo "Unidade de Registro" do BU */
+  unidade_registro?: string;
+  /** Código mapeado para uma das REGIONALS oficiais (ou DEACLE) */
+  regional_codigo?: string;
 }
 
 export interface AnalysisResult {
