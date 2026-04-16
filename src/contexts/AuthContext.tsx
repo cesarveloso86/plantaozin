@@ -58,32 +58,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await Promise.all([
-            fetchProfile(session.user.id),
-            fetchRole(session.user.id),
-          ]);
-        } else {
+        try {
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (session?.user) {
+            await Promise.all([
+              fetchProfile(session.user.id),
+              fetchRole(session.user.id),
+            ]);
+          } else {
+            setProfile(null);
+            setIsAdmin(false);
+          }
+        } catch (error) {
+          console.error("Error handling auth state change:", error);
           setProfile(null);
           setIsAdmin(false);
+          setSession(null);
+          setUser(null);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await Promise.all([
-          fetchProfile(session.user.id),
-          fetchRole(session.user.id),
-        ]);
-      }
-      setLoading(false);
-    });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile, fetchRole]);
