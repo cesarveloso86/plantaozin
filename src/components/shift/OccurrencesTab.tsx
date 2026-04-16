@@ -104,8 +104,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       return;
     }
 
-    const nextInv = predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 1, now)[0] || "";
-    const nextAuth = predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 1, now)[0] || "";
+    const nextInv = predictQueue(allInvestigators, completed, pendingQueue, "investigator", 1, now)[0] || "";
+    const nextAuth = predictQueue(allAuthorities, completed, pendingQueue, "authority", 1, now)[0] || "";
 
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     setPendingQueue((prev) => [
@@ -160,8 +160,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setSaving(true);
     try {
       if (editingId) {
-        await onUpdate(editingId, form);
-        toast.success("Ocorrência atualizada");
+        // Edição: se está em atendimento, marca como atendida ao salvar
+        const updates = { ...form };
+        if (isInAttendance) updates.status = "atendida";
+        await onUpdate(editingId, updates);
+        toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
       } else {
         const existing = occurrences.find((o) => o.bu_number === form.bu_number);
         if (existing) {
@@ -169,10 +172,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           delete mergeFields.tramitation_time;
           delete mergeFields.investigator;
           delete mergeFields.authority;
+          // Mesclar dados → considerar atendida
+          mergeFields.status = "atendida";
           await onUpdate(existing.id, mergeFields);
-          toast.success(`BU ${form.bu_number} mesclado`);
+          toast.success(`BU ${form.bu_number} mesclado e atendido`);
         } else {
-          await onAdd({ ...form, tramitation_time: form.tramitation_time || new Date().toISOString() });
+          // Registro manual = já atendida (usuário preencheu tudo)
+          await onAdd({ ...form, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
         setPendingQueue((prev) => prev.filter((p) => p.bu_number !== form.bu_number));
@@ -183,6 +189,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleHearings = async (occ: ShiftOccurrence, delta: number) => {
+    const next = Math.max(0, (occ.num_hearings || 0) + delta);
+    try { await onUpdate(occ.id, { num_hearings: next }); } catch { toast.error("Erro"); }
   };
 
   const handleSkipInv = async (occ: ShiftOccurrence) => {
