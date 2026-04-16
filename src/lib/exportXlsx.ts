@@ -4,6 +4,8 @@ import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES } from "@/types/shift";
 
 export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence[]) {
+  // Apenas ocorrências atendidas entram no relatório oficial.
+  const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Controle de procedimentos");
 
@@ -35,7 +37,7 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
   });
 
   // Sort by tramitation_time ASC (ordem de atendimento)
-  const sortedOccs = [...occurrences].sort((a, b) => {
+  const sortedOccs = [...finalOccs].sort((a, b) => {
     const ta = a.tramitation_time ? new Date(a.tramitation_time).getTime() : Number.MAX_SAFE_INTEGER;
     const tb = b.tramitation_time ? new Date(b.tramitation_time).getTime() : Number.MAX_SAFE_INTEGER;
     return ta - tb;
@@ -90,7 +92,7 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
   ws.getCell(3, statsStartCol).font = { bold: true, size: 10 };
 
   // Total hearings
-  const totalHearings = occurrences.reduce((sum, o) => sum + (o.num_hearings || 0), 0);
+  const totalHearings = finalOccs.reduce((sum, o) => sum + (o.num_hearings || 0), 0);
   ws.getCell(3, statsStartCol + 1).value = "TOTAL DE OITIVAS";
   ws.getCell(3, statsStartCol + 1).font = { bold: true, size: 10 };
   ws.getCell(5, statsStartCol + 1).value = totalHearings;
@@ -99,13 +101,13 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
   // Total procedures
   ws.getCell(7, statsStartCol + 1).value = "TOTAL DE PROCEDIMENTOS";
   ws.getCell(7, statsStartCol + 1).font = { bold: true, size: 10 };
-  ws.getCell(9, statsStartCol + 1).value = occurrences.length;
+  ws.getCell(9, statsStartCol + 1).value = finalOccs.length;
   ws.getCell(9, statsStartCol + 1).font = { bold: true, size: 14 };
 
   // Count by type
   let statsRow = 11;
   const typeCounts: Record<string, number> = {};
-  occurrences.forEach((occ) => {
+  finalOccs.forEach((occ) => {
     [occ.procedure_type, occ.procedure_type_2, occ.procedure_type_3].forEach((pt) => {
       if (pt) typeCounts[pt] = (typeCounts[pt] || 0) + 1;
     });
@@ -126,7 +128,7 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
   const invSheet = wb.addWorksheet("Por OIP");
   invSheet.addRow(["OIP", "Quantidade"]);
   const invCounts: Record<string, number> = {};
-  occurrences.forEach((o) => {
+  finalOccs.forEach((o) => {
     if (o.investigator) invCounts[o.investigator] = (invCounts[o.investigator] || 0) + 1;
   });
   Object.entries(invCounts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {

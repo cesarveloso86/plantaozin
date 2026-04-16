@@ -26,7 +26,8 @@ interface MemberSelectorProps {
   setMembers: React.Dispatch<React.SetStateAction<ShiftMember[]>>;
   users: UserProfile[];
   allSelectedNames: string[];
-  filterFuncao?: string;
+  /** Strict filter: only users whose `cargo` matches one of these values are shown. */
+  filterFuncao?: string | string[];
   defaultRole?: "OIP" | "Autoridade" | "ISEO";
 }
 
@@ -70,13 +71,15 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
 
   const availableUsers = users.filter((u) => !allSelectedNames.includes(u.full_name));
 
-  const filteredUsers = filterFuncao
-    ? availableUsers.filter((u) => u.cargo === filterFuncao)
+  const allowedCargos = filterFuncao
+    ? Array.isArray(filterFuncao) ? filterFuncao : [filterFuncao]
+    : null;
+
+  const filteredUsers = allowedCargos
+    ? availableUsers.filter((u) => u.cargo && allowedCargos.includes(u.cargo))
     : availableUsers;
 
-  const otherUsers = filterFuncao
-    ? availableUsers.filter((u) => u.cargo !== filterFuncao)
-    : [];
+  const filterLabel = allowedCargos ? allowedCargos.join(" / ") : "";
 
   const getSubstituteOptions = (memberName: string) =>
     users.filter((u) => u.full_name !== memberName);
@@ -100,11 +103,11 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
           <SelectValue placeholder="Selecionar membro..." />
         </SelectTrigger>
         <SelectContent>
-          {filteredUsers.length > 0 && (
+          {filteredUsers.length > 0 ? (
             <>
-              {filterFuncao && (
+              {filterLabel && (
                 <SelectItem value="__header_match" disabled className="text-xs text-muted-foreground">
-                  — {filterFuncao} —
+                  — {filterLabel} —
                 </SelectItem>
               )}
               {filteredUsers.map((u) => (
@@ -113,22 +116,11 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
                 </SelectItem>
               ))}
             </>
-          )}
-          {otherUsers.length > 0 && (
-            <>
-              <SelectItem value="__header_other" disabled className="text-xs text-muted-foreground">
-                — Outros —
-              </SelectItem>
-              {otherUsers.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {labelOf(u)}{u.nf ? ` — NF ${u.nf}` : ""}{u.cargo ? ` [${u.cargo}]` : ""}
-                </SelectItem>
-              ))}
-            </>
-          )}
-          {!filterFuncao && availableUsers.length === 0 && (
+          ) : (
             <SelectItem value="__empty" disabled className="text-xs text-muted-foreground">
-              Nenhum usuário disponível
+              {allowedCargos
+                ? `Nenhum membro com cargo ${filterLabel} disponível`
+                : "Nenhum usuário disponível"}
             </SelectItem>
           )}
         </SelectContent>

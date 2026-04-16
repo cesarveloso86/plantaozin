@@ -30,9 +30,12 @@ export interface Shift {
   created_at: string;
 }
 
+export type OccurrenceStatus = "em_atendimento" | "atendida";
+
 export interface ShiftOccurrence {
   id: string;
   shift_id: string;
+  status: OccurrenceStatus;
   bu_number: string;
   tramitation_time: string | null;
   procedure_type: string | null;

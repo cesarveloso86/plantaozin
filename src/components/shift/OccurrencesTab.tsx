@@ -32,6 +32,7 @@ interface Props {
 
 const emptyForm = (): Partial<ShiftOccurrence> => ({
   bu_number: "",
+  status: "em_atendimento",
   procedure_type: "",
   investigator: "",
   authority: "",
@@ -55,6 +56,19 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newBu, setNewBu] = useState("");
   const [newTime, setNewTime] = useState("");
 
+  // Split by status
+  const inAttendance = useMemo(
+    () => occurrences.filter((o) => o.status === "em_atendimento"),
+    [occurrences],
+  );
+  const completed = useMemo(
+    () => occurrences.filter((o) => o.status !== "em_atendimento"),
+    [occurrences],
+  );
+
+  const editingOcc = editingId ? occurrences.find((o) => o.id === editingId) : null;
+  const isInAttendance = editingOcc?.status === "em_atendimento";
+
   const allInvestigators = shift.investigators;
   const allAuthorities = shift.authorities;
   const investigatorNames = allInvestigators.map((i) => i.name);
@@ -70,14 +84,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators]);
   const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities]);
 
-  // Predictive queue (next 5 for each role)
+  // Predictive queue (next 5 for each role) — usa só completed para carga real
   const predictedInv = useMemo(
-    () => predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 5, now),
-    [allInvestigators, occurrences, pendingQueue],
+    () => predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
+    [allInvestigators, completed, pendingQueue],
   );
   const predictedAuth = useMemo(
-    () => predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 5, now),
-    [allAuthorities, occurrences, pendingQueue],
+    () => predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
+    [allAuthorities, completed, pendingQueue],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
@@ -90,8 +104,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       return;
     }
 
-    const nextInv = predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 1, now)[0] || "";
-    const nextAuth = predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 1, now)[0] || "";
+    const nextInv = predictQueue(allInvestigators, completed, pendingQueue, "investigator", 1, now)[0] || "";
+    const nextAuth = predictQueue(allAuthorities, completed, pendingQueue, "authority", 1, now)[0] || "";
 
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     setPendingQueue((prev) => [
@@ -146,8 +160,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setSaving(true);
     try {
       if (editingId) {
-        await onUpdate(editingId, form);
-        toast.success("Ocorrência atualizada");
+        // Edição: se está em atendimento, marca como atendida ao salvar
+        const updates = { ...form };
+        if (isInAttendance) updates.status = "atendida";
+        await onUpdate(editingId, updates);
+        toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
       } else {
         const existing = occurrences.find((o) => o.bu_number === form.bu_number);
         if (existing) {
@@ -155,10 +172,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           delete mergeFields.tramitation_time;
           delete mergeFields.investigator;
           delete mergeFields.authority;
+          // Mesclar dados → considerar atendida
+          mergeFields.status = "atendida";
           await onUpdate(existing.id, mergeFields);
-          toast.success(`BU ${form.bu_number} mesclado`);
+          toast.success(`BU ${form.bu_number} mesclado e atendido`);
         } else {
-          await onAdd({ ...form, tramitation_time: form.tramitation_time || new Date().toISOString() });
+          // Registro manual = já atendida (usuário preencheu tudo)
+          await onAdd({ ...form, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
         setPendingQueue((prev) => prev.filter((p) => p.bu_number !== form.bu_number));
@@ -169,6 +189,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleHearings = async (occ: ShiftOccurrence, delta: number) => {
+    const next = Math.max(0, (occ.num_hearings || 0) + delta);
+    try { await onUpdate(occ.id, { num_hearings: next }); } catch { toast.error("Erro"); }
   };
 
   const handleSkipInv = async (occ: ShiftOccurrence) => {
@@ -194,8 +219,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     <div className="space-y-4">
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
-          <TabsTrigger value="distribuicao">Em Distribuição</TabsTrigger>
-          <TabsTrigger value="atendidas">Já Atendidas ({occurrences.length})</TabsTrigger>
+          <TabsTrigger value="distribuicao">Em Distribuição ({pendingQueue.length + inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
         {/* ── Aba: Em Distribuição ── */}
@@ -211,6 +236,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </Badge>
                 </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Round-robin entre quem está em janela ativa, ponderado por menor carga (ocorrências já atendidas). Empate segue a ordem de cadastro do plantão.
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -294,6 +322,56 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             </Card>
           )}
 
+          {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
+          {inAttendance.length > 0 && (
+            <Card className="border-primary/40 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  Em Atendimento ({inAttendance.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {inAttendance.map((occ) => (
+                  <div key={occ.id} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
+                    <Badge variant="outline" className="border-primary/60 text-primary text-xs shrink-0">
+                      Em atendimento
+                    </Badge>
+                    <span className="font-mono font-bold text-sm min-w-[90px]">{occ.bu_number || "—"}</span>
+                    <span className="text-xs text-muted-foreground min-w-[70px]">{fmtTime(occ.tramitation_time)}</span>
+                    {occ.regional && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{occ.regional}</span>}
+                    <div className="flex items-center gap-1">
+                      <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="OIP" /></SelectTrigger>
+                        <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular OIP" onClick={() => handleSkipInv(occ)}>
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                        <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-1 ml-auto shrink-0">
+                      <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
+                        <Edit className="w-3.5 h-3.5" /> Continuar
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" onClick={() => onDelete(occ.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex justify-end">
             {shift.status === "active" && (
               <Button size="default" onClick={openNew} className="gap-2">
@@ -321,7 +399,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 </tr>
               </thead>
               <tbody>
-                {occurrences.map((occ) => (
+                {completed.map((occ) => (
                   <tr key={occ.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="p-2.5 font-mono font-semibold">{occ.bu_number}</td>
                     <td className="p-2.5">{fmtTime(occ.tramitation_time)}</td>
@@ -355,17 +433,27 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </td>
                     <td className="p-2.5 truncate max-w-[160px]">{occ.regional || "—"}</td>
                     <td className="p-2.5">{occ.has_report ? "SIM" : "NÃO"}</td>
-                    <td className="p-2.5 text-center">{occ.num_hearings}</td>
+                    <td className="p-2.5">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleHearings(occ, -1)} disabled={!occ.num_hearings}>
+                          <span className="text-base leading-none">−</span>
+                        </Button>
+                        <span className="font-mono w-6 text-center">{occ.num_hearings}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleHearings(occ, 1)}>
+                          <span className="text-base leading-none">+</span>
+                        </Button>
+                      </div>
+                    </td>
                     <td className="p-2.5">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(occ.id)}><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {occurrences.length === 0 && (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma ocorrência registrada ainda.</td></tr>
+                {completed.length === 0 && (
+                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma ocorrência atendida ainda.</td></tr>
                 )}
               </tbody>
             </table>
@@ -375,7 +463,16 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-lg">{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              {editingId
+                ? (isInAttendance ? "Continuar Atendimento" : "Editar Ocorrência")
+                : "Nova Ocorrência"}
+              {isInAttendance && (
+                <Badge variant="outline" className="border-primary/60 text-primary text-xs">Em atendimento</Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
@@ -442,7 +539,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? "Salvando..." : editingId ? "Atualizar" : "Registrar"}
+              {saving
+                ? "Salvando..."
+                : editingId
+                  ? (isInAttendance ? "Concluir Atendimento" : "Atualizar")
+                  : "Registrar"}
             </Button>
           </div>
         </DialogContent>

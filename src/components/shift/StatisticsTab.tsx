@@ -20,13 +20,15 @@ export function StatisticsTab({ occurrences, shift }: Props) {
   const displayLabel = (name: string) => nicknameMap.get(name) || name;
 
   const stats = useMemo(() => {
+    // Apenas ocorrências atendidas contam nas estatísticas oficiais.
+    const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
     const byType: Record<string, number> = {};
     const byRegional: Record<string, number> = {};
     const byInvestigator: Record<string, number> = {};
     const byAuthority: Record<string, number> = {};
     let totalHearings = 0;
 
-    occurrences.forEach((occ) => {
+    finalOccs.forEach((occ) => {
       [occ.procedure_type, occ.procedure_type_2, occ.procedure_type_3].forEach((pt) => {
         if (pt) byType[pt] = (byType[pt] || 0) + 1;
       });
@@ -42,7 +44,7 @@ export function StatisticsTab({ occurrences, shift }: Props) {
       totalHearings += occ.num_hearings || 0;
     });
 
-    return { byType, byRegional, byInvestigator, byAuthority, totalHearings, total: occurrences.length };
+    return { byType, byRegional, byInvestigator, byAuthority, totalHearings, total: finalOccs.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [occurrences, nicknameMap]);
 

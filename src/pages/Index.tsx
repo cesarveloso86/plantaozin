@@ -49,6 +49,7 @@ const Index = () => {
 
     try {
       await shift.addOccurrence({
+        status: "em_atendimento",
         bu_number: result.triagem.numero_bo || "",
         tipification: result.despacho?.tipificacoes?.map(t => `${t.artigo} - ${t.descricao}`).join("; ") || "",
         conducted_names: result.depoimentos
@@ -63,7 +64,7 @@ const Index = () => {
         observations: result.triagem.resumo?.substring(0, 200) || "",
         tramitation_time: new Date().toISOString(),
       });
-      toast.success("Ocorrência enviada ao plantão com sucesso!");
+      toast.success("Ocorrência enviada ao plantão — aguardando atendimento.");
     } catch {
       toast.error("Erro ao enviar ao plantão");
     }
