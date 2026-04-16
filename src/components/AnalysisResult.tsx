@@ -48,23 +48,26 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
-type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | null;
+type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | "depoimento" | null;
 
 const FIELD_LABELS: Record<string, string> = {
   triagem: "Triagem",
   despacho: "Despacho",
   depoimentos: "Depoimentos",
+  depoimento: "Depoimento",
 };
 
 const FIELD_PLACEHOLDERS: Record<string, string> = {
   triagem: "Ex: Corrigir a natureza para 'Roubo'. O local do fato está incorreto.",
   despacho: "Ex: Alterar tipificação para Art. 33 da Lei 11.343/06. Adicionar providência de apreensão.",
   depoimentos: "Ex: Incluir depoimento do segundo PM condutor. Corrigir nome da testemunha.",
+  depoimento: "Ex: Corrigir o nome para 'João da Silva'. Reforçar que o depoente avistou o veículo se evadindo.",
 };
 
 const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
   const { triagem, depoimentos, despacho } = data;
   const [reanalyzeField, setReanalyzeField] = useState<ReanalyzeField>(null);
+  const [reanalyzeIndex, setReanalyzeIndex] = useState<number | null>(null);
   const [instructions, setInstructions] = useState("");
 
   const triagemText = [
@@ -90,24 +93,30 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
 
   const handleReanalyze = () => {
     if (onReanalyze && instructions.trim() && reanalyzeField) {
-      onReanalyze(instructions.trim(), reanalyzeField);
+      onReanalyze(
+        instructions.trim(),
+        reanalyzeField,
+        reanalyzeField === "depoimento" && reanalyzeIndex !== null ? reanalyzeIndex : undefined,
+      );
       setReanalyzeField(null);
+      setReanalyzeIndex(null);
       setInstructions("");
     }
   };
 
-  const openFieldReanalyze = (field: ReanalyzeField) => {
+  const openFieldReanalyze = (field: ReanalyzeField, index: number | null = null) => {
     setReanalyzeField(field);
+    setReanalyzeIndex(index);
     setInstructions("");
   };
 
-  const FieldEditButton = ({ field }: { field: ReanalyzeField }) => {
+  const FieldEditButton = ({ field, index }: { field: ReanalyzeField; index?: number }) => {
     if (!onReanalyze || !field) return null;
     return (
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => openFieldReanalyze(field)}
+        onClick={() => openFieldReanalyze(field, index ?? null)}
         disabled={reanalyzing}
         className="gap-1.5 text-xs h-7"
         title={`Corrigir ${FIELD_LABELS[field]}`}
