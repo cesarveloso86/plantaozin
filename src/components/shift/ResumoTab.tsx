@@ -85,7 +85,7 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
       {/* Header info */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Informações do Plantão</CardTitle>
+          <CardTitle className="text-base">Informações do Plantão</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p><strong>Equipe:</strong> {shift.team_name}</p>
@@ -139,7 +139,7 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
       {/* Observations */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Observações Administrativas</CardTitle>
+          <CardTitle className="text-base">Observações Administrativas</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {shift.observations.length > 0 ? (
@@ -149,7 +149,7 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
               ))}
             </ol>
           ) : (
-            <p className="text-xs text-muted-foreground">Nenhuma observação registrada.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma observação registrada.</p>
           )}
           {shift.status === "active" && (
             <div className="flex gap-2 pt-2">
@@ -171,7 +171,7 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
       {/* Occurrences by Regional (PO preview) */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Prévia da PO — Ocorrências por Regional</CardTitle>
+          <CardTitle className="text-base">Prévia da PO — Ocorrências por Regional</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {Object.entries(occByRegional).map(([regional, occs]) => (
@@ -202,7 +202,7 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onCloseShift }
             </div>
           ))}
           {Object.keys(occByRegional).length === 0 && (
-            <p className="text-xs text-muted-foreground">Nenhuma ocorrência para exibir.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma ocorrência para exibir.</p>
           )}
         </CardContent>
       </Card>

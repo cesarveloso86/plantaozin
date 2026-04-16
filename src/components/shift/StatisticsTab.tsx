@@ -34,7 +34,7 @@ export function StatisticsTab({ occurrences, shift }: Props) {
   const StatCard = ({ title, data }: { title: string; data: Record<string, number> }) => (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-base font-medium text-muted-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5">
         {Object.entries(data)
@@ -46,7 +46,7 @@ export function StatisticsTab({ occurrences, shift }: Props) {
             </div>
           ))}
         {Object.keys(data).length === 0 && (
-          <p className="text-xs text-muted-foreground">Sem dados</p>
+          <p className="text-sm text-muted-foreground">Sem dados</p>
         )}
       </CardContent>
     </Card>
@@ -58,25 +58,25 @@ export function StatisticsTab({ occurrences, shift }: Props) {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-            <p className="text-xs text-muted-foreground">Total Procedimentos</p>
+            <p className="text-sm text-muted-foreground">Total Procedimentos</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{stats.totalHearings}</p>
-            <p className="text-xs text-muted-foreground">Total de Oitivas</p>
+            <p className="text-sm text-muted-foreground">Total de Oitivas</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{stats.byType["APFD"] || 0}</p>
-            <p className="text-xs text-muted-foreground">APFDs</p>
+            <p className="text-sm text-muted-foreground">APFDs</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{Object.keys(stats.byRegional).length}</p>
-            <p className="text-xs text-muted-foreground">Regionais Atendidas</p>
+            <p className="text-sm text-muted-foreground">Regionais Atendidas</p>
           </CardContent>
         </Card>
       </div>

@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Edit, SkipForward, Send } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Trash2, Edit, SkipForward, Send, Users, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
@@ -94,13 +95,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   // --- Staging queue actions ---
   const addToQueue = () => {
     if (!newBu.trim()) { toast.error("Informe o número do BU"); return; }
-    // Check duplicate in queue and occurrences
     if (pendingQueue.some((p) => p.bu_number === newBu.trim()) || occurrences.some((o) => o.bu_number === newBu.trim())) {
       toast.error("BU já existe na fila ou nas ocorrências");
       return;
     }
 
-    // Evaluate suggested values directly based on current state to avoid stale closure issues
     const currentSuggestedInvestigator = getNextRoundRobin(investigators, occurrences, pendingQueue, "investigator");
     const currentSuggestedAuthority = getNextRoundRobin(authorities, occurrences, pendingQueue, "authority");
 
@@ -128,7 +127,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   };
 
   const registerPending = (item: PendingItem) => {
-    // Pre-fill the full form with staging data
     const today = shift.shift_date;
     const isoTime = new Date(`${today}T${item.tramitation_time}:00`).toISOString();
     setForm({
@@ -142,13 +140,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setShowForm(true);
   };
 
-  // --- Merge logic: merge PDF analysis data into existing occurrence ---
-  /** Called externally or from analysis flow. If BU exists, merges; otherwise creates new. */
   const mergeOrCreate = async (data: Partial<ShiftOccurrence>) => {
     if (!data.bu_number) return;
     const existing = occurrences.find((o) => o.bu_number === data.bu_number);
     if (existing) {
-      // Merge: keep original tramitation_time, investigator, authority
       const mergeFields: Partial<ShiftOccurrence> = {};
       if (data.tipification && !existing.tipification) mergeFields.tipification = data.tipification;
       if (data.conducted_names && !existing.conducted_names) mergeFields.conducted_names = data.conducted_names;
@@ -165,7 +160,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
         toast.info(`BU ${data.bu_number} já possui todos os dados`);
       }
     } else {
-      // Check pending queue
       const pendingIdx = pendingQueue.findIndex((p) => p.bu_number === data.bu_number);
       if (pendingIdx >= 0) {
         const pending = pendingQueue[pendingIdx];
@@ -210,10 +204,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
         await onUpdate(editingId, form);
         toast.success("Ocorrência atualizada");
       } else {
-        // Check merge
         const existing = occurrences.find((o) => o.bu_number === form.bu_number);
         if (existing) {
-          // Merge keeping original distribution
           const mergeFields: Partial<ShiftOccurrence> = { ...form };
           delete mergeFields.tramitation_time;
           delete mergeFields.investigator;
@@ -224,7 +216,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           await onAdd({ ...form, tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
-        // Remove from pending if present
         setPendingQueue((prev) => prev.filter((p) => p.bu_number !== form.bu_number));
       }
       setShowForm(false);
@@ -252,90 +243,107 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setForm((prev) => ({ ...prev, [key]: value }));
 
   return (
-    <div className="space-y-4">
-      {/* Staging: entrada manual rápida */}
+    <div className="space-y-6">
+      {/* ── Fila de Distribuição ── */}
       {shift.status === "active" && (
-        <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Fila de Distribuição — Próxima dupla: <span className="text-foreground">{suggestedInvestigator || "—"}</span> + <span className="text-foreground">{suggestedAuthority || "—"}</span>
-          </p>
-          {/* Inline add */}
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Label className="text-xs">Nº BU</Label>
-              <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-8 text-xs"
-                onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
+        <Card className="border-primary/20 bg-accent/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Fila de Distribuição
+              </CardTitle>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Próxima dupla:</span>
+                <Badge variant="default" className="text-sm px-3 py-1">{suggestedInvestigator || "—"}</Badge>
+                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                <Badge variant="secondary" className="text-sm px-3 py-1">{suggestedAuthority || "—"}</Badge>
+              </div>
             </div>
-            <div className="w-[120px]">
-              <Label className="text-xs">Horário</Label>
-              <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-8 text-xs" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Inline add */}
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label className="text-sm font-medium">Nº BU</Label>
+                <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-10 text-sm"
+                  onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
+              </div>
+              <div className="w-[140px]">
+                <Label className="text-sm font-medium">Horário</Label>
+                <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-10 text-sm" />
+              </div>
+              <Button size="default" variant="outline" onClick={addToQueue} className="h-10 gap-2 shrink-0">
+                <Plus className="w-4 h-4" /> Adicionar à Fila
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={addToQueue} className="h-8 gap-1 shrink-0">
-              <Plus className="w-3 h-3" /> Fila
-            </Button>
-          </div>
 
-          {/* Pending items */}
-          {pendingQueue.length > 0 && (
-            <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-              {pendingQueue.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs bg-background rounded px-2 py-1.5 border border-border">
-                  <span className="font-mono font-semibold min-w-[80px]">{item.bu_number}</span>
-                  <span className="text-muted-foreground">{item.tramitation_time}</span>
-                  <Select value={item.investigator} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, investigator: v } : p))}>
-                    <SelectTrigger className="h-6 text-xs w-[130px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                    <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={item.authority} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, authority: v } : p))}>
-                    <SelectTrigger className="h-6 text-xs w-[130px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                    <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Pular Vez" onClick={() => skipPending(idx)}>
-                    <SkipForward className="w-3 h-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Registrar" onClick={() => registerPending(item)}>
-                    <Send className="w-3 h-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-destructive" title="Remover" onClick={() => removePending(idx)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+            {/* Pending items */}
+            {pendingQueue.length > 0 && (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                <p className="text-sm font-medium text-muted-foreground">Na fila ({pendingQueue.length})</p>
+                {pendingQueue.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3 bg-background rounded-lg px-4 py-3 border border-border shadow-sm">
+                    <span className="font-mono font-bold text-base min-w-[90px]">{item.bu_number}</span>
+                    <span className="text-sm text-muted-foreground min-w-[50px]">{item.tramitation_time}</span>
+                    <Select value={item.investigator} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, investigator: v } : p))}>
+                      <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="OIP" /></SelectTrigger>
+                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={item.authority} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, authority: v } : p))}>
+                      <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <div className="flex gap-1 ml-auto shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Vez" onClick={() => skipPending(idx)}>
+                        <SkipForward className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Registrar" onClick={() => registerPending(item)}>
+                        <Send className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" onClick={() => removePending(idx)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* Recent registered occurrences */}
-          {occurrences.length > 0 && (
-            <div className="space-y-1.5 max-h-[160px] overflow-y-auto border-t border-border pt-2 mt-2">
-              <p className="text-[10px] text-muted-foreground font-medium">Últimas registradas:</p>
-              {occurrences.slice().reverse().slice(0, 5).map((occ) => (
-                <div key={occ.id} className="flex items-center gap-2 text-xs bg-background rounded px-2 py-1.5 border border-border">
-                  <span className="font-mono font-semibold min-w-[80px]">{occ.bu_number}</span>
-                  <span className="text-muted-foreground">
-                    {occ.tramitation_time ? new Date(occ.tramitation_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                  </span>
-                  <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
-                    <SelectTrigger className="h-6 text-xs w-[130px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                    <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
-                    <SelectTrigger className="h-6 text-xs w-[130px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                    <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Pular Vez" onClick={() => handleSkip(occ)}>
-                    <SkipForward className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            {/* Recent registered occurrences */}
+            {occurrences.length > 0 && (
+              <div className="space-y-2 max-h-[220px] overflow-y-auto border-t border-border pt-3 mt-3">
+                <p className="text-sm font-medium text-muted-foreground">Últimas registradas</p>
+                {occurrences.slice().reverse().slice(0, 5).map((occ) => (
+                  <div key={occ.id} className="flex items-center gap-3 bg-background rounded-lg px-4 py-2.5 border border-border">
+                    <span className="font-mono font-bold text-sm min-w-[90px]">{occ.bu_number}</span>
+                    <span className="text-sm text-muted-foreground min-w-[50px]">
+                      {occ.tramitation_time ? new Date(occ.tramitation_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </span>
+                    <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                      <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="OIP" /></SelectTrigger>
+                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                      <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 ml-auto" title="Pular Vez" onClick={() => handleSkip(occ)}>
+                      <SkipForward className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
+      {/* ── Tabela de Ocorrências ── */}
       <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">{occurrences.length} ocorrência(s)</p>
+        <p className="text-base text-muted-foreground">{occurrences.length} ocorrência(s)</p>
         {shift.status === "active" && (
-          <Button size="sm" onClick={openNew} className="gap-1.5">
+          <Button size="default" onClick={openNew} className="gap-2">
             <Plus className="w-4 h-4" /> Registrar
           </Button>
         )}
@@ -345,47 +353,47 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="p-2 text-left font-medium text-muted-foreground">BU</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Horário</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Tipo</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">OIP</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Autoridade</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Regional</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Rel.</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Oitivas</th>
-              <th className="p-2 text-left font-medium text-muted-foreground">Obs</th>
-              <th className="p-2 w-16"></th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">BU</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Horário</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Tipo</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">OIP</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Autoridade</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Regional</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Rel.</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Oitivas</th>
+              <th className="p-2.5 text-left font-medium text-muted-foreground">Obs</th>
+              <th className="p-2.5 w-20"></th>
             </tr>
           </thead>
           <tbody>
             {occurrences.map((occ) => (
               <tr key={occ.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-2 font-mono text-xs">{occ.bu_number}</td>
-                <td className="p-2 text-xs">
+                <td className="p-2.5 font-mono font-semibold">{occ.bu_number}</td>
+                <td className="p-2.5">
                   {occ.tramitation_time ? new Date(occ.tramitation_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
                 </td>
-                <td className="p-2">
+                <td className="p-2.5">
                   <div className="flex gap-1 flex-wrap">
-                    {occ.procedure_type && <Badge variant="secondary" className="text-[10px]">{occ.procedure_type}</Badge>}
-                    {occ.procedure_type_2 && <Badge variant="outline" className="text-[10px]">{occ.procedure_type_2}</Badge>}
+                    {occ.procedure_type && <Badge variant="secondary">{occ.procedure_type}</Badge>}
+                    {occ.procedure_type_2 && <Badge variant="outline">{occ.procedure_type_2}</Badge>}
                   </div>
                 </td>
-                <td className="p-2 text-xs truncate max-w-[120px]">{occ.investigator || "—"}</td>
-                <td className="p-2 text-xs truncate max-w-[100px]">{occ.authority || "—"}</td>
-                <td className="p-2 text-xs truncate max-w-[140px]">{occ.regional || "—"}</td>
-                <td className="p-2 text-xs">{occ.has_report ? "SIM" : "NÃO"}</td>
-                <td className="p-2 text-xs text-center">{occ.num_hearings}</td>
-                <td className="p-2 text-xs truncate max-w-[120px] text-muted-foreground">{occ.observations || ""}</td>
-                <td className="p-2">
+                <td className="p-2.5 truncate max-w-[140px]">{occ.investigator || "—"}</td>
+                <td className="p-2.5 truncate max-w-[120px]">{occ.authority || "—"}</td>
+                <td className="p-2.5 truncate max-w-[160px]">{occ.regional || "—"}</td>
+                <td className="p-2.5">{occ.has_report ? "SIM" : "NÃO"}</td>
+                <td className="p-2.5 text-center">{occ.num_hearings}</td>
+                <td className="p-2.5 truncate max-w-[140px] text-muted-foreground">{occ.observations || ""}</td>
+                <td className="p-2.5">
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(occ)}><Edit className="w-3 h-3" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(occ.id)}><Trash2 className="w-3 h-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(occ.id)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </td>
               </tr>
             ))}
             {occurrences.length === 0 && (
-              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground text-sm">Nenhuma ocorrência registrada ainda.</td></tr>
+              <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nenhuma ocorrência registrada ainda.</td></tr>
             )}
           </tbody>
         </table>
@@ -393,12 +401,12 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <DialogHeader><DialogTitle className="text-lg">{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
+              <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
               <div>
-                <Label>Tipo Procedimento</Label>
+                <Label className="text-sm">Tipo Procedimento</Label>
                 <Select value={form.procedure_type || ""} onValueChange={(v) => set("procedure_type", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
@@ -407,14 +415,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Tipo 2 (opcional)</Label>
+                <Label className="text-sm">Tipo 2 (opcional)</Label>
                 <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => set("procedure_type_2", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Tipo 3 (opcional)</Label>
+                <Label className="text-sm">Tipo 3 (opcional)</Label>
                 <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => set("procedure_type_3", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
@@ -423,14 +431,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>OIP</Label>
+                <Label className="text-sm">OIP</Label>
                 <Select value={form.investigator || ""} onValueChange={(v) => set("investigator", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Autoridade</Label>
+                <Label className="text-sm">Autoridade</Label>
                 <Select value={form.authority || ""} onValueChange={(v) => set("authority", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
@@ -438,7 +446,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               </div>
             </div>
             <div>
-              <Label>Regional</Label>
+              <Label className="text-sm">Regional</Label>
               <Select value={form.regional || ""} onValueChange={(v) => set("regional", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{REGIONALS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
@@ -447,18 +455,18 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-3 gap-3">
               <div className="flex items-center gap-2">
                 <Switch checked={form.has_report || false} onCheckedChange={(v) => set("has_report", v)} />
-                <Label>Relatório</Label>
+                <Label className="text-sm">Relatório</Label>
               </div>
               <div>
-                <Label>Oitivas</Label>
+                <Label className="text-sm">Oitivas</Label>
                 <Input type="number" min={0} value={form.num_hearings || 0} onChange={(e) => set("num_hearings", parseInt(e.target.value) || 0)} />
               </div>
             </div>
-            <div><Label>Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>
-            <div><Label>Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => set("victim_names", e.target.value)} /></div>
-            <div><Label>Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => set("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
-            <div><Label>Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
-            <div><Label>Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
+            <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => set("victim_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => set("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
+            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
+            <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving ? "Salvando..." : editingId ? "Atualizar" : "Registrar"}
             </Button>
