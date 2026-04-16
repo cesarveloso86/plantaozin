@@ -60,16 +60,11 @@ const Auth = () => {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, nf, cargo },
-        emailRedirectTo: window.location.origin,
-      },
+    const { data, error } = await supabase.functions.invoke("signup", {
+      body: { email, password, full_name: fullName, nf, cargo },
     });
-    if (error) {
-      toast({ title: "Erro no cadastro", description: error.message, variant: "destructive" });
+    if (error || data?.error) {
+      toast({ title: "Erro no cadastro", description: data?.error || error?.message || "Erro desconhecido", variant: "destructive" });
     } else {
       toast({
         title: "Conta criada!",
