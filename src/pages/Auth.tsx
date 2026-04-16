@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { ALLOWED_EMAIL_DOMAIN, isValidInstitutionalEmail } from "@/lib/constants";
+import { maskNF } from "@/lib/masks";
 
 type AuthMode = "login" | "signup" | "forgot";
 
@@ -55,8 +57,8 @@ const Auth = () => {
       toast({ title: "Senha muito curta", description: "Mínimo de 6 caracteres.", variant: "destructive" });
       return;
     }
-    if (!email.toLowerCase().endsWith(".gov.br")) {
-      toast({ title: "Domínio não autorizado", description: "Apenas e-mails institucionais (.gov.br) são permitidos para cadastro.", variant: "destructive" });
+    if (!isValidInstitutionalEmail(email)) {
+      toast({ title: "Domínio não autorizado", description: `Apenas e-mails institucionais (${ALLOWED_EMAIL_DOMAIN}) são permitidos para cadastro.`, variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -150,9 +152,10 @@ const Auth = () => {
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="nf"
-                      placeholder="Ex: 4752619"
+                      placeholder="123456"
+                      inputMode="numeric"
                       value={nf}
-                      onChange={(e) => setNf(e.target.value)}
+                      onChange={(e) => setNf(maskNF(e.target.value))}
                       className="pl-10"
                       required
                     />
@@ -185,7 +188,7 @@ const Auth = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="seu@email.com"
+                  placeholder={`usuario${ALLOWED_EMAIL_DOMAIN}`}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"

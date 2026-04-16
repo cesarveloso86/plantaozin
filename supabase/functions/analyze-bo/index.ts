@@ -141,7 +141,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { pdf_base64, file_name, instructions, previous_result, field } = await req.json();
+    const { pdf_base64, file_name, instructions, previous_result, field, signature_style } = await req.json();
     if (!pdf_base64) {
       return new Response(
         JSON.stringify({ error: "PDF não fornecido" }),
@@ -151,9 +151,34 @@ serve(async (req) => {
 
     console.log(`Processing file: ${file_name || "unknown"}${instructions ? " (re-analysis)" : ""}`);
 
+    // Build user-preference block (analyst signature style).
+    let prefBlock = "";
+    if (signature_style && typeof signature_style === "object") {
+      const tomMap: Record<string, string> = {
+        formal_juridico: "Formal jurídico, com linguagem técnica e citações legais quando cabível.",
+        tecnico_neutro: "Técnico e neutro, equilibrando clareza e formalidade.",
+        objetivo_simples: "Objetivo e direto, frases curtas e com menos jargão.",
+      };
+      const lines: string[] = [];
+      if (signature_style.tom && tomMap[signature_style.tom]) {
+        lines.push(`- Tom da redação: ${tomMap[signature_style.tom]}`);
+      }
+      if (signature_style.qualificacao_completa === false) {
+        lines.push("- Pular qualificação completa nos depoimentos (resumo direto).");
+      } else if (signature_style.qualificacao_completa === true) {
+        lines.push("- Sempre incluir qualificação completa (nome, filiação, RG, profissão e endereço) no início de cada depoimento.");
+      }
+      if (signature_style.instrucoes_extras && String(signature_style.instrucoes_extras).trim()) {
+        lines.push(`- Instruções adicionais do analista: ${String(signature_style.instrucoes_extras).trim()}`);
+      }
+      if (lines.length > 0) {
+        prefBlock = `\n\nPREFERÊNCIAS DO ANALISTA (siga sem violar as regras do sistema):\n${lines.join("\n")}`;
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: SYSTEM_PROMPT + prefBlock },
       {
         role: "user",
         content: [

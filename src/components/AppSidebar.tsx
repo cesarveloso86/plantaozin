@@ -1,4 +1,4 @@
-import { Shield, FilePlus, History, Users, LogOut, Moon, Sun, ClipboardList } from "lucide-react";
+import { Shield, FilePlus, History, Users, LogOut, Moon, Sun, ClipboardList, UserCog } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,6 +110,21 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3 space-y-2">
         <Separator />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink
+                to="/perfil"
+                end
+                className="hover:bg-muted/50"
+                activeClassName="bg-muted text-primary font-medium"
+              >
+                <UserCog className="mr-2 h-4 w-4" />
+                {!collapsed && <span>Meu Perfil</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         {!collapsed && profile && (
           <div className="px-2 py-1">
             <p className="text-sm font-medium text-foreground truncate">

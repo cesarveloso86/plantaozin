@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
-import { PROCEDURE_TYPES } from "@/types/shift";
 
 interface Props {
   occurrences: ShiftOccurrence[];
@@ -10,6 +9,16 @@ interface Props {
 }
 
 export function StatisticsTab({ occurrences, shift }: Props) {
+  // Build name → nickname map from the shift roster.
+  const nicknameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((p) => {
+      if (p.nickname && p.nickname.trim()) m.set(p.name, p.nickname);
+    });
+    return m;
+  }, [shift]);
+  const displayLabel = (name: string) => nicknameMap.get(name) || name;
+
   const stats = useMemo(() => {
     const byType: Record<string, number> = {};
     const byRegional: Record<string, number> = {};
@@ -18,18 +27,24 @@ export function StatisticsTab({ occurrences, shift }: Props) {
     let totalHearings = 0;
 
     occurrences.forEach((occ) => {
-      // Count each procedure type (primary + secondary + tertiary)
       [occ.procedure_type, occ.procedure_type_2, occ.procedure_type_3].forEach((pt) => {
         if (pt) byType[pt] = (byType[pt] || 0) + 1;
       });
       if (occ.regional) byRegional[occ.regional] = (byRegional[occ.regional] || 0) + 1;
-      if (occ.investigator) byInvestigator[occ.investigator] = (byInvestigator[occ.investigator] || 0) + 1;
-      if (occ.authority) byAuthority[occ.authority] = (byAuthority[occ.authority] || 0) + 1;
+      if (occ.investigator) {
+        const k = displayLabel(occ.investigator);
+        byInvestigator[k] = (byInvestigator[k] || 0) + 1;
+      }
+      if (occ.authority) {
+        const k = displayLabel(occ.authority);
+        byAuthority[k] = (byAuthority[k] || 0) + 1;
+      }
       totalHearings += occ.num_hearings || 0;
     });
 
     return { byType, byRegional, byInvestigator, byAuthority, totalHearings, total: occurrences.length };
-  }, [occurrences]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [occurrences, nicknameMap]);
 
   const StatCard = ({ title, data }: { title: string; data: Record<string, number> }) => (
     <Card>
