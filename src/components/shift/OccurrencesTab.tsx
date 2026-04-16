@@ -190,32 +190,43 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   };
 
   const handleSave = async () => {
-    if (!form.bu_number?.trim()) { toast.error("Informe o número do BU"); return; }
+    const bu = normBu(form.bu_number || "");
+    if (!bu) { toast.error("Informe o número do BU"); return; }
     setSaving(true);
     try {
       if (editingId) {
-        // Edição: se está em atendimento, marca como atendida ao salvar
         const updates = { ...form };
         if (isInAttendance) updates.status = "atendida";
         await onUpdate(editingId, updates);
         toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
       } else {
-        const existing = occurrences.find((o) => o.bu_number === form.bu_number);
+        const existing = findExistingBu(bu);
         if (existing) {
+          // Se já está atendida, bloqueia. Se está em atendimento, mescla e conclui.
+          if (existing.status !== "em_atendimento") {
+            toast.error(`BU ${bu} já foi atendido neste plantão.`);
+            setSaving(false);
+            return;
+          }
           const mergeFields: Partial<ShiftOccurrence> = { ...form };
           delete mergeFields.tramitation_time;
           delete mergeFields.investigator;
           delete mergeFields.authority;
-          // Mesclar dados → considerar atendida
           mergeFields.status = "atendida";
           await onUpdate(existing.id, mergeFields);
-          toast.success(`BU ${form.bu_number} mesclado e atendido`);
+          toast.success(`BU ${bu} mesclado e atendido`);
         } else {
-          // Registro manual = já atendida (usuário preencheu tudo)
-          await onAdd({ ...form, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
+          await onAdd({ ...form, bu_number: bu, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
-        setPendingQueue((prev) => prev.filter((p) => p.bu_number !== form.bu_number));
+        // Limpa pending + skip-state da posição
+        setPendingQueue((prev) => {
+          const idx = prev.findIndex((p) => normBu(p.bu_number) === bu);
+          if (idx < 0) return prev;
+          setSkippedInvByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
+          setSkippedAuthByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
+          return prev.filter((_, i) => i !== idx);
+        });
       }
       setShowForm(false);
     } catch {
