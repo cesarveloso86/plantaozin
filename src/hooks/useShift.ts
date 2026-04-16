@@ -170,6 +170,32 @@ export function useShift() {
     [activeShift]
   );
 
+  const updateObservation = useCallback(
+    async (idx: number, text: string) => {
+      if (!activeShift) return;
+      const newObs = activeShift.observations.map((o, i) => (i === idx ? text : o));
+      await supabase
+        .from("shifts")
+        .update({ observations: newObs })
+        .eq("id", activeShift.id);
+      setActiveShift((prev) => prev ? { ...prev, observations: newObs } : null);
+    },
+    [activeShift]
+  );
+
+  const deleteObservation = useCallback(
+    async (idx: number) => {
+      if (!activeShift) return;
+      const newObs = activeShift.observations.filter((_, i) => i !== idx);
+      await supabase
+        .from("shifts")
+        .update({ observations: newObs })
+        .eq("id", activeShift.id);
+      setActiveShift((prev) => prev ? { ...prev, observations: newObs } : null);
+    },
+    [activeShift]
+  );
+
   const selectShift = useCallback(async (shift: Shift) => {
     setActiveShift(shift);
     await loadOccurrences(shift.id);
@@ -211,6 +237,8 @@ export function useShift() {
     deleteOccurrence,
     closeShift,
     addObservation,
+    updateObservation,
+    deleteObservation,
     selectShift,
     updateShift,
     deleteShift,
