@@ -396,7 +396,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 </tr>
               </thead>
               <tbody>
-                {occurrences.map((occ) => (
+                {completed.map((occ) => (
                   <tr key={occ.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="p-2.5 font-mono font-semibold">{occ.bu_number}</td>
                     <td className="p-2.5">{fmtTime(occ.tramitation_time)}</td>
@@ -430,17 +430,27 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </td>
                     <td className="p-2.5 truncate max-w-[160px]">{occ.regional || "—"}</td>
                     <td className="p-2.5">{occ.has_report ? "SIM" : "NÃO"}</td>
-                    <td className="p-2.5 text-center">{occ.num_hearings}</td>
+                    <td className="p-2.5">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleHearings(occ, -1)} disabled={!occ.num_hearings}>
+                          <span className="text-base leading-none">−</span>
+                        </Button>
+                        <span className="font-mono w-6 text-center">{occ.num_hearings}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleHearings(occ, 1)}>
+                          <span className="text-base leading-none">+</span>
+                        </Button>
+                      </div>
+                    </td>
                     <td className="p-2.5">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(occ.id)}><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {occurrences.length === 0 && (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma ocorrência registrada ainda.</td></tr>
+                {completed.length === 0 && (
+                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma ocorrência atendida ainda.</td></tr>
                 )}
               </tbody>
             </table>
