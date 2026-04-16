@@ -146,6 +146,8 @@ const Plantao = () => {
             shift={shift.activeShift}
             occurrences={shift.occurrences}
             onAddObservation={shift.addObservation}
+            onUpdateObservation={shift.updateObservation}
+            onDeleteObservation={shift.deleteObservation}
             onCloseShift={shift.closeShift}
           />
         </TabsContent>
