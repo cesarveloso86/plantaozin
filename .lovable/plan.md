@@ -1,44 +1,53 @@
 
-# Plano final ajustado — pronto para implementação
+# Plano de correções e melhorias (revisado)
 
-## Ajustes desta rodada
-- **Máscara NF**: apenas filtro `replace(/\D/g, '')` (somente dígitos), sem limite de tamanho fixo. Aceita 6, 7+ dígitos. Placeholder: `123456`.
-- **Nome completo na tabela de membros (`AdminUsuarios`)**: coluna principal é o **Nome completo**, com o **Apelido** exibido como subtítulo/coluna ao lado.
-- **Uso otimizado em tela**: fila de distribuição (`OccurrencesTab`) e estatísticas (`StatisticsTab`) usam **`nickname || full_name`** (apelido quando existir, fallback para nome completo).
-- **Exportações (`exportDocx`, `exportXlsx`)**: sempre usam **nome completo + NF** — nunca apelido. A PO mantém formalidade.
+## 1. Edição granular de depoimentos
+- `AnalysisResult.tsx`: botão **"Corrigir"** em cada Card de depoimento (ao lado do CopyButton).
+- `useAnalysis.reanalyze(instructions, field, depoimentoIndex?)` — atualiza apenas o item.
+- `analyze-bo`: aceita `field=depoimento` + `depoimento_index` e regenera somente aquele.
 
-## Resumo das máscaras (`src/lib/masks.ts`)
-- `maskPhone(v)` → `(##) #####-####` — placeholder `(27) 99999-9999`
-- `maskNF(v)` → apenas dígitos, sem limite — placeholder `123456`
-- E-mail: validação por regex no submit (sem máscara) — placeholder `usuario@pc.es.gov.br`
+## 2. Observações administrativas — editar/excluir
+- `ResumoTab.tsx`: ícones `Edit` (Textarea inline) e `Trash` por item.
+- `useShift`: `updateObservation(idx, text)` e `deleteObservation(idx)`.
 
-## Etapas (sem mudanças estruturais — só refino)
+## 3 + 4. Fila preditiva por subequipes com horários fixos
 
-1. **Migração** — colunas em `profiles` e `team_members`:
-   - `team_members`: `nickname`, `email`, `telefone`, `lotacao`, `equipe`
-   - `profiles`: `nickname`, `telefone`, `lotacao`, `equipe`, `signature_style` (jsonb)
-   - `lotacao` default `'Central de Teleflagrante'`
+**Presets de turno** (`src/components/shift/scheduleConstants.ts`):
+- **Turno 1**: 10:00–16:00 · descanso 16:00–21:00 · retorno 21:00–04:00
+- **Turno 2**: 16:00–23:00 · descanso 23:00–04:00 · retorno 04:00–10:00
+- **ISEO**: janela única, sem descanso (definida ao adicionar)
 
-2. **Domínio `@pc.es.gov.br`** em `signup`, `admin-create-user`, `Auth.tsx`.
+**Modelo**:
+- `ShiftMember.schedule = { preset: 'T1' | 'T2' | 'ISEO' | 'CUSTOM', windows: [{start,end}, {start,end}?] }`
+- `MemberSelector`: dropdown de preset ao adicionar (CUSTOM permite editar manualmente).
 
-3. **`AdminUsuarios.tsx` unificado** — uma tabela única com colunas: **Nome completo** | Apelido | NF | Cargo | Lotação | Equipe | Permissão (só para quem tem login) | Ações.
+**Lógica** (`src/lib/availability.ts`):
+- `isAvailable(member, dateTime)` — checa se hora atual cai dentro de alguma janela.
+- `getAvailableMembers(members, dateTime)` — lista quem está ativo agora.
+- `predictQueue(available, occurrences, pending, count=N)` — round-robin **ponderado por menor carga** entre os disponíveis. Retorna ordem prevista dos próximos N atendimentos.
 
-4. **Apelido em fila e estatísticas** — `OccurrencesTab`, `StatisticsTab`, `MemberSelector`, `useTeamMembers` adotam `nickname || full_name`.
+**Reorganização da UI** (`OccurrencesTab.tsx`):
+- Sub-abas internas:
+  - **Em Distribuição** — fila preditiva (próximos N), pendentes e form de adicionar.
+  - **Já Atendidas** — tabela das registradas (saem da aba anterior ao salvar).
+- Skip individualizado: dois botões (`Pular OIP` / `Pular Autoridade`) por item.
 
-5. **Exportações preservam nome completo** — verificar `exportDocx.ts` e `exportXlsx.ts`: continuar usando `full_name` + `nf` (não trocar por apelido).
+**Correção de cargo**:
+- Atualizar os 20 membros de teste: todos viram `cargo='OIP'`.
 
-6. **Página `/perfil`** — Meus Dados (com máscaras) + Agente IA (instruções para leigos, placeholders genéricos).
+## 5. Regional automática a partir do BU
+- `analyze-bo` (prompt): retornar `unidade_registro` (texto literal) + `regional_codigo` (uma das 18 ou DEACLE). Se não casar, adiciona alerta automático: *"Unidade de Registro fora da lista oficial — verifique o BU"*.
+- `RelatorioTriagem` ganha `unidade_registro?` e `regional_codigo?`.
+- `Index.tsx > handleSendToShift`: usa `regional_codigo`; fallback por palavra-chave; se vazio, toast de aviso.
 
-7. **Integração IA** — `useAnalysis` envia `signature_style`; `analyze-bo` injeta no prompt.
-
-## Auditoria
-`created_by` + `created_at` já cobrem o log básico. Sem ação adicional.
+## 6. Exportação XLSX — ordem de atendimento + segundos
+- `exportXlsx.ts`: ordenar por `tramitation_time ASC`; formatar horários como `HH:mm:ss`.
+- Inputs `time` com `step="1"` no form.
 
 ## Arquivos
-- **Migração**: nova
-- **Criar**: `src/lib/masks.ts`, `src/lib/constants.ts`, `src/hooks/useProfile.ts`, `src/pages/Perfil.tsx`
-- **Editar**: `signup`, `admin-create-user`, `analyze-bo`, `Auth.tsx`, `AdminUsuarios.tsx`, `App.tsx`, `AppSidebar.tsx`, `useTeamMembers.ts`, `OccurrencesTab.tsx`, `StatisticsTab.tsx`, `MemberSelector.tsx`, `useAnalysis.ts`
-- **Verificar (sem alterar lógica)**: `exportDocx.ts`, `exportXlsx.ts` — confirmar que usam `full_name`
+**Criar**: `src/lib/availability.ts`, `src/components/shift/scheduleConstants.ts`
+**Editar**: `src/types/shift.ts`, `src/types/analysis.ts`, `AnalysisResult.tsx`, `ResumoTab.tsx`, `OccurrencesTab.tsx`, `MemberSelector.tsx`, `CreateShiftDialog.tsx`, `EditShiftDialog.tsx`, `useShift.ts`, `useAnalysis.ts`, `exportXlsx.ts`, `Index.tsx`, `analyze-bo/index.ts`
+**Dados**: UPDATE em `team_members` para `cargo='OIP'` nos 20 de teste.
 
 ## Comando final
-Responda **"Aprovado, implementar tudo"** (ou clique no botão) para sair do modo plano e iniciar pela migração.
+Responda **"Aprovado, implementar"** para começar pelos types/schedule e fila preditiva.
