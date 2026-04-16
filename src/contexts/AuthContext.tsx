@@ -38,52 +38,91 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
-    setProfile(data as Profile | null);
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data as Profile | null) ?? null;
   }, []);
 
   const fetchRole = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    const roles = (data || []).map((r: any) => r.role);
-    setIsAdmin(roles.includes("admin"));
+
+    if (error) {
+      throw error;
+    }
+
+    const roles = (data || []).map((r: { role: string | null }) => r.role);
+    return roles.includes("admin");
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        try {
-          setSession(session);
-          setUser(session?.user ?? null);
+    let isActive = true;
+    let authRequestId = 0;
 
-          if (session?.user) {
-            await Promise.all([
-              fetchProfile(session.user.id),
-              fetchRole(session.user.id),
-            ]);
-          } else {
-            setProfile(null);
-            setIsAdmin(false);
-          }
-        } catch (error) {
-          console.error("Error handling auth state change:", error);
+    const syncUserContext = async (userId: string, requestId: number) => {
+      try {
+        const [nextProfile, nextIsAdmin] = await Promise.all([
+          fetchProfile(userId),
+          fetchRole(userId),
+        ]);
+
+        if (!isActive || requestId !== authRequestId) {
+          return;
+        }
+
+        setProfile(nextProfile);
+        setIsAdmin(nextIsAdmin);
+      } catch (error) {
+        console.error("Error fetching auth context:", error);
+
+        if (!isActive || requestId !== authRequestId) {
+          return;
+        }
+
+        setProfile(null);
+        setIsAdmin(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        authRequestId += 1;
+        const requestId = authRequestId;
+
+        if (!isActive) {
+          return;
+        }
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+
+        if (!session?.user) {
           setProfile(null);
           setIsAdmin(false);
-          setSession(null);
-          setUser(null);
-        } finally {
-          setLoading(false);
+          return;
         }
+
+        setProfile(null);
+        setIsAdmin(false);
+        void syncUserContext(session.user.id, requestId);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile, fetchRole]);
 
   const signOut = useCallback(async () => {
