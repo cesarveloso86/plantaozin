@@ -104,6 +104,7 @@ export function useShift() {
       if (!user || !activeShift) return;
       const { error } = await supabase.from("shift_occurrences").insert({
         shift_id: activeShift.id,
+        status: occ.status || "em_atendimento",
         bu_number: occ.bu_number || "",
         tramitation_time: occ.tramitation_time || null,
         procedure_type: occ.procedure_type || null,
