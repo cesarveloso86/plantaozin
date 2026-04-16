@@ -219,8 +219,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     <div className="space-y-4">
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
-          <TabsTrigger value="distribuicao">Em Distribuição</TabsTrigger>
-          <TabsTrigger value="atendidas">Já Atendidas ({occurrences.length})</TabsTrigger>
+          <TabsTrigger value="distribuicao">Em Distribuição ({pendingQueue.length + inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
         {/* ── Aba: Em Distribuição ── */}
@@ -315,6 +315,56 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
+          {inAttendance.length > 0 && (
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Em Atendimento ({inAttendance.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {inAttendance.map((occ) => (
+                  <div key={occ.id} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
+                    <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400 text-xs shrink-0">
+                      Em atendimento
+                    </Badge>
+                    <span className="font-mono font-bold text-sm min-w-[90px]">{occ.bu_number || "—"}</span>
+                    <span className="text-xs text-muted-foreground min-w-[70px]">{fmtTime(occ.tramitation_time)}</span>
+                    {occ.regional && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{occ.regional}</span>}
+                    <div className="flex items-center gap-1">
+                      <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="OIP" /></SelectTrigger>
+                        <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular OIP" onClick={() => handleSkipInv(occ)}>
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                        <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-1 ml-auto shrink-0">
+                      <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
+                        <Edit className="w-3.5 h-3.5" /> Continuar
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" onClick={() => onDelete(occ.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
