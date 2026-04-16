@@ -575,7 +575,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               </div>
               <div>
                 <Label className="text-sm">Oitivas</Label>
-                <Input type="number" min={0} value={form.num_hearings || 0} onChange={(e) => set("num_hearings", parseInt(e.target.value) || 0)} />
+                <div className="flex items-center gap-1 h-10 border border-input rounded-md px-2 bg-background">
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
+                    <span className="text-base leading-none">−</span>
+                  </Button>
+                  <span className="font-mono w-8 text-center text-sm">{form.num_hearings || 0}</span>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", (form.num_hearings || 0) + 1)}>
+                    <span className="text-base leading-none">+</span>
+                  </Button>
+                </div>
               </div>
             </div>
             <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>
