@@ -55,30 +55,45 @@ export type Database = {
           avatar_url: string | null
           cargo: string | null
           created_at: string
+          equipe: string | null
           full_name: string
           id: string
+          lotacao: string | null
           nf: string | null
+          nickname: string | null
           role: string
+          signature_style: Json
+          telefone: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
+          equipe?: string | null
           full_name?: string
           id: string
+          lotacao?: string | null
           nf?: string | null
+          nickname?: string | null
           role?: string
+          signature_style?: Json
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           cargo?: string | null
           created_at?: string
+          equipe?: string | null
           full_name?: string
           id?: string
+          lotacao?: string | null
           nf?: string | null
+          nickname?: string | null
           role?: string
+          signature_style?: Json
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -229,28 +244,43 @@ export type Database = {
           cargo: string | null
           created_at: string
           created_by: string
+          email: string | null
+          equipe: string | null
           full_name: string
           id: string
           is_active: boolean
+          lotacao: string | null
           nf: string | null
+          nickname: string | null
+          telefone: string | null
         }
         Insert: {
           cargo?: string | null
           created_at?: string
           created_by: string
+          email?: string | null
+          equipe?: string | null
           full_name: string
           id?: string
           is_active?: boolean
+          lotacao?: string | null
           nf?: string | null
+          nickname?: string | null
+          telefone?: string | null
         }
         Update: {
           cargo?: string | null
           created_at?: string
           created_by?: string
+          email?: string | null
+          equipe?: string | null
           full_name?: string
           id?: string
           is_active?: boolean
+          lotacao?: string | null
           nf?: string | null
+          nickname?: string | null
+          telefone?: string | null
         }
         Relationships: []
       }
