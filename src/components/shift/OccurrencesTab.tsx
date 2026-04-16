@@ -114,9 +114,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const suggestedAuthority = predictedAuth[0] || "";
 
   const addToQueue = () => {
-    if (!newBu.trim()) { toast.error("Informe o número do BU"); return; }
-    if (pendingQueue.some((p) => p.bu_number === newBu.trim()) || occurrences.some((o) => o.bu_number === newBu.trim())) {
-      toast.error("BU já existe na fila ou nas ocorrências");
+    const bu = normBu(newBu);
+    if (!bu) { toast.error("Informe o número do BU"); return; }
+    if (findInPending(bu)) { toast.error(`BU ${bu} já está em distribuição.`); return; }
+    const dup = findExistingBu(bu);
+    if (dup) {
+      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+      toast.error(`BU ${bu} já está ${where} neste plantão.`);
       return;
     }
 
@@ -126,23 +130,37 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     setPendingQueue((prev) => [
       ...prev,
-      { bu_number: newBu.trim(), tramitation_time: timeVal, investigator: nextInv, authority: nextAuth },
+      { bu_number: bu, tramitation_time: timeVal, investigator: nextInv, authority: nextAuth },
     ]);
     setNewBu("");
     setNewTime("");
   };
 
-  const removePending = (idx: number) => setPendingQueue((prev) => prev.filter((_, i) => i !== idx));
+  const removePending = (idx: number) => {
+    setPendingQueue((prev) => prev.filter((_, i) => i !== idx));
+    setSkippedInvByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
+    setSkippedAuthByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
+  };
 
   const skipPendingInv = (idx: number) => {
-    setPendingQueue((prev) =>
-      prev.map((p, i) => i === idx ? { ...p, investigator: nextSkipping(allInvestigators, p.investigator, now) } : p)
-    );
+    setPendingQueue((prev) => {
+      const item = prev[idx];
+      if (!item) return prev;
+      const skipped = [...(skippedInvByIdx[idx] || []), item.investigator].filter(Boolean);
+      setSkippedInvByIdx((s) => ({ ...s, [idx]: skipped }));
+      const next = nextSkipping(allInvestigators, item.investigator, now, skipped);
+      return prev.map((p, i) => i === idx ? { ...p, investigator: next } : p);
+    });
   };
   const skipPendingAuth = (idx: number) => {
-    setPendingQueue((prev) =>
-      prev.map((p, i) => i === idx ? { ...p, authority: nextSkipping(allAuthorities, p.authority, now) } : p)
-    );
+    setPendingQueue((prev) => {
+      const item = prev[idx];
+      if (!item) return prev;
+      const skipped = [...(skippedAuthByIdx[idx] || []), item.authority].filter(Boolean);
+      setSkippedAuthByIdx((s) => ({ ...s, [idx]: skipped }));
+      const next = nextSkipping(allAuthorities, item.authority, now, skipped);
+      return prev.map((p, i) => i === idx ? { ...p, authority: next } : p);
+    });
   };
 
   const registerPending = (item: PendingItem) => {
