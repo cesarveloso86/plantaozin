@@ -332,18 +332,20 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
       </motion.div>
 
       {/* Per-field Re-analyze Dialog */}
-      <Dialog open={!!reanalyzeField} onOpenChange={(v) => !v && setReanalyzeField(null)}>
+      <Dialog open={!!reanalyzeField} onOpenChange={(v) => { if (!v) { setReanalyzeField(null); setReanalyzeIndex(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
               Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
+              {reanalyzeField === "depoimento" && reanalyzeIndex !== null && depoimentos[reanalyzeIndex] && (
+                <span className="text-sm text-muted-foreground font-normal">— {depoimentos[reanalyzeIndex].nome}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Informe o que a IA deve corrigir ou complementar {reanalyzeField === "triagem" ? "na triagem" : reanalyzeField === "despacho" ? "no despacho" : "nos depoimentos"}.
-              As demais seções não serão alteradas.
+              Informe o que a IA deve corrigir ou complementar. As demais seções não serão alteradas.
             </p>
             <Textarea
               rows={4}
@@ -353,7 +355,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             />
             <Button onClick={handleReanalyze} disabled={!instructions.trim()} className="w-full gap-2">
               <RefreshCw className="w-4 h-4" />
-              Corrigir {reanalyzeField ? FIELD_LABELS[reanalyzeField] : ""}
+              Corrigir
             </Button>
           </div>
         </DialogContent>
