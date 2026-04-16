@@ -28,8 +28,10 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObserv
   const [editText, setEditText] = useState("");
 
   const occByRegional = useMemo(() => {
+    // Prévia da PO mostra somente ocorrências atendidas.
+    const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
     const grouped: Record<string, ShiftOccurrence[]> = {};
-    occurrences.forEach((occ) => {
+    finalOccs.forEach((occ) => {
       const key = occ.regional || "Sem Regional";
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(occ);

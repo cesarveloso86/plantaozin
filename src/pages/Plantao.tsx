@@ -75,7 +75,7 @@ const Plantao = () => {
             {shift.activeShift.team_name} — {new Date(shift.activeShift.shift_date).toLocaleDateString("pt-BR")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {shift.activeShift.status === "active" ? "🟢 Plantão ativo" : "🔴 Plantão encerrado"} · {shift.occurrences.length} ocorrência(s)
+            {shift.activeShift.status === "active" ? "🟢 Plantão ativo" : "🔴 Plantão encerrado"} · {shift.occurrences.filter(o => o.status !== "em_atendimento").length} atendida(s){shift.occurrences.some(o => o.status === "em_atendimento") && ` · ${shift.occurrences.filter(o => o.status === "em_atendimento").length} em atendimento`}
           </p>
         </div>
         <div className="flex gap-2">
