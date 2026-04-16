@@ -1,71 +1,42 @@
 
-# Plano revisado — Plantão UX (v2)
+# Plano v3 — adendos solicitados
 
-## 1. Filtro estrito por cargo
-`MemberSelector`: quando `filterFuncao` setado, esconder seção "Outros". Mostrar "Nenhum membro com cargo X" se vazio.
+## A. Skip vai para o final da fila (bug)
+**Hoje** `nextSkipping` retorna o próximo da lista circular → quem pulou pode reaparecer em 1º.
+**Fix** em `src/lib/availability.ts`:
+- `predictQueue` aceita `skipped: string[]` — exclui da rotação atual e os recoloca **no fim** da ordem prevista.
+- `OccurrencesTab`: estado `skippedInv: string[]` / `skippedAuth: string[]` por slot pendente. Botão "Pular" empurra o nome para o fim em vez de avançar para o vizinho.
+- Reset do skip ao concluir/registrar a ocorrência.
+- (Futuro: regra por equipe — deixar gancho `getSkipPolicy(team)`.)
 
-## 2. Fluxo "Em Distribuição" → "Já Atendidas" (staging)
-- Migration: `ALTER TABLE shift_occurrences ADD COLUMN status text NOT NULL DEFAULT 'em_atendimento'` + backfill existentes para `'atendida'`.
-- `ShiftOccurrence.status: 'em_atendimento' | 'atendida'`.
-- `Index.tsx > handleSendToShift` → cria com `status='em_atendimento'`.
-- `OccurrencesTab`:
-  - **Em Distribuição** = pendentes + ocorrências `em_atendimento`.
-  - **Já Atendidas** = `atendida`.
-- Salvar em dialog de edição → vira `atendida` (botão "Concluir atendimento").
+## B. Contador `+` / `-` de oitivas no dialog de edição
+Em `OccurrencesTab` (dialog de criação/edição):
+- Substituir `<Input type="number">` de `num_hearings` pelo mesmo controle inline `[ - ] N [ + ]` já usado na tabela "Já Atendidas".
+- Min = 0, sem máximo. Atualiza `form.num_hearings` direto.
 
-## 3. UX de edição em atendimento
-- Badge: `Em atendimento` (amber) vs `Atendida` (green).
-- Botão muda label conforme status: "Continuar atendimento" / "Editar".
-- Contador `num_hearings` com `+`/`-` inline na tabela.
+## C. Observações não devem herdar "fatos"
+**Hoje** `Index.tsx > handleSendToShift` provavelmente preenche `observations` com `result.fatos` (ou similar).
+**Fix**:
+- Não popular `observations` ao enviar para o plantão. Campo começa **vazio** — usuário preenche manualmente se quiser.
+- Conferir/remover qualquer atribuição automática a `observations` no payload de `addOccurrence`.
 
-## 4. Lógica da fila — explicação + nova abordagem por equipes
+## D. Data exibida com -1 (timezone)
+**Causa** `shift_date` é `date` (sem hora) — ao criar `new Date("2026-04-16")` o JS interpreta UTC e converte para local (UTC-3 → dia anterior).
+**Fix**:
+- Em `CreateShiftDialog` ao salvar: usar `format(date, "yyyy-MM-dd")` do `date-fns` (já importado) — sem `toISOString()`.
+- Em qualquer exibição (`Plantao.tsx`, headers de tabs): parsear como local com `parseISO` + `format` ou compor manualmente `new Date(y, m-1, d)`. Nunca `new Date(shift_date)` direto.
 
-**Hoje**: round-robin ponderado por menor carga entre disponíveis no horário (empate = ordem de cadastro).
-
-**Mudança solicitada — escalas independentes + equipes pré-montadas**:
-
-### 4a. Schedules independentes para Delegados e OIPs
-- Hoje OIPs e Delegados compartilham os mesmos presets T1/T2. Não reflete a realidade.
-- Reformular `scheduleConstants.ts` com **presets separados** baseados na escala real:
-  - **Equipe A** (ex: Aldari + Victor): `10:00–16:00` + `21:00–01:00`
-  - **Equipe B** (ex: Guilherme + Elismar): `16:00–21:00` + `04:00–10:00`
-  - **Equipe C** (ex: Cleriston + Davi): `20:00–04:00` (janela única)
-- Cada equipe pode misturar Delegado + OIP — eles compartilham a janela da equipe, não do cargo.
-
-### 4b. Cadastro por equipe (não individual)
-- Em `CreateShiftDialog`: substituir os 3 `MemberSelector` independentes por um **"Compositor de Equipes"**:
-  - Botão "Adicionar Equipe" → escolhe preset (A/B/C/Custom) → adiciona Delegado(s) + OIP(s) à equipe.
-  - Equipes ficam listadas em ordem (1ª, 2ª, 3ª) — essa ordem **define a ordem inicial da fila preditiva**.
-  - ISEO continua selecionado à parte (sempre 24h).
-- Modelo:
-  ```ts
-  interface ShiftTeam {
-    id: string;
-    label: string;          // "1ª Equipe"
-    preset: 'A'|'B'|'C'|'CUSTOM';
-    windows: ScheduleWindow[];
-    authorities: ShiftMember[];
-    investigators: ShiftMember[];
-  }
-  ```
-- `Shift` ganha `teams: ShiftTeam[]` (mantém `authorities/investigators/iseo` derivados para compat).
-
-### 4c. Fila preditiva por equipe
-- `predictQueue` reformulada:
-  1. Filtra equipes disponíveis no horário atual (alguma janela ativa).
-  2. Round-robin **entre equipes** (não entre indivíduos), respeitando a ordem 1ª→2ª→3ª.
-  3. Dentro da equipe escolhida, distribui o atendimento ao Delegado + OIP daquela equipe (par fixo).
-  4. Ponderação por menor carga acumulada entre equipes disponíveis para desempate.
-- Resultado: fila mostra "Próximo: 1ª Equipe (Aldari + Victor)" — par já formado, sem escolha individual.
-
-## 5. Migration de dados
-- Atualizar 20 membros de teste: manter `cargo='OIP'` para 14 e setar `cargo='Delegado'` para 6 (para testar filtro estrito).
+## E. Bloquear BU duplicado
+Validação em `OccurrencesTab` antes de adicionar à fila pendente, registrar manualmente, ou salvar via `Index.tsx > handleSendToShift`:
+- Normalizar `bu_number` (trim, upper).
+- Procurar em `occurrences` (qualquer status) + `pendingQueue`.
+- Se existir: `toast.error("BU XXXX já está na distribuição/atendida")` e abortar.
+- Em `handleSendToShift`: mesma checagem antes do `addOccurrence`; se duplicado, retornar toast informando o status atual.
 
 ## Arquivos
-**Migration**: `shift_occurrences.status`
-**Types**: `shift.ts` (+ `ShiftTeam`, `ShiftOccurrence.status`)
-**Criar**: `src/components/shift/TeamComposer.tsx`
-**Editar**: `scheduleConstants.ts` (presets A/B/C), `availability.ts` (queue por equipe), `MemberSelector.tsx` (filtro estrito), `CreateShiftDialog.tsx` + `EditShiftDialog.tsx` (TeamComposer), `OccurrencesTab.tsx` (badges, contador inline, status), `Index.tsx` (status inicial), `useShift.ts` (teams, concludeOccurrence), `exportXlsx.ts` (só `atendida`)
-
-## Comando
-Responda **"Aprovado, implementar"** para iniciar pela migration + types + TeamComposer.
+- `src/lib/availability.ts` — `predictQueue(..., skipped)`, helper de skip-to-end
+- `src/components/shift/OccurrencesTab.tsx` — estado de skip por slot, contador `+/-` no dialog, validação de BU duplicado
+- `src/pages/Index.tsx` — não popular `observations`; checar duplicidade antes de enviar
+- `src/components/shift/CreateShiftDialog.tsx` — salvar `shift_date` sem UTC
+- `src/pages/Plantao.tsx` — formatar `shift_date` como local
+- (eventualmente) `src/components/shift/ResumoTab.tsx` se exibir data
