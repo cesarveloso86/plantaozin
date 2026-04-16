@@ -55,8 +55,7 @@ export function useAnalysis() {
 
       const analysisResult = data as AnalysisResult;
 
-      // Save to history
-      const { data: { user } } = await supabase.auth.getUser();
+      // Save to history (reuse the same `user` fetched above)
       if (user) {
         await supabase.from("analyses").insert({
           user_id: user.id,
