@@ -1,6 +1,7 @@
 export interface ShiftMember {
   name: string;
   nf?: string;
+  nickname?: string;
   role?: string;
   substituting?: string;
 }

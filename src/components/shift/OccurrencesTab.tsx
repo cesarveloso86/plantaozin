@@ -83,6 +83,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const investigators = shift.investigators.map((i) => i.name);
   const authorities = shift.authorities.map((a) => a.name);
 
+  // Map of canonical full_name → nickname (for display only).
+  const nicknameMap = new Map<string, string>();
+  [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((m) => {
+    if (m.nickname && m.nickname.trim()) nicknameMap.set(m.name, m.nickname);
+  });
+  const displayLabel = (fullName: string) =>
+    nicknameMap.get(fullName) || fullName;
+
   const suggestedInvestigator = useMemo(
     () => getNextRoundRobin(investigators, occurrences, pendingQueue, "investigator"),
     [investigators, occurrences, pendingQueue]
@@ -255,9 +263,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               </CardTitle>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Próxima dupla:</span>
-                <Badge variant="default" className="text-sm px-3 py-1">{suggestedInvestigator || "—"}</Badge>
+                <Badge variant="default" className="text-sm px-3 py-1">{displayLabel(suggestedInvestigator) || "—"}</Badge>
                 <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                <Badge variant="secondary" className="text-sm px-3 py-1">{suggestedAuthority || "—"}</Badge>
+                <Badge variant="secondary" className="text-sm px-3 py-1">{displayLabel(suggestedAuthority) || "—"}</Badge>
               </div>
             </div>
           </CardHeader>
@@ -288,11 +296,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <span className="text-sm text-muted-foreground min-w-[50px]">{item.tramitation_time}</span>
                     <Select value={item.investigator} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, investigator: v } : p))}>
                       <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={item.authority} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, authority: v } : p))}>
                       <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                     </Select>
                     <div className="flex gap-1 ml-auto shrink-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Vez" onClick={() => skipPending(idx)}>
@@ -322,11 +330,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </span>
                     <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
                       <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                      <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
                       <SelectTrigger className="h-9 text-sm w-[160px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                      <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 ml-auto" title="Pular Vez" onClick={() => handleSkip(occ)}>
                       <SkipForward className="w-4 h-4" />

@@ -30,7 +30,11 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
   const addMember = (userId: string) => {
     const user = users.find((u) => u.id === userId);
     if (!user || members.some((m) => m.name === user.full_name)) return;
-    setMembers((prev) => [...prev, { name: user.full_name, nf: user.nf || undefined }]);
+    setMembers((prev) => [...prev, {
+      name: user.full_name,
+      nf: user.nf || undefined,
+      nickname: user.nickname || undefined,
+    }]);
   };
 
   const removeMember = (name: string) => {
@@ -56,9 +60,10 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
   const getSubstituteOptions = (memberName: string) =>
     users.filter((u) => u.full_name !== memberName);
 
-  // Resolve nickname for a selected member by looking up the source user.
-  const nicknameOf = (memberName: string) => {
-    const u = users.find((x) => x.full_name === memberName);
+  // Resolve nickname for a selected member: prefer member.nickname, fall back to source user.
+  const nicknameOf = (m: ShiftMember) => {
+    if (m.nickname && m.nickname.trim()) return m.nickname;
+    const u = users.find((x) => x.full_name === m.name);
     return u?.nickname && u.nickname.trim() ? u.nickname : null;
   };
 
@@ -106,7 +111,7 @@ export function MemberSelector({ label, members, setMembers, users, allSelectedN
       {members.length > 0 && (
         <div className="space-y-1.5 mt-1">
           {members.map((m) => {
-            const apelido = nicknameOf(m.name);
+            const apelido = nicknameOf(m);
             return (
               <div key={m.name} className="flex items-center gap-2">
                 <Badge variant="secondary" className="gap-1 pr-1 shrink-0">
