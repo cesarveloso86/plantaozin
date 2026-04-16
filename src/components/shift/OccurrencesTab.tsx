@@ -56,6 +56,22 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newBu, setNewBu] = useState("");
   const [newTime, setNewTime] = useState("");
 
+  // Skip histórico por slot (idx do pendingQueue) — pulados vão para o final.
+  const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
+  const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
+
+  // Helper: BU normalizado
+  const normBu = (s: string) => (s || "").trim().toUpperCase();
+  const findExistingBu = (bu: string) => {
+    const n = normBu(bu);
+    if (!n) return null;
+    return occurrences.find((o) => normBu(o.bu_number) === n) || null;
+  };
+  const findInPending = (bu: string) => {
+    const n = normBu(bu);
+    return pendingQueue.find((p) => normBu(p.bu_number) === n) || null;
+  };
+
   // Split by status
   const inAttendance = useMemo(
     () => occurrences.filter((o) => o.status === "em_atendimento"),
