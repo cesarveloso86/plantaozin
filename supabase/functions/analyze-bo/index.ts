@@ -211,18 +211,21 @@ serve(async (req) => {
 
     // If re-analyzing, add the previous result and instructions
     if (instructions && previous_result) {
-      const fieldLabel = field === "triagem" ? "a triagem/relatório" 
+      const isSingleDep = field === "depoimento" && typeof depoimento_index === "number";
+      const depTarget = isSingleDep && previous_result?.depoimentos?.[depoimento_index];
+      const fieldLabel = field === "triagem" ? "a triagem/relatório"
         : field === "despacho" ? "o despacho (tipificações e providências)"
+        : isSingleDep ? `APENAS o depoimento de índice ${depoimento_index} (${depTarget?.nome || "desconhecido"})`
         : field === "depoimentos" ? "os depoimentos"
         : "o resultado completo";
-      
+
       messages.push({
         role: "assistant",
         content: JSON.stringify(previous_result),
       });
       messages.push({
         role: "user",
-        content: `Reanalisar APENAS ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS as demais seções do JSON. Corrija ou complemente APENAS ${fieldLabel} conforme solicitado. Retorne o JSON completo atualizado.`,
+        content: `Reanalisar ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS todas as demais seções e os demais itens do array. ${isSingleDep ? `Altere SOMENTE o item de índice ${depoimento_index} no array "depoimentos". Os demais depoimentos devem permanecer EXATAMENTE iguais.` : ""} Retorne o JSON completo atualizado.`,
       });
     }
 
