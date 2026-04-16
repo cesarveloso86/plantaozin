@@ -119,6 +119,7 @@ export type Database = {
           procedure_type_3: string | null
           regional: string | null
           shift_id: string
+          status: string
           suspect_names: string | null
           tipification: string | null
           tramitation_time: string | null
@@ -144,6 +145,7 @@ export type Database = {
           procedure_type_3?: string | null
           regional?: string | null
           shift_id: string
+          status?: string
           suspect_names?: string | null
           tipification?: string | null
           tramitation_time?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           procedure_type_3?: string | null
           regional?: string | null
           shift_id?: string
+          status?: string
           suspect_names?: string | null
           tipification?: string | null
           tramitation_time?: string | null
