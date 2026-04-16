@@ -386,8 +386,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     {occ.procedure_type_2 && <Badge variant="outline">{occ.procedure_type_2}</Badge>}
                   </div>
                 </td>
-                <td className="p-2.5 truncate max-w-[140px]">{occ.investigator || "—"}</td>
-                <td className="p-2.5 truncate max-w-[120px]">{occ.authority || "—"}</td>
+                <td className="p-2.5 truncate max-w-[140px]">{occ.investigator ? displayLabel(occ.investigator) : "—"}</td>
+                <td className="p-2.5 truncate max-w-[120px]">{occ.authority ? displayLabel(occ.authority) : "—"}</td>
                 <td className="p-2.5 truncate max-w-[160px]">{occ.regional || "—"}</td>
                 <td className="p-2.5">{occ.has_report ? "SIM" : "NÃO"}</td>
                 <td className="p-2.5 text-center">{occ.num_hearings}</td>
@@ -442,14 +442,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 <Label className="text-sm">OIP</Label>
                 <Select value={form.investigator || ""} onValueChange={(v) => set("investigator", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                  <SelectContent>{investigators.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-sm">Autoridade</Label>
                 <Select value={form.authority || ""} onValueChange={(v) => set("authority", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                  <SelectContent>{authorities.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

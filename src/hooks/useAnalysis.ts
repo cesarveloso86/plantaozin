@@ -27,9 +27,21 @@ export function useAnalysis() {
       setStatus("validating");
       await new Promise((r) => setTimeout(r, 600));
 
+      // Fetch user signature_style preferences (best-effort).
+      let signatureStyle: any = null;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("signature_style")
+          .eq("id", user.id)
+          .maybeSingle();
+        signatureStyle = (prof as any)?.signature_style || null;
+      }
+
       setStatus("analyzing");
       const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
-        body: { pdf_base64: base64, file_name: file.name },
+        body: { pdf_base64: base64, file_name: file.name, signature_style: signatureStyle },
       });
 
       if (fnError) throw new Error(fnError.message || "Erro ao processar o documento");
