@@ -460,7 +460,16 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-lg">{editingId ? "Editar Ocorrência" : "Nova Ocorrência"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              {editingId
+                ? (isInAttendance ? "Continuar Atendimento" : "Editar Ocorrência")
+                : "Nova Ocorrência"}
+              {isInAttendance && (
+                <Badge variant="outline" className="border-primary/60 text-primary text-xs">Em atendimento</Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
@@ -527,7 +536,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? "Salvando..." : editingId ? "Atualizar" : "Registrar"}
+              {saving
+                ? "Salvando..."
+                : editingId
+                  ? (isInAttendance ? "Concluir Atendimento" : "Atualizar")
+                  : "Registrar"}
             </Button>
           </div>
         </DialogContent>
