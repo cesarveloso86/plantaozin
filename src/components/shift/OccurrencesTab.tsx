@@ -236,6 +236,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </Badge>
                 </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Round-robin entre quem está em janela ativa, ponderado por menor carga (ocorrências já atendidas). Empate segue a ordem de cadastro do plantão.
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
