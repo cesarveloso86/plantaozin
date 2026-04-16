@@ -32,6 +32,7 @@ interface Props {
 
 const emptyForm = (): Partial<ShiftOccurrence> => ({
   bu_number: "",
+  status: "em_atendimento",
   procedure_type: "",
   investigator: "",
   authority: "",
@@ -55,6 +56,19 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newBu, setNewBu] = useState("");
   const [newTime, setNewTime] = useState("");
 
+  // Split by status
+  const inAttendance = useMemo(
+    () => occurrences.filter((o) => o.status === "em_atendimento"),
+    [occurrences],
+  );
+  const completed = useMemo(
+    () => occurrences.filter((o) => o.status !== "em_atendimento"),
+    [occurrences],
+  );
+
+  const editingOcc = editingId ? occurrences.find((o) => o.id === editingId) : null;
+  const isInAttendance = editingOcc?.status === "em_atendimento";
+
   const allInvestigators = shift.investigators;
   const allAuthorities = shift.authorities;
   const investigatorNames = allInvestigators.map((i) => i.name);
@@ -70,14 +84,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators]);
   const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities]);
 
-  // Predictive queue (next 5 for each role)
+  // Predictive queue (next 5 for each role) — usa só completed para carga real
   const predictedInv = useMemo(
-    () => predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 5, now),
-    [allInvestigators, occurrences, pendingQueue],
+    () => predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
+    [allInvestigators, completed, pendingQueue],
   );
   const predictedAuth = useMemo(
-    () => predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 5, now),
-    [allAuthorities, occurrences, pendingQueue],
+    () => predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
+    [allAuthorities, completed, pendingQueue],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
