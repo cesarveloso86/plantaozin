@@ -4,6 +4,8 @@ import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES } from "@/types/shift";
 
 export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence[]) {
+  // Apenas ocorrências atendidas entram no relatório oficial.
+  const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Controle de procedimentos");
 
