@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import type { Shift } from "@/types/shift";
+import { formatLocalDateBR } from "@/lib/utils";
 
 interface Props {
   shifts: Shift[];
