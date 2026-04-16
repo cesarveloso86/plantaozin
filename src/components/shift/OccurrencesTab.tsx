@@ -321,17 +321,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
 
           {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
           {inAttendance.length > 0 && (
-            <Card className="border-amber-500/40 bg-amber-500/5">
+            <Card className="border-primary/40 bg-primary/5">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600" />
+                  <Clock className="w-4 h-4 text-primary" />
                   Em Atendimento ({inAttendance.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {inAttendance.map((occ) => (
                   <div key={occ.id} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
-                    <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400 text-xs shrink-0">
+                    <Badge variant="outline" className="border-primary/60 text-primary text-xs shrink-0">
                       Em atendimento
                     </Badge>
                     <span className="font-mono font-bold text-sm min-w-[90px]">{occ.bu_number || "—"}</span>
