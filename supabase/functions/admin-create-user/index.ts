@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ALLOWED_DOMAIN = "@pc.es.gov.br";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +22,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify caller is admin
     const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -48,7 +49,7 @@ serve(async (req) => {
       });
     }
 
-    const { email, full_name, nf, cargo } = await req.json();
+    const { email, full_name, nf, cargo, nickname, telefone, lotacao, equipe } = await req.json();
 
     if (!email || !full_name) {
       return new Response(JSON.stringify({ error: "Email e nome são obrigatórios" }), {
@@ -57,14 +58,13 @@ serve(async (req) => {
       });
     }
 
-    if (!email.toLowerCase().endsWith(".gov.br")) {
-      return new Response(JSON.stringify({ error: "Apenas e-mails institucionais (.gov.br) são permitidos." }), {
+    if (!email.toLowerCase().endsWith(ALLOWED_DOMAIN)) {
+      return new Response(JSON.stringify({ error: `Apenas e-mails institucionais (${ALLOWED_DOMAIN}) são permitidos.` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Use service role to create user
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -76,7 +76,15 @@ serve(async (req) => {
       email,
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { full_name, nf: nf || null, cargo: cargo || null },
+      user_metadata: {
+        full_name,
+        nf: nf || null,
+        cargo: cargo || null,
+        nickname: nickname || null,
+        telefone: telefone || null,
+        lotacao: lotacao || null,
+        equipe: equipe || null,
+      },
     });
 
     if (createError) {
@@ -84,6 +92,19 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Persist extra profile fields (the trigger only inserts full_name/nf/cargo from metadata)
+    if (newUser.user) {
+      await adminClient
+        .from("profiles")
+        .update({
+          nickname: nickname || null,
+          telefone: telefone || null,
+          lotacao: lotacao || null,
+          equipe: equipe || null,
+        })
+        .eq("id", newUser.user.id);
     }
 
     return new Response(JSON.stringify({ user: newUser.user, message: "Usuário criado. O usuário deve usar 'Esqueci minha senha' para definir sua senha." }), {

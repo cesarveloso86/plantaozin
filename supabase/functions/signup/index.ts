@@ -6,13 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ALLOWED_DOMAIN = "@pc.es.gov.br";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { email, password, full_name, nf, cargo } = await req.json();
+    const { email, password, full_name, nf, cargo, nickname, telefone, lotacao, equipe } = await req.json();
 
     if (!email || !password || !full_name) {
       return new Response(JSON.stringify({ error: "Email, senha e nome completo são obrigatórios." }), {
@@ -21,9 +23,8 @@ serve(async (req) => {
       });
     }
 
-    // Server-side domain validation
-    if (!email.toLowerCase().endsWith(".gov.br")) {
-      return new Response(JSON.stringify({ error: "Apenas e-mails institucionais (.gov.br) são permitidos." }), {
+    if (!email.toLowerCase().endsWith(ALLOWED_DOMAIN)) {
+      return new Response(JSON.stringify({ error: `Apenas e-mails institucionais (${ALLOWED_DOMAIN}) são permitidos.` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -45,7 +46,15 @@ serve(async (req) => {
       email,
       password,
       options: {
-        data: { full_name, nf: nf || null, cargo: cargo || null },
+        data: {
+          full_name,
+          nf: nf || null,
+          cargo: cargo || null,
+          nickname: nickname || null,
+          telefone: telefone || null,
+          lotacao: lotacao || null,
+          equipe: equipe || null,
+        },
       },
     });
 
