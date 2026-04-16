@@ -70,17 +70,27 @@ export function predictQueue(
   field: "investigator" | "authority",
   count = 5,
   when: Date = new Date(),
+  skipped: string[] = [],
 ): string[] {
   const available = getAvailableMembers(members, when).map((m) => m.name);
   if (available.length === 0) return [];
 
-  const counts = buildLoadMap(available, occurrences, pending, field);
-  const result: string[] = [];
+  // Skipped vão para o final: prioridade = quem não foi pulado primeiro.
+  const skipSet = new Set(skipped);
+  const head = available.filter((n) => !skipSet.has(n));
+  const tail = available.filter((n) => skipSet.has(n));
+  const ordered = [...head, ...tail];
 
+  const counts = buildLoadMap(ordered, occurrences, pending, field);
+  // Boost na carga de skipped para empurrá-los ao final mesmo com menor carga real.
+  const SKIP_PENALTY = 1_000_000;
+  for (const n of skipped) counts[n] = (counts[n] ?? 0) + SKIP_PENALTY;
+
+  const result: string[] = [];
   for (let i = 0; i < count; i++) {
-    let pick = available[0];
+    let pick = ordered[0];
     let min = Infinity;
-    for (const name of available) {
+    for (const name of ordered) {
       if (counts[name] < min) {
         min = counts[name];
         pick = name;
@@ -93,16 +103,23 @@ export function predictQueue(
 }
 
 /**
- * Avança a próxima escolha pulando o atual (próximo na lista de disponíveis).
+ * Próximo da fila pulando o atual: empurra `current` para o fim e devolve o 1º não-pulado.
+ * `extraSkipped` permite manter um histórico de pulados acumulado.
  */
 export function nextSkipping(
   members: ShiftMember[],
   current: string,
   when: Date = new Date(),
+  extraSkipped: string[] = [],
 ): string {
   const available = getAvailableMembers(members, when).map((m) => m.name);
   if (available.length === 0) return "";
-  const idx = available.indexOf(current);
-  if (idx < 0) return available[0];
-  return available[(idx + 1) % available.length];
+  const skipSet = new Set([current, ...extraSkipped].filter(Boolean));
+  const next = available.find((n) => !skipSet.has(n));
+  // Se todos estão pulados, volta ao próximo cíclico do current.
+  if (!next) {
+    const idx = available.indexOf(current);
+    return idx < 0 ? available[0] : available[(idx + 1) % available.length];
+  }
+  return next;
 }

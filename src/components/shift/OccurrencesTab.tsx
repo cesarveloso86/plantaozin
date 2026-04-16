@@ -56,6 +56,22 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newBu, setNewBu] = useState("");
   const [newTime, setNewTime] = useState("");
 
+  // Skip histórico por slot (idx do pendingQueue) — pulados vão para o final.
+  const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
+  const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
+
+  // Helper: BU normalizado
+  const normBu = (s: string) => (s || "").trim().toUpperCase();
+  const findExistingBu = (bu: string) => {
+    const n = normBu(bu);
+    if (!n) return null;
+    return occurrences.find((o) => normBu(o.bu_number) === n) || null;
+  };
+  const findInPending = (bu: string) => {
+    const n = normBu(bu);
+    return pendingQueue.find((p) => normBu(p.bu_number) === n) || null;
+  };
+
   // Split by status
   const inAttendance = useMemo(
     () => occurrences.filter((o) => o.status === "em_atendimento"),
@@ -98,9 +114,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const suggestedAuthority = predictedAuth[0] || "";
 
   const addToQueue = () => {
-    if (!newBu.trim()) { toast.error("Informe o número do BU"); return; }
-    if (pendingQueue.some((p) => p.bu_number === newBu.trim()) || occurrences.some((o) => o.bu_number === newBu.trim())) {
-      toast.error("BU já existe na fila ou nas ocorrências");
+    const bu = normBu(newBu);
+    if (!bu) { toast.error("Informe o número do BU"); return; }
+    if (findInPending(bu)) { toast.error(`BU ${bu} já está em distribuição.`); return; }
+    const dup = findExistingBu(bu);
+    if (dup) {
+      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+      toast.error(`BU ${bu} já está ${where} neste plantão.`);
       return;
     }
 
@@ -110,23 +130,37 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     setPendingQueue((prev) => [
       ...prev,
-      { bu_number: newBu.trim(), tramitation_time: timeVal, investigator: nextInv, authority: nextAuth },
+      { bu_number: bu, tramitation_time: timeVal, investigator: nextInv, authority: nextAuth },
     ]);
     setNewBu("");
     setNewTime("");
   };
 
-  const removePending = (idx: number) => setPendingQueue((prev) => prev.filter((_, i) => i !== idx));
+  const removePending = (idx: number) => {
+    setPendingQueue((prev) => prev.filter((_, i) => i !== idx));
+    setSkippedInvByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
+    setSkippedAuthByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
+  };
 
   const skipPendingInv = (idx: number) => {
-    setPendingQueue((prev) =>
-      prev.map((p, i) => i === idx ? { ...p, investigator: nextSkipping(allInvestigators, p.investigator, now) } : p)
-    );
+    setPendingQueue((prev) => {
+      const item = prev[idx];
+      if (!item) return prev;
+      const skipped = [...(skippedInvByIdx[idx] || []), item.investigator].filter(Boolean);
+      setSkippedInvByIdx((s) => ({ ...s, [idx]: skipped }));
+      const next = nextSkipping(allInvestigators, item.investigator, now, skipped);
+      return prev.map((p, i) => i === idx ? { ...p, investigator: next } : p);
+    });
   };
   const skipPendingAuth = (idx: number) => {
-    setPendingQueue((prev) =>
-      prev.map((p, i) => i === idx ? { ...p, authority: nextSkipping(allAuthorities, p.authority, now) } : p)
-    );
+    setPendingQueue((prev) => {
+      const item = prev[idx];
+      if (!item) return prev;
+      const skipped = [...(skippedAuthByIdx[idx] || []), item.authority].filter(Boolean);
+      setSkippedAuthByIdx((s) => ({ ...s, [idx]: skipped }));
+      const next = nextSkipping(allAuthorities, item.authority, now, skipped);
+      return prev.map((p, i) => i === idx ? { ...p, authority: next } : p);
+    });
   };
 
   const registerPending = (item: PendingItem) => {
@@ -156,32 +190,43 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   };
 
   const handleSave = async () => {
-    if (!form.bu_number?.trim()) { toast.error("Informe o número do BU"); return; }
+    const bu = normBu(form.bu_number || "");
+    if (!bu) { toast.error("Informe o número do BU"); return; }
     setSaving(true);
     try {
       if (editingId) {
-        // Edição: se está em atendimento, marca como atendida ao salvar
         const updates = { ...form };
         if (isInAttendance) updates.status = "atendida";
         await onUpdate(editingId, updates);
         toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
       } else {
-        const existing = occurrences.find((o) => o.bu_number === form.bu_number);
+        const existing = findExistingBu(bu);
         if (existing) {
+          // Se já está atendida, bloqueia. Se está em atendimento, mescla e conclui.
+          if (existing.status !== "em_atendimento") {
+            toast.error(`BU ${bu} já foi atendido neste plantão.`);
+            setSaving(false);
+            return;
+          }
           const mergeFields: Partial<ShiftOccurrence> = { ...form };
           delete mergeFields.tramitation_time;
           delete mergeFields.investigator;
           delete mergeFields.authority;
-          // Mesclar dados → considerar atendida
           mergeFields.status = "atendida";
           await onUpdate(existing.id, mergeFields);
-          toast.success(`BU ${form.bu_number} mesclado e atendido`);
+          toast.success(`BU ${bu} mesclado e atendido`);
         } else {
-          // Registro manual = já atendida (usuário preencheu tudo)
-          await onAdd({ ...form, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
+          await onAdd({ ...form, bu_number: bu, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
-        setPendingQueue((prev) => prev.filter((p) => p.bu_number !== form.bu_number));
+        // Limpa pending + skip-state da posição
+        setPendingQueue((prev) => {
+          const idx = prev.findIndex((p) => normBu(p.bu_number) === bu);
+          if (idx < 0) return prev;
+          setSkippedInvByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
+          setSkippedAuthByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
+          return prev.filter((_, i) => i !== idx);
+        });
       }
       setShowForm(false);
     } catch {
@@ -530,7 +575,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               </div>
               <div>
                 <Label className="text-sm">Oitivas</Label>
-                <Input type="number" min={0} value={form.num_hearings || 0} onChange={(e) => set("num_hearings", parseInt(e.target.value) || 0)} />
+                <div className="flex items-center gap-1 h-10 border border-input rounded-md px-2 bg-background">
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
+                    <span className="text-base leading-none">−</span>
+                  </Button>
+                  <span className="font-mono w-8 text-center text-sm">{form.num_hearings || 0}</span>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", (form.num_hearings || 0) + 1)}>
+                    <span className="text-base leading-none">+</span>
+                  </Button>
+                </div>
               </div>
             </div>
             <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>

@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import type { Shift } from "@/types/shift";
+import { formatLocalDateBR } from "@/lib/utils";
 
 interface Props {
   shifts: Shift[];
@@ -25,7 +26,7 @@ export function ShiftSelector({ shifts, onSelect }: Props) {
         {shifts.map((s) => (
           <DropdownMenuItem key={s.id} onClick={() => onSelect(s)}>
             <span className="mr-2">{s.status === "active" ? "🟢" : "⚪"}</span>
-            {s.team_name} — {new Date(s.shift_date).toLocaleDateString("pt-BR")}
+            {s.team_name} — {formatLocalDateBR(s.shift_date)}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

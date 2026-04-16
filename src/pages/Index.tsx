@@ -47,10 +47,21 @@ const Index = () => {
       toast.warning("Não foi possível identificar a regional automaticamente — selecione manualmente.");
     }
 
+    // Bloquear duplicado
+    const buNum = (result.triagem.numero_bo || "").trim();
+    if (buNum) {
+      const dup = shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum);
+      if (dup) {
+        const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+        toast.error(`BU ${buNum} já está ${where} neste plantão.`);
+        return;
+      }
+    }
+
     try {
       await shift.addOccurrence({
         status: "em_atendimento",
-        bu_number: result.triagem.numero_bo || "",
+        bu_number: buNum,
         tipification: result.despacho?.tipificacoes?.map(t => `${t.artigo} - ${t.descricao}`).join("; ") || "",
         conducted_names: result.depoimentos
           ?.filter(d => d.tipo === "interrogado")
@@ -61,7 +72,8 @@ const Index = () => {
           .map(d => d.nome)
           .join(", ") || "",
         regional,
-        observations: result.triagem.resumo?.substring(0, 200) || "",
+        // observations: começa vazio — usuário preenche manualmente
+        // first_hearing_time: vazio — preenchido ao iniciar a oitiva
         tramitation_time: new Date().toISOString(),
       });
       toast.success("Ocorrência enviada ao plantão — aguardando atendimento.");
