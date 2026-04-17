@@ -269,14 +269,7 @@ const AdminUsuarios = () => {
     setSaving(false);
   };
 
-  const handleDeleteOperational = async (id: string) => {
-    const { error } = await supabase.from("team_members").delete().eq("id", id);
-    if (error) toast.error("Erro ao remover: " + error.message);
-    else {
-      toast.success("Membro removido");
-      setMembers((prev) => prev.filter((m) => m.id !== id));
-    }
-  };
+  
 
   const [deleteTarget, setDeleteTarget] = useState<UnifiedMember | null>(null);
   const [deleting, setDeleting] = useState(false);
