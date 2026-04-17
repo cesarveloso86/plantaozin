@@ -477,8 +477,8 @@ const AdminUsuarios = () => {
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
-                          {m.source === "operational" && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteOperational(m.id)}>
+                          {m.id !== user?.id && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(m)}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
@@ -542,7 +542,8 @@ const AdminUsuarios = () => {
             <FormFields
               value={editForm}
               onChange={setEditForm}
-              includeEmail={editing?.source === "operational"}
+              includeEmail
+              emailReadOnly={editing?.source === "profile"}
             />
             <Button onClick={handleSaveEdit} disabled={saving} className="w-full">
               {saving ? "Salvando..." : "Salvar Alterações"}
@@ -550,6 +551,32 @@ const AdminUsuarios = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.source === "profile" ? (
+                <>Esta ação remove permanentemente <strong>{deleteTarget?.full_name}</strong>, sua conta de acesso, perfil e permissões. Não pode ser desfeita.</>
+              ) : (
+                <>Esta ação remove permanentemente o membro operacional <strong>{deleteTarget?.full_name}</strong>. Não pode ser desfeita.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleConfirmDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
