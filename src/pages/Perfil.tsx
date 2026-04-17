@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { useProfile, DEFAULT_SIGNATURE_STYLE, type SignatureStyle } from "@/hooks/useProfile";
 import { maskPhone, maskNF } from "@/lib/masks";
+import { TEAM_NAMES } from "@/components/shift/shiftConstants";
 
 const TOM_OPTIONS = [
   {
@@ -171,12 +172,15 @@ export default function Perfil() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="equipe">Equipe</Label>
-              <Input
-                id="equipe"
-                value={equipe}
-                onChange={(e) => setEquipe(e.target.value)}
-                placeholder="Equipe"
-              />
+              <Select value={equipe || "__none"} onValueChange={(v) => setEquipe(v === "__none" ? "" : v)}>
+                <SelectTrigger id="equipe"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Sem equipe</SelectItem>
+                  {TEAM_NAMES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="sm:col-span-2 flex justify-end">
               <Button onClick={handleSaveData} disabled={saving} className="gap-2">
