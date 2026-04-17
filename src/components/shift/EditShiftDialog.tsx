@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Shift, ShiftMember, ShiftAbsence, ShiftSubteam } from "@/types/shift";
-import { MemberSelector } from "./MemberSelector";
 import { AbsenceSelector } from "./AbsenceSelector";
 import { SubteamComposer, flattenSubteams } from "./SubteamComposer";
 import { TEAM_NAMES } from "./shiftConstants";
@@ -16,11 +15,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shift: Shift;
-  onUpdate: (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "iseo" | "absences" | "oip_subteams" | "delegado_subteams">>) => Promise<void>;
+  onUpdate: (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "iseo" | "absences" | "oip_subteams" | "delegado_subteams" | "iseo_subteams">>) => Promise<void>;
 }
 
 const OIP_CARGOS = ["OIP"];
 const DELEGADO_CARGOS = ["Autoridade Policial", "Delegado", "Autoridade"];
+const ISEO_CARGOS = ["OIP", "Autoridade Policial", "Delegado", "Autoridade"];
 
 export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) {
   const [teamName, setTeamName] = useState(shift.team_name);
@@ -36,7 +36,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
   const [saving, setSaving] = useState(false);
   const [oipSubteams, setOipSubteams] = useState<ShiftSubteam[]>(shift.oip_subteams || []);
   const [delSubteams, setDelSubteams] = useState<ShiftSubteam[]>(shift.delegado_subteams || []);
-  const [iseo, setIseo] = useState<ShiftMember[]>(shift.iseo);
+  const [iseoSubteams, setIseoSubteams] = useState<ShiftSubteam[]>(shift.iseo_subteams || []);
   const [absences, setAbsences] = useState<ShiftAbsence[]>(shift.absences || []);
 
   const { users } = useAllShiftMembers(open);
@@ -49,16 +49,17 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     setEndHour(shift.end_time ? new Date(shift.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "");
     setOipSubteams(shift.oip_subteams || []);
     setDelSubteams(shift.delegado_subteams || []);
-    setIseo(shift.iseo);
+    setIseoSubteams(shift.iseo_subteams || []);
     setAbsences(shift.absences || []);
   }, [open, shift]);
 
   const flatOip = flattenSubteams(oipSubteams);
   const flatDel = flattenSubteams(delSubteams);
+  const flatIseo = flattenSubteams(iseoSubteams);
   const allSelectedNames = [
     ...flatOip.map((m) => m.name),
     ...flatDel.map((m) => m.name),
-    ...iseo.map((m) => m.name),
+    ...flatIseo.map((m) => m.name),
   ];
 
   const handleSave = async () => {
@@ -79,10 +80,11 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
         shift_date: shiftDate,
         start_time: startTime,
         end_time: endTime || null,
-        iseo,
+        iseo: flatIseo,
         absences,
         oip_subteams: oipSubteams,
         delegado_subteams: delSubteams,
+        iseo_subteams: iseoSubteams,
       });
       toast.success("Plantão atualizado!");
       onOpenChange(false);
@@ -150,13 +152,14 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
             allowedCargos={DELEGADO_CARGOS}
           />
 
-          <MemberSelector
-            label="ISEO (opcional, 24h, qualquer cargo)"
-            members={iseo}
-            setMembers={setIseo}
+          <SubteamComposer
+            category="ISEO"
+            title="Subequipes ISEO (8h, qualquer cargo)"
+            subteams={iseoSubteams}
+            setSubteams={setIseoSubteams}
             users={users}
             allSelectedNames={allSelectedNames}
-            defaultRole="ISEO"
+            allowedCargos={ISEO_CARGOS}
           />
 
           <AbsenceSelector
