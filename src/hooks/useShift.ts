@@ -74,6 +74,7 @@ export function useShift() {
       absences?: ShiftAbsence[];
       oip_subteams?: ShiftSubteam[];
       delegado_subteams?: ShiftSubteam[];
+      iseo_subteams?: ShiftSubteam[];
       // legacy / overrides
       authorities?: ShiftMember[];
       investigators?: ShiftMember[];
@@ -81,8 +82,10 @@ export function useShift() {
       if (!user) return null;
       const oipSubteams = params.oip_subteams || [];
       const delSubteams = params.delegado_subteams || [];
+      const iseoSubteams = params.iseo_subteams || [];
       const investigators = params.investigators ?? flattenSubteams(oipSubteams);
       const authorities = params.authorities ?? flattenSubteams(delSubteams);
+      const iseoFlat = iseoSubteams.length > 0 ? flattenSubteams(iseoSubteams) : params.iseo;
       const { data, error } = await supabase
         .from("shifts")
         .insert({
@@ -93,10 +96,11 @@ export function useShift() {
           end_time: params.end_time || null,
           authorities: authorities as unknown as Json,
           investigators: investigators as unknown as Json,
-          iseo: params.iseo as unknown as Json,
+          iseo: iseoFlat as unknown as Json,
           absences: (params.absences || []) as unknown as Json,
           oip_subteams: oipSubteams as unknown as Json,
           delegado_subteams: delSubteams as unknown as Json,
+          iseo_subteams: iseoSubteams as unknown as Json,
         } as never)
         .select()
         .single();
@@ -213,16 +217,19 @@ export function useShift() {
   }, []);
 
   const updateShift = useCallback(
-    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences" | "oip_subteams" | "delegado_subteams">>) => {
+    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences" | "oip_subteams" | "delegado_subteams" | "iseo_subteams">>) => {
       if (!activeShift) return;
 
-      // If subteams are being updated, derive authorities/investigators for compat.
+      // If subteams are being updated, derive flat arrays for compat.
       const finalUpdates: Record<string, unknown> = { ...updates };
       if (updates.oip_subteams) {
         finalUpdates.investigators = flattenSubteams(updates.oip_subteams);
       }
       if (updates.delegado_subteams) {
         finalUpdates.authorities = flattenSubteams(updates.delegado_subteams);
+      }
+      if (updates.iseo_subteams) {
+        finalUpdates.iseo = flattenSubteams(updates.iseo_subteams);
       }
 
       const { error } = await supabase
@@ -278,6 +285,8 @@ function parseShift(data: any): Shift {
   const authorities = parseJson<ShiftMember[]>(data.authorities, []);
   let oip_subteams = parseJson<ShiftSubteam[]>(data.oip_subteams, []);
   let delegado_subteams = parseJson<ShiftSubteam[]>(data.delegado_subteams, []);
+  const iseoFlat = parseJson<ShiftMember[]>(data.iseo, []);
+  let iseo_subteams = parseJson<ShiftSubteam[]>(data.iseo_subteams, []);
 
   // Fallback legado: se nenhum subteam mas há membros planos, cria 1 subequipe "Legada".
   if (oip_subteams.length === 0 && investigators.length > 0) {
@@ -304,15 +313,28 @@ function parseShift(data: any): Shift {
       members: authorities,
     }];
   }
+  if (iseo_subteams.length === 0 && iseoFlat.length > 0) {
+    iseo_subteams = [{
+      id: "legacy_iseo",
+      label: "ISEO 1",
+      category: "ISEO",
+      preset: "CUSTOM",
+      windows: iseoFlat[0]?.schedule?.windows?.length
+        ? iseoFlat[0].schedule.windows
+        : [{ start: "00:00", end: "23:59" }],
+      members: iseoFlat,
+    }];
+  }
 
   return {
     ...data,
     authorities,
     investigators,
-    iseo: parseJson<ShiftMember[]>(data.iseo, []),
+    iseo: iseoFlat,
     absences: parseJson<ShiftAbsence[]>(data.absences, []),
     observations: Array.isArray(data.observations) ? data.observations : [],
     oip_subteams,
     delegado_subteams,
+    iseo_subteams,
   } as Shift;
 }

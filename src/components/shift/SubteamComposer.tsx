@@ -9,6 +9,7 @@ import type { ShiftSubteam, ShiftMember } from "@/types/shift";
 import {
   getPresetsFor,
   findPreset,
+  iseoEndFromStart,
   type SubteamCategory,
   type SubteamPresetId,
   type ScheduleWindow,
@@ -60,14 +61,16 @@ export function SubteamComposer({
     [users, allowedCargos],
   );
 
+  const catLabel = category === "OIP" ? "OIP" : category === "Delegado" ? "Delegado" : "ISEO";
+
   const addSubteam = () => {
-    const presetId: SubteamPresetId = category === "OIP" ? "A" : "CUSTOM";
+    const presetId: SubteamPresetId = category === "OIP" ? "A" : category === "ISEO" ? "ISEO_06" : "CUSTOM";
     const preset = findPreset(category, presetId)!;
     setSubteams((prev) => [
       ...prev,
       {
         id: newId(),
-        label: `${category === "OIP" ? "OIP" : "Delegado"} ${prev.length + 1}`,
+        label: `${catLabel} ${prev.length + 1}`,
         category,
         preset: presetId,
         windows: preset.windows.map((w) => ({ ...w })),
@@ -80,7 +83,7 @@ export function SubteamComposer({
     setSubteams((prev) =>
       prev
         .filter((s) => s.id !== id)
-        .map((s, i) => ({ ...s, label: `${category === "OIP" ? "OIP" : "Delegado"} ${i + 1}` })),
+        .map((s, i) => ({ ...s, label: `${catLabel} ${i + 1}` })),
     );
   };
 
@@ -90,7 +93,7 @@ export function SubteamComposer({
       if (target < 0 || target >= prev.length) return prev;
       const copy = [...prev];
       [copy[idx], copy[target]] = [copy[target], copy[idx]];
-      return copy.map((s, i) => ({ ...s, label: `${category === "OIP" ? "OIP" : "Delegado"} ${i + 1}` }));
+      return copy.map((s, i) => ({ ...s, label: `${catLabel} ${i + 1}` }));
     });
   };
 
@@ -108,11 +111,16 @@ export function SubteamComposer({
 
   const updateWindow = (id: string, idx: number, patch: Partial<ScheduleWindow>) => {
     setSubteams((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, windows: s.windows.map((w, i) => (i === idx ? { ...w, ...patch } : w)) }
-          : s,
-      ),
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        // ISEO: ao alterar start, recalcula end = start + 8h automaticamente.
+        if (category === "ISEO" && patch.start) {
+          const newStart = patch.start;
+          const newEnd = iseoEndFromStart(newStart);
+          return { ...s, windows: [{ start: newStart, end: newEnd }] };
+        }
+        return { ...s, windows: s.windows.map((w, i) => (i === idx ? { ...w, ...patch } : w)) };
+      }),
     );
   };
 
@@ -230,37 +238,44 @@ export function SubteamComposer({
             {/* Janelas */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Janelas de trabalho</Label>
-                {s.preset === "CUSTOM" && (
+                <Label className="text-xs text-muted-foreground">
+                  {category === "ISEO" ? "Janela (8h fixas)" : "Janelas de trabalho"}
+                </Label>
+                {s.preset === "CUSTOM" && category !== "ISEO" && (
                   <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={() => addWindow(s.id)}>
                     <Plus className="w-3 h-3" /> janela
                   </Button>
                 )}
               </div>
-              {s.windows.map((w, wi) => (
-                <div key={wi} className="flex items-center gap-1.5">
-                  <Input
-                    type="time"
-                    value={w.start}
-                    onChange={(e) => updateWindow(s.id, wi, { start: e.target.value })}
-                    className="h-7 text-xs w-[110px]"
-                    disabled={s.preset !== "CUSTOM"}
-                  />
-                  <span className="text-xs text-muted-foreground">→</span>
-                  <Input
-                    type="time"
-                    value={w.end}
-                    onChange={(e) => updateWindow(s.id, wi, { end: e.target.value })}
-                    className="h-7 text-xs w-[110px]"
-                    disabled={s.preset !== "CUSTOM"}
-                  />
-                  {s.preset === "CUSTOM" && s.windows.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeWindow(s.id, wi)}>
-                      <X className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              {s.windows.map((w, wi) => {
+                // ISEO: start é editável (em qualquer preset), end é sempre derivado.
+                const startEditable = category === "ISEO" ? true : s.preset === "CUSTOM";
+                const endEditable = category === "ISEO" ? false : s.preset === "CUSTOM";
+                return (
+                  <div key={wi} className="flex items-center gap-1.5">
+                    <Input
+                      type="time"
+                      value={w.start}
+                      onChange={(e) => updateWindow(s.id, wi, { start: e.target.value })}
+                      className="h-7 text-xs w-[110px]"
+                      disabled={!startEditable}
+                    />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Input
+                      type="time"
+                      value={w.end}
+                      onChange={(e) => updateWindow(s.id, wi, { end: e.target.value })}
+                      className="h-7 text-xs w-[110px]"
+                      disabled={!endEditable}
+                    />
+                    {s.preset === "CUSTOM" && category !== "ISEO" && s.windows.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeWindow(s.id, wi)}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Membros */}
@@ -268,7 +283,7 @@ export function SubteamComposer({
               <Label className="text-xs text-muted-foreground">Membros</Label>
               <Select onValueChange={(v) => addMember(s.id, v)} value="">
                 <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder={`+ Adicionar ${category === "OIP" ? "OIP" : "Delegado"}`} />
+                  <SelectValue placeholder={`+ Adicionar ${catLabel}`} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableForThis.length > 0 ? availableForThis.map((u) => (
@@ -277,7 +292,7 @@ export function SubteamComposer({
                     </SelectItem>
                   )) : (
                     <SelectItem value="__empty" disabled className="text-xs text-muted-foreground">
-                      Nenhum {category} disponível
+                      Nenhum disponível
                     </SelectItem>
                   )}
                 </SelectContent>

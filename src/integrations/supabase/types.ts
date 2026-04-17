@@ -205,6 +205,7 @@ export type Database = {
           id: string
           investigators: Json
           iseo: Json
+          iseo_subteams: Json
           observations: string[]
           oip_subteams: Json
           shift_date: string
@@ -222,6 +223,7 @@ export type Database = {
           id?: string
           investigators?: Json
           iseo?: Json
+          iseo_subteams?: Json
           observations?: string[]
           oip_subteams?: Json
           shift_date: string
@@ -239,6 +241,7 @@ export type Database = {
           id?: string
           investigators?: Json
           iseo?: Json
+          iseo_subteams?: Json
           observations?: string[]
           oip_subteams?: Json
           shift_date?: string

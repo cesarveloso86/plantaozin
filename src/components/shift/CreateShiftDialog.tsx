@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { ShiftMember, ShiftAbsence, ShiftSubteam } from "@/types/shift";
-import { MemberSelector } from "./MemberSelector";
 import { AbsenceSelector } from "./AbsenceSelector";
 import { SubteamComposer, flattenSubteams } from "./SubteamComposer";
 import { TEAM_NAMES } from "./shiftConstants";
@@ -24,11 +23,13 @@ interface Props {
     absences?: ShiftAbsence[];
     oip_subteams: ShiftSubteam[];
     delegado_subteams: ShiftSubteam[];
+    iseo_subteams: ShiftSubteam[];
   }) => Promise<unknown>;
 }
 
 const OIP_CARGOS = ["OIP"];
 const DELEGADO_CARGOS = ["Autoridade Policial", "Delegado", "Autoridade"];
+const ISEO_CARGOS = ["OIP", "Autoridade Policial", "Delegado", "Autoridade"];
 
 export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [teamName, setTeamName] = useState("");
@@ -37,17 +38,18 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [saving, setSaving] = useState(false);
   const [oipSubteams, setOipSubteams] = useState<ShiftSubteam[]>([]);
   const [delSubteams, setDelSubteams] = useState<ShiftSubteam[]>([]);
-  const [iseo, setIseo] = useState<ShiftMember[]>([]);
+  const [iseoSubteams, setIseoSubteams] = useState<ShiftSubteam[]>([]);
   const [absences, setAbsences] = useState<ShiftAbsence[]>([]);
 
   const { users } = useAllShiftMembers(open);
 
   const flatOip = flattenSubteams(oipSubteams);
   const flatDel = flattenSubteams(delSubteams);
+  const flatIseo = flattenSubteams(iseoSubteams);
   const allSelectedNames = [
     ...flatOip.map((m) => m.name),
     ...flatDel.map((m) => m.name),
-    ...iseo.map((m) => m.name),
+    ...flatIseo.map((m) => m.name),
   ];
 
   const handleCreate = async () => {
@@ -66,17 +68,18 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
         shift_date: shiftDate,
         start_time: startTime,
         end_time: endTime,
-        iseo,
+        iseo: flatIseo,
         absences,
         oip_subteams: oipSubteams,
         delegado_subteams: delSubteams,
+        iseo_subteams: iseoSubteams,
       });
       toast.success("Plantão criado com sucesso!");
       onOpenChange(false);
       setTeamName("");
       setOipSubteams([]);
       setDelSubteams([]);
-      setIseo([]);
+      setIseoSubteams([]);
       setAbsences([]);
     } catch {
       toast.error("Erro ao criar plantão");
@@ -137,13 +140,14 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
             allowedCargos={DELEGADO_CARGOS}
           />
 
-          <MemberSelector
-            label="ISEO (opcional, 24h, qualquer cargo)"
-            members={iseo}
-            setMembers={setIseo}
+          <SubteamComposer
+            category="ISEO"
+            title="Subequipes ISEO (8h, qualquer cargo)"
+            subteams={iseoSubteams}
+            setSubteams={setIseoSubteams}
             users={users}
             allSelectedNames={allSelectedNames}
-            defaultRole="ISEO"
+            allowedCargos={ISEO_CARGOS}
           />
 
           <AbsenceSelector

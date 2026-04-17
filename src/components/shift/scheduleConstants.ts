@@ -65,8 +65,8 @@ export function describeSchedule(s?: MemberSchedule | null): string {
 // Presets por categoria de subequipe (v5)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SubteamCategory = "OIP" | "Delegado";
-export type SubteamPresetId = "A" | "B" | "C" | "ISEO" | "CUSTOM";
+export type SubteamCategory = "OIP" | "Delegado" | "ISEO";
+export type SubteamPresetId = "A" | "B" | "C" | "ISEO" | "ISEO_06" | "ISEO_16" | "ISEO_18" | "CUSTOM";
 
 export interface SubteamPresetDef {
   id: SubteamPresetId;
@@ -97,9 +97,9 @@ export const OIP_PRESETS: SubteamPresetDef[] = [
   },
   {
     id: "C",
-    label: "C",
-    description: "20:00–04:00",
-    windows: [{ start: "20:00", end: "04:00" }],
+    label: "C (coringa)",
+    description: "16:00–04:00",
+    windows: [{ start: "16:00", end: "04:00" }],
   },
   {
     id: "CUSTOM",
@@ -119,10 +119,49 @@ export const DELEGADO_PRESETS: SubteamPresetDef[] = [
   },
 ];
 
+// ISEO — duração fixa 8h, início configurável (06h, 16h, 18h, ou Custom).
+export const ISEO_PRESETS: SubteamPresetDef[] = [
+  {
+    id: "ISEO_06",
+    label: "06h",
+    description: "06:00–14:00",
+    windows: [{ start: "06:00", end: "14:00" }],
+  },
+  {
+    id: "ISEO_16",
+    label: "16h",
+    description: "16:00–00:00",
+    windows: [{ start: "16:00", end: "00:00" }],
+  },
+  {
+    id: "ISEO_18",
+    label: "18h",
+    description: "18:00–02:00",
+    windows: [{ start: "18:00", end: "02:00" }],
+  },
+  {
+    id: "CUSTOM",
+    label: "Custom",
+    description: "Início livre (+8h auto)",
+    windows: [{ start: "08:00", end: "16:00" }],
+  },
+];
+
 export function getPresetsFor(category: SubteamCategory): SubteamPresetDef[] {
-  return category === "OIP" ? OIP_PRESETS : DELEGADO_PRESETS;
+  if (category === "OIP") return OIP_PRESETS;
+  if (category === "ISEO") return ISEO_PRESETS;
+  return DELEGADO_PRESETS;
 }
 
 export function findPreset(category: SubteamCategory, id: SubteamPresetId): SubteamPresetDef | undefined {
   return getPresetsFor(category).find((p) => p.id === id);
+}
+
+/** Adds 8h to a HH:MM start time, wrapping at 24h. */
+export function iseoEndFromStart(start: string): string {
+  const [h, m] = start.split(":").map((n) => parseInt(n, 10) || 0);
+  const total = (h * 60 + m + 8 * 60) % (24 * 60);
+  const eh = Math.floor(total / 60);
+  const em = total % 60;
+  return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
 }
