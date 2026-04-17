@@ -1,30 +1,32 @@
 
-# Plano v7 — Ajustes finos
+# Plano v8 — Dropdown de Equipe na criação
 
-## 1. Bug data -1 no export DOCX
-`exportDocx.ts` linha 4: `new Date(shift.shift_date)` interpreta `YYYY-MM-DD` como UTC → -3h vira dia anterior. `end_time` é timestamp completo, por isso correto.
-**Fix**: usar `parseLocalDate` de `src/lib/utils.ts` (já existe) para `shift_date`.
+## Investigação
+`CreateShiftDialog.tsx` (linhas 95-107) já tem `Select` com `TEAM_NAMES`. Importa de `./shiftConstants` — arquivo existe e exporta `TEAM_NAMES = ["Equipe A"..."Equipe E"]`.
 
-## 2. Equipe via dropdown na criação
-`CreateShiftDialog.tsx` já tem `Select` com `TEAM_NAMES` importado de `./shiftConstants`. Verificar se está renderizando — está. **Nada a fazer** salvo se o usuário se referir a `EditShiftDialog`. Conferir lá também e padronizar.
+Hipóteses do "não foi implementado":
+1. Há outro fluxo de criação (não o `CreateShiftDialog`) onde a equipe ainda é input livre.
+2. O Select renderiza mas o usuário esperava ver as opções em outro lugar (ex.: ShiftSelector ao trocar de plantão).
+3. Cache do navegador exibindo versão antiga.
 
-## 3. Ordem dos blocos na criação: Delegado → OIP → ISEO
-`CreateShiftDialog.tsx` e `EditShiftDialog.tsx`: hoje é OIP → Delegado → ISEO. Reordenar JSX dos `SubteamComposer`.
+## Verificação necessária
+Buscar todos os pontos de criação/edição de plantão e qualquer input de `team_name` que ainda seja `<Input>` em vez de `<Select>`:
+- `Plantao.tsx` (botão "Novo Plantão" → abre `CreateShiftDialog` ✓)
+- Estado vazio "nenhum plantão ativo" (também abre `CreateShiftDialog` ✓)
+- `useShift.createShift` — só recebe `team_name` string, sem UI própria
+- `ShiftSelector.tsx` — apenas listagem, sem criação
 
-## 4. Tabela de usuários em ordem alfabética
-`AdminUsuarios.tsx`: ordenar lista de membros por `full_name` (locale pt-BR, case-insensitive) antes de renderizar. Aplicar a ambas listas (team_members + auth users) se houver.
+## Ação
+1. Confirmar via `code--search_files` que não existe `<Input ... team_name` ou `placeholder="Equipe"` solto.
+2. Se existir → trocar por `Select` com `TEAM_NAMES`.
+3. Se não existir → o dropdown JÁ está implementado; orientar usuário a hard-refresh (Ctrl+Shift+R) e indicar exatamente onde fica (primeiro campo do dialog "Novo Plantão", rótulo "Equipe").
 
-## 5. Campo e-mail no edit de usuário
-Já implementado em v6 (FormFields extraído). Confirmar que está visível no modo "edit" — se sim, desconsiderar; se não, adicionar `<Input type="email">` ao `FormFields` quando `mode === 'edit'` (read-only, pois Auth não permite trocar email trivialmente).
-
-## Arquivos
-- `src/lib/exportDocx.ts` — usar `parseLocalDate(shift.shift_date)`
-- `src/components/shift/CreateShiftDialog.tsx` — reordenar para Delegado/OIP/ISEO
-- `src/components/shift/EditShiftDialog.tsx` — reordenar idem; conferir dropdown de equipe
-- `src/pages/AdminUsuarios.tsx` — sort alfabético; conferir campo email no form
+## Arquivos potencialmente afetados
+- `src/components/shift/CreateShiftDialog.tsx` (já OK — confirmar)
+- `src/components/shift/EditShiftDialog.tsx` (já OK — confirmar)
+- Qualquer outro local descoberto na busca
 
 ## Ordem
-1. Fix data DOCX
-2. Reordenar dialogs (Delegado → OIP → ISEO)
-3. Sort alfabético na tabela
-4. Conferir/garantir campo email no edit
+1. Buscar inputs livres de equipe restantes
+2. Substituir por dropdown se houver
+3. Caso contrário, comunicar que está implementado + sugerir refresh
