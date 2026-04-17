@@ -9,6 +9,7 @@ import type { ShiftSubteam, ShiftMember } from "@/types/shift";
 import {
   getPresetsFor,
   findPreset,
+  iseoEndFromStart,
   type SubteamCategory,
   type SubteamPresetId,
   type ScheduleWindow,
@@ -60,14 +61,16 @@ export function SubteamComposer({
     [users, allowedCargos],
   );
 
+  const catLabel = category === "OIP" ? "OIP" : category === "Delegado" ? "Delegado" : "ISEO";
+
   const addSubteam = () => {
-    const presetId: SubteamPresetId = category === "OIP" ? "A" : "CUSTOM";
+    const presetId: SubteamPresetId = category === "OIP" ? "A" : category === "ISEO" ? "ISEO_06" : "CUSTOM";
     const preset = findPreset(category, presetId)!;
     setSubteams((prev) => [
       ...prev,
       {
         id: newId(),
-        label: `${category === "OIP" ? "OIP" : "Delegado"} ${prev.length + 1}`,
+        label: `${catLabel} ${prev.length + 1}`,
         category,
         preset: presetId,
         windows: preset.windows.map((w) => ({ ...w })),
@@ -80,7 +83,7 @@ export function SubteamComposer({
     setSubteams((prev) =>
       prev
         .filter((s) => s.id !== id)
-        .map((s, i) => ({ ...s, label: `${category === "OIP" ? "OIP" : "Delegado"} ${i + 1}` })),
+        .map((s, i) => ({ ...s, label: `${catLabel} ${i + 1}` })),
     );
   };
 
@@ -90,7 +93,7 @@ export function SubteamComposer({
       if (target < 0 || target >= prev.length) return prev;
       const copy = [...prev];
       [copy[idx], copy[target]] = [copy[target], copy[idx]];
-      return copy.map((s, i) => ({ ...s, label: `${category === "OIP" ? "OIP" : "Delegado"} ${i + 1}` }));
+      return copy.map((s, i) => ({ ...s, label: `${catLabel} ${i + 1}` }));
     });
   };
 
@@ -108,11 +111,16 @@ export function SubteamComposer({
 
   const updateWindow = (id: string, idx: number, patch: Partial<ScheduleWindow>) => {
     setSubteams((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, windows: s.windows.map((w, i) => (i === idx ? { ...w, ...patch } : w)) }
-          : s,
-      ),
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        // ISEO: ao alterar start, recalcula end = start + 8h automaticamente.
+        if (category === "ISEO" && patch.start) {
+          const newStart = patch.start;
+          const newEnd = iseoEndFromStart(newStart);
+          return { ...s, windows: [{ start: newStart, end: newEnd }] };
+        }
+        return { ...s, windows: s.windows.map((w, i) => (i === idx ? { ...w, ...patch } : w)) };
+      }),
     );
   };
 
