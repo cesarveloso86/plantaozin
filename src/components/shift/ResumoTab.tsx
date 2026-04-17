@@ -185,7 +185,24 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObserv
               </ul>
             </div>
           )}
-          {shift.iseo.length > 0 && (
+          {shift.iseo_subteams && shift.iseo_subteams.length > 0 ? (
+            shift.iseo_subteams.map((sub) => (
+              <div key={sub.id}>
+                <strong>{sub.label}</strong>
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({sub.windows.map((w) => `${w.start}–${w.end}`).join(" · ")})
+                </span>
+                <ul className="list-disc list-inside ml-2">
+                  {sub.members.map((is, i) => (
+                    <li key={i}>
+                      {is.name}{is.nf ? ` - NF ${is.nf}` : ""}
+                      {is.substituting && <span className="text-muted-foreground"> (substituindo {is.substituting})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          ) : shift.iseo.length > 0 && (
             <div>
               <strong>ISEO:</strong>
               <ul className="list-disc list-inside ml-2">
