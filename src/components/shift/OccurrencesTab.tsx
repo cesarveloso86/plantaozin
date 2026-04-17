@@ -141,8 +141,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       return;
     }
 
-    const nextInv = predictQueue(allInvestigators, completed, pendingQueue, "investigator", 1, now)[0] || "";
-    const nextAuth = predictQueue(allAuthorities, completed, pendingQueue, "authority", 1, now)[0] || "";
+    const nextInv = suggestedInvestigator;
+    const nextAuth = suggestedAuthority;
 
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
     setPendingQueue((prev) => [
