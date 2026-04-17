@@ -328,16 +328,18 @@ const AdminUsuarios = () => {
 
   if (!isAdmin) return <Navigate to="/" replace />;
 
-  const filtered = members.filter((m) => {
-    const q = search.toLowerCase();
-    return (
-      m.full_name.toLowerCase().includes(q) ||
-      (m.nickname || "").toLowerCase().includes(q) ||
-      (m.nf || "").includes(search) ||
-      (m.lotacao || "").toLowerCase().includes(q) ||
-      (m.equipe || "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = members
+    .filter((m) => {
+      const q = search.toLowerCase();
+      return (
+        m.full_name.toLowerCase().includes(q) ||
+        (m.nickname || "").toLowerCase().includes(q) ||
+        (m.nf || "").includes(search) ||
+        (m.lotacao || "").toLowerCase().includes(q) ||
+        (m.equipe || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR", { sensitivity: "base" }));
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">

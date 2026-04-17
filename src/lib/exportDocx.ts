@@ -6,9 +6,10 @@ import {
 import { saveAs } from "file-saver";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { REGIONALS } from "@/types/shift";
+import { parseLocalDate } from "@/lib/utils";
 
 export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[]) {
-  const shiftDate = new Date(shift.shift_date);
+  const shiftDate = parseLocalDate(shift.shift_date);
   const dateStr = shiftDate.toLocaleDateString("pt-BR");
   const endDate = shift.end_time ? new Date(shift.end_time) : null;
   const endStr = endDate ? endDate.toLocaleDateString("pt-BR") : "—";
