@@ -133,16 +133,6 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           </div>
 
           <SubteamComposer
-            category="OIP"
-            title="Subequipes de OIPs"
-            subteams={oipSubteams}
-            setSubteams={setOipSubteams}
-            users={users}
-            allSelectedNames={allSelectedNames}
-            allowedCargos={OIP_CARGOS}
-          />
-
-          <SubteamComposer
             category="Delegado"
             title="Subequipes de Delegados"
             subteams={delSubteams}
@@ -150,6 +140,16 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
             users={users}
             allSelectedNames={allSelectedNames}
             allowedCargos={DELEGADO_CARGOS}
+          />
+
+          <SubteamComposer
+            category="OIP"
+            title="Subequipes de OIPs"
+            subteams={oipSubteams}
+            setSubteams={setOipSubteams}
+            users={users}
+            allSelectedNames={allSelectedNames}
+            allowedCargos={OIP_CARGOS}
           />
 
           <SubteamComposer
