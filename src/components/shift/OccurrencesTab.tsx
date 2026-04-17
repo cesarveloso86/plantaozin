@@ -295,11 +295,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                   Fila Preditiva — Disponíveis Agora
                   <Badge variant="outline" className="ml-2 gap-1 font-normal">
                     <Clock className="w-3 h-3" />
-                    {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                   </Badge>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Round-robin entre quem está em janela ativa, ponderado por menor carga (ocorrências já atendidas). Empate segue a ordem de cadastro do plantão.
+                  Round-robin entre subequipes ativas (menor carga, desempate por ordem de cadastro). Atualiza em tempo real conforme registros chegam.
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -307,7 +307,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1.5">Próximos OIPs ({availableInv.length} disponível{availableInv.length !== 1 ? "is" : ""})</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {predictedInv.length > 0 ? predictedInv.map((n, i) => (
+                      {predictedInvSub.length > 0 ? predictedInvSub.map((p, i) => (
+                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
+                          {i + 1}. [{p.subteamLabel}] {displayLabel(p.memberPick)}
+                        </Badge>
+                      )) : predictedInv.length > 0 ? predictedInv.map((n, i) => (
                         <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
                           {i + 1}. {displayLabel(n)}
                         </Badge>
@@ -317,7 +321,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1.5">Próximas Autoridades ({availableAuth.length} disponível{availableAuth.length !== 1 ? "is" : ""})</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {predictedAuth.length > 0 ? predictedAuth.map((n, i) => (
+                      {predictedAuthSub.length > 0 ? predictedAuthSub.map((p, i) => (
+                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
+                          {i + 1}. [{p.subteamLabel}] {displayLabel(p.memberPick)}
+                        </Badge>
+                      )) : predictedAuth.length > 0 ? predictedAuth.map((n, i) => (
                         <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
                           {i + 1}. {displayLabel(n)}
                         </Badge>
