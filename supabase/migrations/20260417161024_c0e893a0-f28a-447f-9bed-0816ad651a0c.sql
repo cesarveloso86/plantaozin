@@ -1,0 +1,1 @@
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS iseo_subteams jsonb NOT NULL DEFAULT '[]'::jsonb;
