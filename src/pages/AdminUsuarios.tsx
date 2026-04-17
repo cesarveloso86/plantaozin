@@ -62,6 +62,58 @@ const emptyForm: MemberFormState = {
   equipe: "",
 };
 
+// Top-level: declared OUTSIDE the page component to keep stable identity
+// across re-renders (otherwise inputs lose focus on every keystroke).
+const FormFields = ({ value, onChange, includeEmail }: {
+  value: MemberFormState;
+  onChange: (next: MemberFormState) => void;
+  includeEmail: boolean;
+}) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="sm:col-span-2 space-y-1.5">
+      <Label>Nome completo</Label>
+      <Input value={value.full_name} onChange={(e) => onChange({ ...value, full_name: e.target.value })} placeholder="Nome completo" />
+    </div>
+    <div className="space-y-1.5">
+      <Label>Apelido</Label>
+      <Input value={value.nickname} onChange={(e) => onChange({ ...value, nickname: e.target.value })} placeholder="Apelido" />
+    </div>
+    <div className="space-y-1.5">
+      <Label>NF</Label>
+      <Input value={value.nf} onChange={(e) => onChange({ ...value, nf: maskNF(e.target.value) })} placeholder="123456" inputMode="numeric" />
+    </div>
+    {includeEmail && (
+      <div className="sm:col-span-2 space-y-1.5">
+        <Label>E-mail</Label>
+        <Input type="email" value={value.email} onChange={(e) => onChange({ ...value, email: e.target.value })} placeholder={`usuario${ALLOWED_EMAIL_DOMAIN}`} />
+      </div>
+    )}
+    <div className="space-y-1.5">
+      <Label>Telefone</Label>
+      <Input value={value.telefone} onChange={(e) => onChange({ ...value, telefone: maskPhone(e.target.value) })} placeholder="(27) 99999-9999" inputMode="tel" />
+    </div>
+    <div className="space-y-1.5">
+      <Label>Cargo</Label>
+      <Select value={value.cargo || "__none"} onValueChange={(v) => onChange({ ...value, cargo: v === "__none" ? "" : v })}>
+        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none">Sem cargo</SelectItem>
+          <SelectItem value="Autoridade Policial">Autoridade Policial</SelectItem>
+          <SelectItem value="OIP">OIP — Oficial Investigador</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="space-y-1.5">
+      <Label>Lotação</Label>
+      <Input value={value.lotacao} onChange={(e) => onChange({ ...value, lotacao: e.target.value })} placeholder="Unidade de lotação" />
+    </div>
+    <div className="space-y-1.5">
+      <Label>Equipe</Label>
+      <Input value={value.equipe} onChange={(e) => onChange({ ...value, equipe: e.target.value })} placeholder="Equipe" />
+    </div>
+  </div>
+);
+
 const AdminUsuarios = () => {
   const { isAdmin, loading: authLoading, user } = useAuth();
   const [members, setMembers] = useState<UnifiedMember[]>([]);
@@ -286,56 +338,6 @@ const AdminUsuarios = () => {
       (m.equipe || "").toLowerCase().includes(q)
     );
   });
-
-  const FormFields = ({ value, onChange, includeEmail }: {
-    value: MemberFormState;
-    onChange: (next: MemberFormState) => void;
-    includeEmail: boolean;
-  }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div className="sm:col-span-2 space-y-1.5">
-        <Label>Nome completo</Label>
-        <Input value={value.full_name} onChange={(e) => onChange({ ...value, full_name: e.target.value })} placeholder="Nome completo" />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Apelido</Label>
-        <Input value={value.nickname} onChange={(e) => onChange({ ...value, nickname: e.target.value })} placeholder="Apelido" />
-      </div>
-      <div className="space-y-1.5">
-        <Label>NF</Label>
-        <Input value={value.nf} onChange={(e) => onChange({ ...value, nf: maskNF(e.target.value) })} placeholder="123456" inputMode="numeric" />
-      </div>
-      {includeEmail && (
-        <div className="sm:col-span-2 space-y-1.5">
-          <Label>E-mail</Label>
-          <Input type="email" value={value.email} onChange={(e) => onChange({ ...value, email: e.target.value })} placeholder={`usuario${ALLOWED_EMAIL_DOMAIN}`} />
-        </div>
-      )}
-      <div className="space-y-1.5">
-        <Label>Telefone</Label>
-        <Input value={value.telefone} onChange={(e) => onChange({ ...value, telefone: maskPhone(e.target.value) })} placeholder="(27) 99999-9999" inputMode="tel" />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Cargo</Label>
-        <Select value={value.cargo || "__none"} onValueChange={(v) => onChange({ ...value, cargo: v === "__none" ? "" : v })}>
-          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none">Sem cargo</SelectItem>
-            <SelectItem value="Autoridade Policial">Autoridade Policial</SelectItem>
-            <SelectItem value="OIP">OIP — Oficial Investigador</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Lotação</Label>
-        <Input value={value.lotacao} onChange={(e) => onChange({ ...value, lotacao: e.target.value })} placeholder="Unidade de lotação" />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Equipe</Label>
-        <Input value={value.equipe} onChange={(e) => onChange({ ...value, equipe: e.target.value })} placeholder="Equipe" />
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
