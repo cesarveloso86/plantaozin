@@ -1,4 +1,4 @@
-import type { MemberSchedule } from "@/components/shift/scheduleConstants";
+import type { MemberSchedule, ScheduleWindow, SubteamCategory, SubteamPresetId } from "@/components/shift/scheduleConstants";
 
 export interface ShiftMember {
   name: string;
@@ -14,6 +14,15 @@ export interface ShiftAbsence {
   reason: string;
 }
 
+export interface ShiftSubteam {
+  id: string;
+  label: string;
+  category: SubteamCategory;
+  preset: SubteamPresetId;
+  windows: ScheduleWindow[];
+  members: ShiftMember[];
+}
+
 export interface Shift {
   id: string;
   created_by: string;
@@ -27,6 +36,8 @@ export interface Shift {
   iseo: ShiftMember[];
   absences: ShiftAbsence[];
   observations: string[];
+  oip_subteams: ShiftSubteam[];
+  delegado_subteams: ShiftSubteam[];
   created_at: string;
 }
 
