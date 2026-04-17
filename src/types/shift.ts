@@ -38,6 +38,7 @@ export interface Shift {
   observations: string[];
   oip_subteams: ShiftSubteam[];
   delegado_subteams: ShiftSubteam[];
+  iseo_subteams: ShiftSubteam[];
   created_at: string;
 }
 
