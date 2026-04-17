@@ -238,37 +238,44 @@ export function SubteamComposer({
             {/* Janelas */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Janelas de trabalho</Label>
-                {s.preset === "CUSTOM" && (
+                <Label className="text-xs text-muted-foreground">
+                  {category === "ISEO" ? "Janela (8h fixas)" : "Janelas de trabalho"}
+                </Label>
+                {s.preset === "CUSTOM" && category !== "ISEO" && (
                   <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={() => addWindow(s.id)}>
                     <Plus className="w-3 h-3" /> janela
                   </Button>
                 )}
               </div>
-              {s.windows.map((w, wi) => (
-                <div key={wi} className="flex items-center gap-1.5">
-                  <Input
-                    type="time"
-                    value={w.start}
-                    onChange={(e) => updateWindow(s.id, wi, { start: e.target.value })}
-                    className="h-7 text-xs w-[110px]"
-                    disabled={s.preset !== "CUSTOM"}
-                  />
-                  <span className="text-xs text-muted-foreground">→</span>
-                  <Input
-                    type="time"
-                    value={w.end}
-                    onChange={(e) => updateWindow(s.id, wi, { end: e.target.value })}
-                    className="h-7 text-xs w-[110px]"
-                    disabled={s.preset !== "CUSTOM"}
-                  />
-                  {s.preset === "CUSTOM" && s.windows.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeWindow(s.id, wi)}>
-                      <X className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              {s.windows.map((w, wi) => {
+                // ISEO: start é editável (em qualquer preset), end é sempre derivado.
+                const startEditable = category === "ISEO" ? true : s.preset === "CUSTOM";
+                const endEditable = category === "ISEO" ? false : s.preset === "CUSTOM";
+                return (
+                  <div key={wi} className="flex items-center gap-1.5">
+                    <Input
+                      type="time"
+                      value={w.start}
+                      onChange={(e) => updateWindow(s.id, wi, { start: e.target.value })}
+                      className="h-7 text-xs w-[110px]"
+                      disabled={!startEditable}
+                    />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Input
+                      type="time"
+                      value={w.end}
+                      onChange={(e) => updateWindow(s.id, wi, { end: e.target.value })}
+                      className="h-7 text-xs w-[110px]"
+                      disabled={!endEditable}
+                    />
+                    {s.preset === "CUSTOM" && category !== "ISEO" && s.windows.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeWindow(s.id, wi)}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Membros */}
@@ -276,7 +283,7 @@ export function SubteamComposer({
               <Label className="text-xs text-muted-foreground">Membros</Label>
               <Select onValueChange={(v) => addMember(s.id, v)} value="">
                 <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder={`+ Adicionar ${category === "OIP" ? "OIP" : "Delegado"}`} />
+                  <SelectValue placeholder={`+ Adicionar ${catLabel}`} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableForThis.length > 0 ? availableForThis.map((u) => (
@@ -285,7 +292,7 @@ export function SubteamComposer({
                     </SelectItem>
                   )) : (
                     <SelectItem value="__empty" disabled className="text-xs text-muted-foreground">
-                      Nenhum {category} disponível
+                      Nenhum disponível
                     </SelectItem>
                   )}
                 </SelectContent>
