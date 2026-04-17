@@ -1,4 +1,4 @@
-import type { ShiftMember, ShiftOccurrence } from "@/types/shift";
+import type { ShiftMember, ShiftOccurrence, ShiftSubteam } from "@/types/shift";
 import type { ScheduleWindow } from "@/components/shift/scheduleConstants";
 
 // HH:MM → minutos do dia
@@ -21,9 +21,14 @@ export function isInWindow(window: ScheduleWindow, when: Date): boolean {
   return cur >= s || cur < e;
 }
 
+export function isSubteamActive(subteam: ShiftSubteam, when: Date): boolean {
+  if (!subteam.windows?.length) return false;
+  return subteam.windows.some((w) => isInWindow(w, when));
+}
+
 export function isAvailable(member: ShiftMember, when: Date = new Date()): boolean {
   const sched = member.schedule;
-  if (!sched || !sched.windows?.length) return true; // sem horário definido = sempre disponível
+  if (!sched || !sched.windows?.length) return true;
   return sched.windows.some((w) => isInWindow(w, when));
 }
 
@@ -36,9 +41,6 @@ interface PendingLike {
   authority?: string;
 }
 
-/**
- * Conta atendimentos por nome em ocorrências + pendentes.
- */
 function buildLoadMap(
   members: string[],
   occurrences: ShiftOccurrence[],
@@ -58,11 +60,6 @@ function buildLoadMap(
   return counts;
 }
 
-/**
- * Prediz a ordem dos próximos `count` atendimentos para um papel,
- * considerando apenas membros disponíveis no horário `when`.
- * Round-robin ponderado: a cada passo escolhe quem tem menor carga (desempate por ordem original).
- */
 export function predictQueue(
   members: ShiftMember[],
   occurrences: ShiftOccurrence[],
@@ -75,14 +72,12 @@ export function predictQueue(
   const available = getAvailableMembers(members, when).map((m) => m.name);
   if (available.length === 0) return [];
 
-  // Skipped vão para o final: prioridade = quem não foi pulado primeiro.
   const skipSet = new Set(skipped);
   const head = available.filter((n) => !skipSet.has(n));
   const tail = available.filter((n) => skipSet.has(n));
   const ordered = [...head, ...tail];
 
   const counts = buildLoadMap(ordered, occurrences, pending, field);
-  // Boost na carga de skipped para empurrá-los ao final mesmo com menor carga real.
   const SKIP_PENALTY = 1_000_000;
   for (const n of skipped) counts[n] = (counts[n] ?? 0) + SKIP_PENALTY;
 
@@ -102,10 +97,6 @@ export function predictQueue(
   return result;
 }
 
-/**
- * Próximo da fila pulando o atual: empurra `current` para o fim e devolve o 1º não-pulado.
- * `extraSkipped` permite manter um histórico de pulados acumulado.
- */
 export function nextSkipping(
   members: ShiftMember[],
   current: string,
@@ -116,10 +107,100 @@ export function nextSkipping(
   if (available.length === 0) return "";
   const skipSet = new Set([current, ...extraSkipped].filter(Boolean));
   const next = available.find((n) => !skipSet.has(n));
-  // Se todos estão pulados, volta ao próximo cíclico do current.
   if (!next) {
     const idx = available.indexOf(current);
     return idx < 0 ? available[0] : available[(idx + 1) % available.length];
   }
   return next;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v5 — Fila preditiva por subequipe
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SubteamQueueItem {
+  subteamId: string;
+  subteamLabel: string;
+  memberPick: string;
+}
+
+/**
+ * Para cada categoria, escolhe a próxima subequipe ativa com menor carga,
+ * e dentro dela o membro disponível com menor carga (round-robin interno).
+ * `skippedSubteams` empurra subequipes para o final na rodada atual.
+ */
+export function predictSubteamQueue(
+  subteams: ShiftSubteam[],
+  occurrences: ShiftOccurrence[],
+  pending: PendingLike[],
+  field: "investigator" | "authority",
+  count = 5,
+  when: Date = new Date(),
+  skippedSubteams: string[] = [],
+): SubteamQueueItem[] {
+  const active = subteams.filter((s) => isSubteamActive(s, when));
+  if (active.length === 0) return [];
+
+  // Carga acumulada por subequipe = soma de atendimentos atribuídos a qualquer membro dela.
+  const loadBySubteam: Record<string, number> = {};
+  // Carga por membro (para escolha interna).
+  const loadByMember: Record<string, number> = {};
+  active.forEach((s) => {
+    loadBySubteam[s.id] = 0;
+    s.members.forEach((m) => (loadByMember[m.name] = 0));
+  });
+
+  const tally = (name?: string | null) => {
+    if (!name) return;
+    if (loadByMember[name] !== undefined) loadByMember[name]++;
+    for (const s of active) {
+      if (s.members.some((m) => m.name === name)) {
+        loadBySubteam[s.id]++;
+        break;
+      }
+    }
+  };
+  occurrences.forEach((o) => tally(o[field]));
+  pending.forEach((p) => tally(p[field]));
+
+  // Penalidade para subequipes skipped.
+  const SKIP_PENALTY = 1_000_000;
+  for (const sid of skippedSubteams) {
+    if (loadBySubteam[sid] !== undefined) loadBySubteam[sid] += SKIP_PENALTY;
+  }
+
+  // Ordem de cadastro (índice) para desempate.
+  const indexOf = new Map(active.map((s, i) => [s.id, i]));
+
+  const result: SubteamQueueItem[] = [];
+  for (let i = 0; i < count; i++) {
+    // Pick subequipe: menor carga, desempate por índice.
+    let pickedSubteam = active[0];
+    let minLoad = Infinity;
+    for (const s of active) {
+      const l = loadBySubteam[s.id];
+      if (l < minLoad || (l === minLoad && (indexOf.get(s.id) ?? 0) < (indexOf.get(pickedSubteam.id) ?? 0))) {
+        minLoad = l;
+        pickedSubteam = s;
+      }
+    }
+    // Pick membro dentro da subequipe: menor carga.
+    let pickedMember = pickedSubteam.members[0]?.name || "";
+    let minMember = Infinity;
+    for (const m of pickedSubteam.members) {
+      const l = loadByMember[m.name] ?? 0;
+      if (l < minMember) {
+        minMember = l;
+        pickedMember = m.name;
+      }
+    }
+    result.push({
+      subteamId: pickedSubteam.id,
+      subteamLabel: pickedSubteam.label,
+      memberPick: pickedMember,
+    });
+    loadBySubteam[pickedSubteam.id]++;
+    if (pickedMember) loadByMember[pickedMember] = (loadByMember[pickedMember] ?? 0) + 1;
+  }
+  return result;
 }

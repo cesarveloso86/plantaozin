@@ -60,3 +60,69 @@ export function describeSchedule(s?: MemberSchedule | null): string {
   if (!s || !s.windows?.length) return "Sem horário";
   return s.windows.map((w) => `${w.start}–${w.end}`).join(" · ");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Presets por categoria de subequipe (v5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type SubteamCategory = "OIP" | "Delegado";
+export type SubteamPresetId = "A" | "B" | "C" | "ISEO" | "CUSTOM";
+
+export interface SubteamPresetDef {
+  id: SubteamPresetId;
+  label: string;
+  description: string;
+  windows: ScheduleWindow[];
+}
+
+// OIP — turnos fixos da equipe
+export const OIP_PRESETS: SubteamPresetDef[] = [
+  {
+    id: "A",
+    label: "A",
+    description: "10:00–16:00 · 21:00–04:00",
+    windows: [
+      { start: "10:00", end: "16:00" },
+      { start: "21:00", end: "04:00" },
+    ],
+  },
+  {
+    id: "B",
+    label: "B",
+    description: "16:00–21:00 · 04:00–10:00",
+    windows: [
+      { start: "16:00", end: "21:00" },
+      { start: "04:00", end: "10:00" },
+    ],
+  },
+  {
+    id: "C",
+    label: "C",
+    description: "20:00–04:00",
+    windows: [{ start: "20:00", end: "04:00" }],
+  },
+  {
+    id: "CUSTOM",
+    label: "Custom",
+    description: "Janelas livres",
+    windows: [{ start: "10:00", end: "16:00" }],
+  },
+];
+
+// Delegado — somente custom (operador define janelas livremente).
+export const DELEGADO_PRESETS: SubteamPresetDef[] = [
+  {
+    id: "CUSTOM",
+    label: "Custom",
+    description: "Janelas livres",
+    windows: [{ start: "10:00", end: "22:00" }],
+  },
+];
+
+export function getPresetsFor(category: SubteamCategory): SubteamPresetDef[] {
+  return category === "OIP" ? OIP_PRESETS : DELEGADO_PRESETS;
+}
+
+export function findPreset(category: SubteamCategory, id: SubteamPresetId): SubteamPresetDef | undefined {
+  return getPresetsFor(category).find((p) => p.id === id);
+}

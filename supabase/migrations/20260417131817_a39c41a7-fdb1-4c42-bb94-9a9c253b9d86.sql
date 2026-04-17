@@ -1,0 +1,2 @@
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS oip_subteams jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS delegado_subteams jsonb NOT NULL DEFAULT '[]'::jsonb;

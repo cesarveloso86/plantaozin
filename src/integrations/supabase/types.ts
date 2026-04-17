@@ -200,11 +200,13 @@ export type Database = {
           authorities: Json
           created_at: string
           created_by: string
+          delegado_subteams: Json
           end_time: string | null
           id: string
           investigators: Json
           iseo: Json
           observations: string[]
+          oip_subteams: Json
           shift_date: string
           start_time: string
           status: string
@@ -215,11 +217,13 @@ export type Database = {
           authorities?: Json
           created_at?: string
           created_by: string
+          delegado_subteams?: Json
           end_time?: string | null
           id?: string
           investigators?: Json
           iseo?: Json
           observations?: string[]
+          oip_subteams?: Json
           shift_date: string
           start_time: string
           status?: string
@@ -230,11 +234,13 @@ export type Database = {
           authorities?: Json
           created_at?: string
           created_by?: string
+          delegado_subteams?: Json
           end_time?: string | null
           id?: string
           investigators?: Json
           iseo?: Json
           observations?: string[]
+          oip_subteams?: Json
           shift_date?: string
           start_time?: string
           status?: string

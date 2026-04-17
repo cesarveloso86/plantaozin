@@ -125,7 +125,24 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObserv
             {new Date(shift.start_time).toLocaleString("pt-BR")}
             {shift.end_time && ` até ${new Date(shift.end_time).toLocaleString("pt-BR")}`}
           </p>
-          {shift.authorities.length > 0 && (
+          {shift.delegado_subteams && shift.delegado_subteams.length > 0 ? (
+            shift.delegado_subteams.map((sub) => (
+              <div key={sub.id}>
+                <strong>{sub.label}</strong>
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({sub.windows.map((w) => `${w.start}–${w.end}`).join(" · ")})
+                </span>
+                <ul className="list-disc list-inside ml-2">
+                  {sub.members.map((a, i) => (
+                    <li key={i}>
+                      {a.name}
+                      {a.substituting && <span className="text-muted-foreground"> (substituindo {a.substituting})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          ) : shift.authorities.length > 0 && (
             <div>
               <strong>Autoridades:</strong>
               <ul className="list-disc list-inside ml-2">
@@ -138,7 +155,24 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObserv
               </ul>
             </div>
           )}
-          {shift.investigators.length > 0 && (
+          {shift.oip_subteams && shift.oip_subteams.length > 0 ? (
+            shift.oip_subteams.map((sub) => (
+              <div key={sub.id}>
+                <strong>{sub.label}</strong>
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({sub.windows.map((w) => `${w.start}–${w.end}`).join(" · ")})
+                </span>
+                <ul className="list-disc list-inside ml-2">
+                  {sub.members.map((inv, i) => (
+                    <li key={i}>
+                      {inv.name}{inv.nf ? ` - NF ${inv.nf}` : ""}
+                      {inv.substituting && <span className="text-muted-foreground"> (substituindo {inv.substituting})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          ) : shift.investigators.length > 0 && (
             <div>
               <strong>OIPs:</strong>
               <ul className="list-disc list-inside ml-2">

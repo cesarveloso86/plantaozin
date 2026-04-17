@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Shift, ShiftOccurrence, ShiftMember, ShiftAbsence } from "@/types/shift";
+import type { Shift, ShiftOccurrence, ShiftMember, ShiftAbsence, ShiftSubteam } from "@/types/shift";
 import type { Json } from "@/integrations/supabase/types";
+import { flattenSubteams } from "@/components/shift/SubteamComposer";
 
 export function useShift() {
   const { user } = useAuth();
@@ -69,12 +70,19 @@ export function useShift() {
       shift_date: string;
       start_time: string;
       end_time?: string;
-      authorities: ShiftMember[];
-      investigators: ShiftMember[];
       iseo: ShiftMember[];
       absences?: ShiftAbsence[];
+      oip_subteams?: ShiftSubteam[];
+      delegado_subteams?: ShiftSubteam[];
+      // legacy / overrides
+      authorities?: ShiftMember[];
+      investigators?: ShiftMember[];
     }) => {
       if (!user) return null;
+      const oipSubteams = params.oip_subteams || [];
+      const delSubteams = params.delegado_subteams || [];
+      const investigators = params.investigators ?? flattenSubteams(oipSubteams);
+      const authorities = params.authorities ?? flattenSubteams(delSubteams);
       const { data, error } = await supabase
         .from("shifts")
         .insert({
@@ -83,11 +91,13 @@ export function useShift() {
           shift_date: params.shift_date,
           start_time: params.start_time,
           end_time: params.end_time || null,
-          authorities: params.authorities as unknown as Json,
-          investigators: params.investigators as unknown as Json,
+          authorities: authorities as unknown as Json,
+          investigators: investigators as unknown as Json,
           iseo: params.iseo as unknown as Json,
           absences: (params.absences || []) as unknown as Json,
-        })
+          oip_subteams: oipSubteams as unknown as Json,
+          delegado_subteams: delSubteams as unknown as Json,
+        } as never)
         .select()
         .single();
       if (error) throw error;
@@ -203,16 +213,25 @@ export function useShift() {
   }, []);
 
   const updateShift = useCallback(
-    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences">>) => {
+    async (updates: Partial<Pick<Shift, "team_name" | "shift_date" | "start_time" | "end_time" | "authorities" | "investigators" | "iseo" | "absences" | "oip_subteams" | "delegado_subteams">>) => {
       if (!activeShift) return;
+
+      // If subteams are being updated, derive authorities/investigators for compat.
+      const finalUpdates: Record<string, unknown> = { ...updates };
+      if (updates.oip_subteams) {
+        finalUpdates.investigators = flattenSubteams(updates.oip_subteams);
+      }
+      if (updates.delegado_subteams) {
+        finalUpdates.authorities = flattenSubteams(updates.delegado_subteams);
+      }
 
       const { error } = await supabase
         .from("shifts")
-        .update(updates as Record<string, unknown>)
+        .update(finalUpdates)
         .eq("id", activeShift.id);
       if (error) throw error;
-      setActiveShift((prev) => prev ? { ...prev, ...updates } : null);
-      setShifts((prev) => prev.map((s) => s.id === activeShift.id ? { ...s, ...updates } : s));
+      setActiveShift((prev) => prev ? { ...prev, ...finalUpdates } as Shift : null);
+      setShifts((prev) => prev.map((s) => s.id === activeShift.id ? { ...s, ...finalUpdates } as Shift : s));
     },
     [activeShift]
   );
@@ -248,12 +267,52 @@ export function useShift() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseShift(data: any): Shift {
+  const parseJson = <T,>(v: unknown, fallback: T): T => {
+    if (Array.isArray(v)) return v as unknown as T;
+    if (typeof v === "string") {
+      try { return JSON.parse(v) as T; } catch { return fallback; }
+    }
+    return (v as T) ?? fallback;
+  };
+  const investigators = parseJson<ShiftMember[]>(data.investigators, []);
+  const authorities = parseJson<ShiftMember[]>(data.authorities, []);
+  let oip_subteams = parseJson<ShiftSubteam[]>(data.oip_subteams, []);
+  let delegado_subteams = parseJson<ShiftSubteam[]>(data.delegado_subteams, []);
+
+  // Fallback legado: se nenhum subteam mas há membros planos, cria 1 subequipe "Legada".
+  if (oip_subteams.length === 0 && investigators.length > 0) {
+    oip_subteams = [{
+      id: "legacy_oip",
+      label: "OIP 1",
+      category: "OIP",
+      preset: "CUSTOM",
+      windows: investigators[0]?.schedule?.windows?.length
+        ? investigators[0].schedule.windows
+        : [{ start: "00:00", end: "23:59" }],
+      members: investigators,
+    }];
+  }
+  if (delegado_subteams.length === 0 && authorities.length > 0) {
+    delegado_subteams = [{
+      id: "legacy_del",
+      label: "Delegado 1",
+      category: "Delegado",
+      preset: "CUSTOM",
+      windows: authorities[0]?.schedule?.windows?.length
+        ? authorities[0].schedule.windows
+        : [{ start: "00:00", end: "23:59" }],
+      members: authorities,
+    }];
+  }
+
   return {
     ...data,
-    authorities: Array.isArray(data.authorities) ? data.authorities : JSON.parse(data.authorities || "[]"),
-    investigators: Array.isArray(data.investigators) ? data.investigators : JSON.parse(data.investigators || "[]"),
-    iseo: Array.isArray(data.iseo) ? data.iseo : JSON.parse(data.iseo || "[]"),
-    absences: Array.isArray(data.absences) ? data.absences : JSON.parse(data.absences || "[]"),
+    authorities,
+    investigators,
+    iseo: parseJson<ShiftMember[]>(data.iseo, []),
+    absences: parseJson<ShiftAbsence[]>(data.absences, []),
     observations: Array.isArray(data.observations) ? data.observations : [],
+    oip_subteams,
+    delegado_subteams,
   } as Shift;
 }

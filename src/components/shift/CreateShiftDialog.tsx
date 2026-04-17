@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { ShiftMember, ShiftAbsence } from "@/types/shift";
+import type { ShiftMember, ShiftAbsence, ShiftSubteam } from "@/types/shift";
 import { MemberSelector } from "./MemberSelector";
 import { AbsenceSelector } from "./AbsenceSelector";
+import { SubteamComposer, flattenSubteams } from "./SubteamComposer";
 import { TEAM_NAMES } from "./shiftConstants";
 import { useAllShiftMembers } from "@/hooks/useTeamMembers";
 
@@ -19,28 +20,33 @@ interface Props {
     shift_date: string;
     start_time: string;
     end_time?: string;
-    authorities: ShiftMember[];
-    investigators: ShiftMember[];
     iseo: ShiftMember[];
     absences?: ShiftAbsence[];
-  }) => Promise<any>;
+    oip_subteams: ShiftSubteam[];
+    delegado_subteams: ShiftSubteam[];
+  }) => Promise<unknown>;
 }
+
+const OIP_CARGOS = ["OIP"];
+const DELEGADO_CARGOS = ["Autoridade Policial", "Delegado", "Autoridade"];
 
 export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
   const [teamName, setTeamName] = useState("");
   const [shiftDate, setShiftDate] = useState(new Date().toISOString().split("T")[0]);
   const [startHour, setStartHour] = useState("10:00");
   const [saving, setSaving] = useState(false);
-  const [authorities, setAuthorities] = useState<ShiftMember[]>([]);
-  const [investigators, setInvestigators] = useState<ShiftMember[]>([]);
+  const [oipSubteams, setOipSubteams] = useState<ShiftSubteam[]>([]);
+  const [delSubteams, setDelSubteams] = useState<ShiftSubteam[]>([]);
   const [iseo, setIseo] = useState<ShiftMember[]>([]);
   const [absences, setAbsences] = useState<ShiftAbsence[]>([]);
 
   const { users } = useAllShiftMembers(open);
 
+  const flatOip = flattenSubteams(oipSubteams);
+  const flatDel = flattenSubteams(delSubteams);
   const allSelectedNames = [
-    ...authorities.map((m) => m.name),
-    ...investigators.map((m) => m.name),
+    ...flatOip.map((m) => m.name),
+    ...flatDel.map((m) => m.name),
     ...iseo.map((m) => m.name),
   ];
 
@@ -60,19 +66,19 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
         shift_date: shiftDate,
         start_time: startTime,
         end_time: endTime,
-        authorities,
-        investigators,
         iseo,
         absences,
+        oip_subteams: oipSubteams,
+        delegado_subteams: delSubteams,
       });
       toast.success("Plantão criado com sucesso!");
       onOpenChange(false);
       setTeamName("");
-      setAuthorities([]);
-      setInvestigators([]);
+      setOipSubteams([]);
+      setDelSubteams([]);
       setIseo([]);
       setAbsences([]);
-    } catch (err) {
+    } catch {
       toast.error("Erro ao criar plantão");
     } finally {
       setSaving(false);
@@ -110,10 +116,42 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate }: Props) {
             <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
             <p className="text-xs text-muted-foreground mt-1">Término padrão: +24h</p>
           </div>
-          <MemberSelector label="Autoridades Policiais" members={authorities} setMembers={setAuthorities} users={users} allSelectedNames={allSelectedNames} filterFuncao={["Autoridade Policial", "Delegado", "Autoridade"]} defaultRole="Autoridade" />
-          <MemberSelector label="OIPs — Oficiais Investigadores" members={investigators} setMembers={setInvestigators} users={users} allSelectedNames={allSelectedNames} filterFuncao="OIP" defaultRole="OIP" />
-          <MemberSelector label="ISEO (opcional)" members={iseo} setMembers={setIseo} users={users} allSelectedNames={allSelectedNames} filterFuncao="ISEO" defaultRole="ISEO" />
-          <AbsenceSelector absences={absences} setAbsences={setAbsences} scheduledMembers={[...authorities.map(m => m.name), ...investigators.map(m => m.name), ...iseo.map(m => m.name)]} />
+
+          <SubteamComposer
+            category="OIP"
+            title="Subequipes de OIPs"
+            subteams={oipSubteams}
+            setSubteams={setOipSubteams}
+            users={users}
+            allSelectedNames={allSelectedNames}
+            allowedCargos={OIP_CARGOS}
+          />
+
+          <SubteamComposer
+            category="Delegado"
+            title="Subequipes de Delegados"
+            subteams={delSubteams}
+            setSubteams={setDelSubteams}
+            users={users}
+            allSelectedNames={allSelectedNames}
+            allowedCargos={DELEGADO_CARGOS}
+          />
+
+          <MemberSelector
+            label="ISEO (opcional, 24h, qualquer cargo)"
+            members={iseo}
+            setMembers={setIseo}
+            users={users}
+            allSelectedNames={allSelectedNames}
+            defaultRole="ISEO"
+          />
+
+          <AbsenceSelector
+            absences={absences}
+            setAbsences={setAbsences}
+            scheduledMembers={allSelectedNames}
+          />
+
           <Button onClick={handleCreate} disabled={saving} className="w-full">
             {saving ? "Criando..." : "Criar Plantão"}
           </Button>
