@@ -21,6 +21,11 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAIN, isValidInstitutionalEmail } from "@/lib/constants";
 import { maskNF, maskPhone } from "@/lib/masks";
+import { TEAM_NAMES } from "@/components/shift/shiftConstants";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type MemberSource = "profile" | "operational";
 
@@ -64,10 +69,11 @@ const emptyForm: MemberFormState = {
 
 // Top-level: declared OUTSIDE the page component to keep stable identity
 // across re-renders (otherwise inputs lose focus on every keystroke).
-const FormFields = ({ value, onChange, includeEmail }: {
+const FormFields = ({ value, onChange, includeEmail, emailReadOnly }: {
   value: MemberFormState;
   onChange: (next: MemberFormState) => void;
   includeEmail: boolean;
+  emailReadOnly?: boolean;
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
     <div className="sm:col-span-2 space-y-1.5">
@@ -84,8 +90,15 @@ const FormFields = ({ value, onChange, includeEmail }: {
     </div>
     {includeEmail && (
       <div className="sm:col-span-2 space-y-1.5">
-        <Label>E-mail</Label>
-        <Input type="email" value={value.email} onChange={(e) => onChange({ ...value, email: e.target.value })} placeholder={`usuario${ALLOWED_EMAIL_DOMAIN}`} />
+        <Label>E-mail{emailReadOnly && <span className="text-xs text-muted-foreground ml-2">(não editável)</span>}</Label>
+        <Input
+          type="email"
+          value={value.email}
+          onChange={(e) => onChange({ ...value, email: e.target.value })}
+          placeholder={`usuario${ALLOWED_EMAIL_DOMAIN}`}
+          readOnly={emailReadOnly}
+          disabled={emailReadOnly}
+        />
       </div>
     )}
     <div className="space-y-1.5">
@@ -109,7 +122,15 @@ const FormFields = ({ value, onChange, includeEmail }: {
     </div>
     <div className="space-y-1.5">
       <Label>Equipe</Label>
-      <Input value={value.equipe} onChange={(e) => onChange({ ...value, equipe: e.target.value })} placeholder="Equipe" />
+      <Select value={value.equipe || "__none"} onValueChange={(v) => onChange({ ...value, equipe: v === "__none" ? "" : v })}>
+        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none">Sem equipe</SelectItem>
+          {TEAM_NAMES.map((t) => (
+            <SelectItem key={t} value={t}>{t}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   </div>
 );
@@ -138,7 +159,7 @@ const AdminUsuarios = () => {
 
   const loadAll = async () => {
     setLoading(true);
-    const [profilesRes, teamRes, rolesRes] = await Promise.all([
+    const [profilesRes, teamRes, rolesRes, emailsRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, full_name, nickname, nf, cargo, telefone, lotacao, equipe, created_at")
@@ -148,10 +169,13 @@ const AdminUsuarios = () => {
         .select("*")
         .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("*"),
+      supabase.functions.invoke("admin-list-emails", { body: {} }),
     ]);
 
     const roleMap = new Map<string, string>();
     (rolesRes.data || []).forEach((r: any) => roleMap.set(r.user_id, r.role));
+
+    const emailMap: Record<string, string> = (emailsRes.data as any)?.emails || {};
 
     const profileRows: UnifiedMember[] = ((profilesRes.data as any[]) || []).map((p) => ({
       id: p.id,
@@ -160,7 +184,7 @@ const AdminUsuarios = () => {
       nickname: p.nickname ?? null,
       nf: p.nf ?? null,
       cargo: p.cargo ?? null,
-      email: null,
+      email: emailMap[p.id] ?? null,
       telefone: p.telefone ?? null,
       lotacao: p.lotacao ?? null,
       equipe: p.equipe ?? null,
