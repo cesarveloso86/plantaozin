@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
-import { predictQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
+import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
+import { useNow } from "@/hooks/useNow";
 
 interface PendingItem {
   bu_number: string;
@@ -96,18 +97,34 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   });
   const displayLabel = (fullName: string) => nicknameMap.get(fullName) || fullName;
 
-  const now = new Date();
-  const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators]);
-  const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities]);
+  const now = useNow(30_000);
+  const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators, now]);
+  const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities, now]);
 
-  // Predictive queue (next 5 for each role) — usa só completed para carga real
+  // Fila preditiva por subequipe (v5). Fallback: fila plana legada.
+  const oipSubteams = shift.oip_subteams || [];
+  const delSubteams = shift.delegado_subteams || [];
+
+  const predictedInvSub = useMemo(
+    () => predictSubteamQueue(oipSubteams, completed, pendingQueue, "investigator", 5, now),
+    [oipSubteams, completed, pendingQueue, now],
+  );
+  const predictedAuthSub = useMemo(
+    () => predictSubteamQueue(delSubteams, completed, pendingQueue, "authority", 5, now),
+    [delSubteams, completed, pendingQueue, now],
+  );
+
   const predictedInv = useMemo(
-    () => predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
-    [allInvestigators, completed, pendingQueue],
+    () => predictedInvSub.length > 0
+      ? predictedInvSub.map((p) => p.memberPick)
+      : predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
+    [predictedInvSub, allInvestigators, completed, pendingQueue, now],
   );
   const predictedAuth = useMemo(
-    () => predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
-    [allAuthorities, completed, pendingQueue],
+    () => predictedAuthSub.length > 0
+      ? predictedAuthSub.map((p) => p.memberPick)
+      : predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
+    [predictedAuthSub, allAuthorities, completed, pendingQueue, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
