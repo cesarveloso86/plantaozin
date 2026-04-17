@@ -278,6 +278,34 @@ const AdminUsuarios = () => {
     }
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<UnifiedMember | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.source === "operational") {
+        const { error } = await supabase.from("team_members").delete().eq("id", deleteTarget.id);
+        if (error) throw error;
+        setMembers((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+      } else {
+        const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+          body: { user_id: deleteTarget.id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setMembers((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+      }
+      toast.success("Usuário excluído");
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err.message || "desconhecido"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleToggleActive = async (m: UnifiedMember) => {
     if (m.source !== "operational") return;
     const { error } = await supabase
