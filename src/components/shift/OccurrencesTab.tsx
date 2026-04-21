@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
@@ -15,6 +20,7 @@ import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
+import { fmtTime } from "@/lib/utils";
 
 interface PendingItem {
   bu_number: string;
@@ -91,11 +97,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const investigatorNames = allInvestigators.map((i) => i.name);
   const authorityNames = allAuthorities.map((a) => a.name);
 
-  const nicknameMap = new Map<string, string>();
-  [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((m) => {
-    if (m.nickname && m.nickname.trim()) nicknameMap.set(m.name, m.nickname);
-  });
-  const displayLabel = (fullName: string) => nicknameMap.get(fullName) || fullName;
+  const nicknameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((m) => {
+      if (m.nickname?.trim()) map.set(m.name, m.nickname);
+    });
+    return map;
+  }, [shift.investigators, shift.authorities, shift.iseo]);
+  const displayLabel = useCallback(
+    (fullName: string) => nicknameMap.get(fullName) ?? fullName,
+    [nicknameMap],
+  );
 
   const now = useNow(30_000);
   const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators, now]);
@@ -271,11 +283,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     try { await onUpdate(occId, { [field]: value }); } catch { toast.error("Erro ao atualizar"); }
   };
 
-  const set = (key: keyof ShiftOccurrence, value: any) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const fmtTime = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "—";
+  const setField = useCallback(
+    <K extends keyof ShiftOccurrence>(key: K, value: ShiftOccurrence[K]) =>
+      setForm((prev) => ({ ...prev, [key]: value })),
+    [],
+  );
 
   return (
     <div className="space-y-4">
