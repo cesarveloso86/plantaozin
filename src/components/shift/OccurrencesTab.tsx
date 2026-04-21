@@ -557,10 +557,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
+              <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => setField("bu_number", e.target.value)} placeholder="99999999" /></div>
               <div>
                 <Label className="text-sm">Tipo Procedimento</Label>
-                <Select value={form.procedure_type || ""} onValueChange={(v) => set("procedure_type", v)}>
+                <Select value={form.procedure_type || ""} onValueChange={(v) => setField("procedure_type", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
@@ -569,14 +569,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm">Tipo 2 (opcional)</Label>
-                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => set("procedure_type_2", v === "__none__" ? "" : v)}>
+                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => setField("procedure_type_2", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-sm">Tipo 3 (opcional)</Label>
-                <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => set("procedure_type_3", v === "__none__" ? "" : v)}>
+                <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => setField("procedure_type_3", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
@@ -585,14 +585,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm">OIP</Label>
-                <Select value={form.investigator || ""} onValueChange={(v) => set("investigator", v)}>
+                <Select value={form.investigator || ""} onValueChange={(v) => setField("investigator", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-sm">Autoridade</Label>
-                <Select value={form.authority || ""} onValueChange={(v) => set("authority", v)}>
+                <Select value={form.authority || ""} onValueChange={(v) => setField("authority", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
@@ -600,34 +600,34 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             </div>
             <div>
               <Label className="text-sm">Regional</Label>
-              <Select value={form.regional || ""} onValueChange={(v) => set("regional", v)}>
+              <Select value={form.regional || ""} onValueChange={(v) => setField("regional", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{REGIONALS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="flex items-center gap-2">
-                <Switch checked={form.has_report || false} onCheckedChange={(v) => set("has_report", v)} />
+                <Switch checked={form.has_report || false} onCheckedChange={(v) => setField("has_report", v)} />
                 <Label className="text-sm">Relatório</Label>
               </div>
               <div>
                 <Label className="text-sm">Oitivas</Label>
                 <div className="flex items-center gap-1 h-10 border border-input rounded-md px-2 bg-background">
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setField("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
                     <span className="text-base leading-none">−</span>
                   </Button>
                   <span className="font-mono w-8 text-center text-sm">{form.num_hearings || 0}</span>
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", (form.num_hearings || 0) + 1)}>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setField("num_hearings", (form.num_hearings || 0) + 1)}>
                     <span className="text-base leading-none">+</span>
                   </Button>
                 </div>
               </div>
             </div>
-            <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>
-            <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => set("victim_names", e.target.value)} /></div>
-            <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => set("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
-            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
-            <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
+            <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => setField("conducted_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => setField("victim_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => setField("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
+            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => setField("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
+            <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving
                 ? "Salvando..."
