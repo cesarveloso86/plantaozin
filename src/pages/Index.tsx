@@ -9,18 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { REGIONALS } from "@/types/shift";
-
-// Tenta mapear texto livre da delegacia/unidade para uma das REGIONALS oficiais.
-function matchRegionalByKeyword(input: string | undefined): string {
-  if (!input) return "";
-  const norm = input.toUpperCase();
-  for (const r of REGIONALS) {
-    const key = r.split(" - ")[1] || r;
-    if (norm.includes(key.toUpperCase())) return r;
-  }
-  if (norm.includes("DEACLE")) return "DEACLE";
-  return "";
-}
+import { matchRegionalByKeyword } from "@/lib/constants";
 
 const Index = () => {
   const { status, result, error, fileName, analyze, reanalyze, reset } = useAnalysis();

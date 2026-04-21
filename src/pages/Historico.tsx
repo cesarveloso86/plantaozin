@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, FileText, Trash2, Eye, Search } from "lucide-react";
+import { Loader2, FileText, Trash2, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
 import AnalysisResultView from "@/components/AnalysisResult";
 import type { AnalysisResult } from "@/types/analysis";
 import { motion } from "framer-motion";
+import { fmtDateTime } from "@/lib/utils";
 
 interface AnalysisRow {
   id: string;
@@ -24,29 +25,39 @@ interface AnalysisRow {
   created_at: string;
 }
 
+const PAGE_SIZE = 20;
+
 const Historico = () => {
   const { user } = useAuth();
   const [rows, setRows] = useState<AnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AnalysisRow | null>(null);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data } = await supabase
+      setLoading(true);
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count } = await supabase
         .from("analyses")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
       setRows((data as unknown as AnalysisRow[]) || []);
+      setTotal(count ?? 0);
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user, page]);
 
   const handleDelete = async (id: string) => {
     await supabase.from("analyses").delete().eq("id", id);
     setRows((prev) => prev.filter((r) => r.id !== id));
+    setTotal((t) => Math.max(0, t - 1));
   };
 
   const filtered = rows.filter((r) => {
@@ -72,7 +83,7 @@ const Historico = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Histórico de Análises</h2>
-          <p className="text-sm text-muted-foreground">{rows.length} ocorrência(s) processada(s)</p>
+          <p className="text-sm text-muted-foreground">{total} ocorrência(s) processada(s)</p>
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -121,10 +132,7 @@ const Historico = () => {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 truncate">
-                      {row.file_name} · {row.delegacia || "—"} ·{" "}
-                      {new Date(row.created_at).toLocaleDateString("pt-BR", {
-                        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
-                      })}
+                      {row.file_name} · {row.delegacia || "—"} · {fmtDateTime(row.created_at)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -151,6 +159,34 @@ const Historico = () => {
               </Card>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <span className="text-xs text-muted-foreground">
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} de {total}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => p - 1)}
+              className="gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={(page + 1) * PAGE_SIZE >= total}
+              onClick={() => setPage((p) => p + 1)}
+              className="gap-1"
+            >
+              Próxima <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
 

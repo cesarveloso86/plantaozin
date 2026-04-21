@@ -11,6 +11,7 @@ export function useShift() {
   const [occurrences, setOccurrences] = useState<ShiftOccurrence[]>([]);
   const [loading, setLoading] = useState(true);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [closingShift, setClosingShift] = useState(false);
 
   // Load active shift or recent shifts
   useEffect(() => {
@@ -164,12 +165,17 @@ export function useShift() {
 
   const closeShift = useCallback(async () => {
     if (!activeShift) return;
-    const now = new Date().toISOString();
-    await supabase
-      .from("shifts")
-      .update({ status: "closed", end_time: now })
-      .eq("id", activeShift.id);
-    setActiveShift((prev) => prev ? { ...prev, status: "closed", end_time: now } : null);
+    setClosingShift(true);
+    try {
+      const now = new Date().toISOString();
+      await supabase
+        .from("shifts")
+        .update({ status: "closed", end_time: now })
+        .eq("id", activeShift.id);
+      setActiveShift((prev) => prev ? { ...prev, status: "closed", end_time: now } : null);
+    } finally {
+      setClosingShift(false);
+    }
   }, [activeShift]);
 
   const addObservation = useCallback(
@@ -258,6 +264,7 @@ export function useShift() {
     occurrences,
     shifts,
     loading,
+    closingShift,
     createShift,
     addOccurrence,
     updateOccurrence,
@@ -272,8 +279,9 @@ export function useShift() {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseShift(data: any): Shift {
+type RawShiftRow = Record<string, unknown>;
+
+function parseShift(data: RawShiftRow): Shift {
   const parseJson = <T,>(v: unknown, fallback: T): T => {
     if (Array.isArray(v)) return v as unknown as T;
     if (typeof v === "string") {

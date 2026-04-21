@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
@@ -15,6 +20,7 @@ import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
+import { fmtTime } from "@/lib/utils";
 
 interface PendingItem {
   bu_number: string;
@@ -91,11 +97,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const investigatorNames = allInvestigators.map((i) => i.name);
   const authorityNames = allAuthorities.map((a) => a.name);
 
-  const nicknameMap = new Map<string, string>();
-  [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((m) => {
-    if (m.nickname && m.nickname.trim()) nicknameMap.set(m.name, m.nickname);
-  });
-  const displayLabel = (fullName: string) => nicknameMap.get(fullName) || fullName;
+  const nicknameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    [...shift.investigators, ...shift.authorities, ...shift.iseo].forEach((m) => {
+      if (m.nickname?.trim()) map.set(m.name, m.nickname);
+    });
+    return map;
+  }, [shift.investigators, shift.authorities, shift.iseo]);
+  const displayLabel = useCallback(
+    (fullName: string) => nicknameMap.get(fullName) ?? fullName,
+    [nicknameMap],
+  );
 
   const now = useNow(30_000);
   const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators, now]);
@@ -271,11 +283,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     try { await onUpdate(occId, { [field]: value }); } catch { toast.error("Erro ao atualizar"); }
   };
 
-  const set = (key: keyof ShiftOccurrence, value: any) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const fmtTime = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "—";
+  const setField = useCallback(
+    <K extends keyof ShiftOccurrence>(key: K, value: ShiftOccurrence[K]) =>
+      setForm((prev) => ({ ...prev, [key]: value })),
+    [],
+  );
 
   return (
     <div className="space-y-4">
@@ -380,9 +392,30 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Registrar" onClick={() => registerPending(item)}>
                             <Send className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" onClick={() => removePending(idx)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remover da fila?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  BU {item.bu_number} será removido da fila pendente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => removePending(idx)}
+                                >
+                                  Remover
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     ))}
@@ -432,9 +465,30 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
                         <Edit className="w-3.5 h-3.5" /> Continuar
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" onClick={() => onDelete(occ.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remover ocorrência?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              BU {occ.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => onDelete(occ.id)}
+                            >
+                              Remover
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}
@@ -517,7 +571,28 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <td className="p-2.5">
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(occ.id)}><Trash2 className="w-4 h-4" /></Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover ocorrência?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                BU {occ.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => onDelete(occ.id)}
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
@@ -545,10 +620,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => set("bu_number", e.target.value)} placeholder="99999999" /></div>
+              <div><Label className="text-sm">Nº BU</Label><Input value={form.bu_number || ""} onChange={(e) => setField("bu_number", e.target.value)} placeholder="99999999" /></div>
               <div>
                 <Label className="text-sm">Tipo Procedimento</Label>
-                <Select value={form.procedure_type || ""} onValueChange={(v) => set("procedure_type", v)}>
+                <Select value={form.procedure_type || ""} onValueChange={(v) => setField("procedure_type", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
@@ -557,14 +632,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm">Tipo 2 (opcional)</Label>
-                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => set("procedure_type_2", v === "__none__" ? "" : v)}>
+                <Select value={form.procedure_type_2 || "__none__"} onValueChange={(v) => setField("procedure_type_2", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-sm">Tipo 3 (opcional)</Label>
-                <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => set("procedure_type_3", v === "__none__" ? "" : v)}>
+                <Select value={form.procedure_type_3 || "__none__"} onValueChange={(v) => setField("procedure_type_3", v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent><SelectItem value="__none__">Nenhum</SelectItem>{PROCEDURE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
@@ -573,14 +648,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm">OIP</Label>
-                <Select value={form.investigator || ""} onValueChange={(v) => set("investigator", v)}>
+                <Select value={form.investigator || ""} onValueChange={(v) => setField("investigator", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-sm">Autoridade</Label>
-                <Select value={form.authority || ""} onValueChange={(v) => set("authority", v)}>
+                <Select value={form.authority || ""} onValueChange={(v) => setField("authority", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                 </Select>
@@ -588,34 +663,34 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             </div>
             <div>
               <Label className="text-sm">Regional</Label>
-              <Select value={form.regional || ""} onValueChange={(v) => set("regional", v)}>
+              <Select value={form.regional || ""} onValueChange={(v) => setField("regional", v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{REGIONALS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="flex items-center gap-2">
-                <Switch checked={form.has_report || false} onCheckedChange={(v) => set("has_report", v)} />
+                <Switch checked={form.has_report || false} onCheckedChange={(v) => setField("has_report", v)} />
                 <Label className="text-sm">Relatório</Label>
               </div>
               <div>
                 <Label className="text-sm">Oitivas</Label>
                 <div className="flex items-center gap-1 h-10 border border-input rounded-md px-2 bg-background">
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setField("num_hearings", Math.max(0, (form.num_hearings || 0) - 1))} disabled={!form.num_hearings}>
                     <span className="text-base leading-none">−</span>
                   </Button>
                   <span className="font-mono w-8 text-center text-sm">{form.num_hearings || 0}</span>
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => set("num_hearings", (form.num_hearings || 0) + 1)}>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setField("num_hearings", (form.num_hearings || 0) + 1)}>
                     <span className="text-base leading-none">+</span>
                   </Button>
                 </div>
               </div>
             </div>
-            <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => set("conducted_names", e.target.value)} /></div>
-            <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => set("victim_names", e.target.value)} /></div>
-            <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => set("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
-            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => set("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
-            <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => set("observations", e.target.value)} rows={2} /></div>
+            <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => setField("conducted_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => setField("victim_names", e.target.value)} /></div>
+            <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => setField("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
+            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => setField("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
+            <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving
                 ? "Salvando..."
