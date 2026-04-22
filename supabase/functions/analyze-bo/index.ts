@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const TRIAGE_MODEL = "google/gemini-2.5-flash-lite";
+const FULL_MODEL = "google/gemini-2.5-flash";
+
 const REGIONAIS_OFICIAIS = [
   "1ª - VITÓRIA","2ª - VILA VELHA","3ª - SERRA","4ª - CARIACICA","5ª - GUARAPARI",
   "6ª - ALEGRE","7ª - CACHOEIRO DE ITAPEMIRIM","8ª - CASTELO","9ª - ITAPEMIRIM",
@@ -15,7 +18,48 @@ const REGIONAIS_OFICIAIS = [
   "18ª - SÃO MATEUS","DEACLE",
 ];
 
-const SYSTEM_PROMPT = `Você é um assistente especializado em análise de Boletins de Ocorrência policiais brasileiros.
+const TRIAGE_PROMPT = `Você é um assistente que faz TRIAGEM RÁPIDA de Boletins de Ocorrência policiais brasileiros.
+
+Sua única tarefa é EXTRAIR os dados estruturados necessários para distribuir a ocorrência ao plantão. NÃO gere depoimentos. NÃO gere despacho. Seja rápido e enxuto.
+
+Extraia:
+- Número do BO, Delegacia, Data do fato, Natureza, Local do fato (endereço completo)
+- cep_valido: marque true se parece válido, false se ausente/inválido
+- unidade_registro: texto LITERAL do campo "Unidade de Registro" do BU
+- regional_codigo: mapeie para UMA das regionais abaixo. Se não casar, retorne "" e adicione um alerta.
+- Resumo objetivo em 2-3 linhas
+- Alertas relevantes (menor envolvido, arma de fogo, drogas, violência doméstica)
+- condutores_nomes: lista com nomes COMPLETOS dos condutores (PMs ou civis) — apenas nomes
+- vitimas_nomes: lista com nomes das vítimas
+- interrogados_nomes: lista com nomes dos interrogados/averiguados/indiciados
+- tipificacoes_sugeridas: tipificações penais aplicáveis (artigo, descrição, lei) — sugestão preliminar
+
+REGIONAIS OFICIAIS (use EXATAMENTE este texto):
+${REGIONAIS_OFICIAIS.join("\n")}
+
+Responda EXCLUSIVAMENTE com JSON válido (sem markdown), no formato:
+{
+  "triagem": {
+    "numero_bo": "string",
+    "delegacia": "string",
+    "data_fato": "string",
+    "natureza": "string",
+    "local_fato": "string",
+    "cep_valido": boolean,
+    "unidade_registro": "string",
+    "regional_codigo": "string",
+    "resumo": "string",
+    "alertas": ["string"],
+    "condutores_nomes": ["string"],
+    "vitimas_nomes": ["string"],
+    "interrogados_nomes": ["string"],
+    "tipificacoes_sugeridas": [
+      { "artigo": "string", "descricao": "string", "lei": "string" }
+    ]
+  }
+}`;
+
+const FULL_PROMPT = `Você é um assistente especializado em análise de Boletins de Ocorrência policiais brasileiros.
 
 Ao receber o conteúdo de um PDF de Boletim de Ocorrência, você deve:
 
@@ -124,13 +168,34 @@ async function validateCep(parsed: any, cleanContent: string) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function repairAndParse(raw: string): any {
+  let s = raw
+    .replace(/,\s*}/g, "}")
+    .replace(/,\s*]/g, "]")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
+
+  let braces = 0, brackets = 0;
+  for (const c of s) {
+    if (c === "{") braces++;
+    else if (c === "}") braces--;
+    else if (c === "[") brackets++;
+    else if (c === "]") brackets--;
+  }
+  const quoteCount = (s.match(/(?<!\\)"/g) || []).length;
+  if (quoteCount % 2 !== 0) s += '"';
+  while (brackets > 0) { s += "]"; brackets--; }
+  while (braces > 0) { s += "}"; braces--; }
+  return JSON.parse(s);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Authenticate the caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -156,7 +221,42 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { pdf_base64, file_name, instructions, previous_result, field, depoimento_index, signature_style } = await req.json();
+    const body = await req.json();
+    const {
+      pdf_base64: pdfFromBody,
+      file_name,
+      instructions,
+      previous_result,
+      field,
+      depoimento_index,
+      signature_style,
+      mode = "full",
+      pdf_storage_path,
+    } = body;
+
+    // Resolve PDF: from body OR from storage path (used by "generate full from triage").
+    let pdf_base64: string | null = pdfFromBody || null;
+    if (!pdf_base64 && pdf_storage_path) {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: blob, error: dlErr } = await serviceClient.storage
+        .from("bo-pdfs")
+        .download(pdf_storage_path);
+      if (dlErr || !blob) {
+        console.error("Failed to download PDF from storage:", dlErr);
+        return new Response(JSON.stringify({ error: "PDF não encontrado no storage" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < buf.byteLength; i++) bin += String.fromCharCode(buf[i]);
+      pdf_base64 = btoa(bin);
+    }
+
     if (!pdf_base64) {
       return new Response(
         JSON.stringify({ error: "PDF não fornecido" }),
@@ -164,11 +264,13 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing file: ${file_name || "unknown"}${instructions ? " (re-analysis)" : ""}`);
+    const isTriage = mode === "triage";
+    const systemPrompt = isTriage ? TRIAGE_PROMPT : FULL_PROMPT;
+    const model = isTriage ? TRIAGE_MODEL : FULL_MODEL;
+    console.log(`Processing file: ${file_name || "unknown"} | mode=${mode} | model=${model}${instructions ? " (re-analysis)" : ""}`);
 
-    // Build user-preference block (analyst signature style).
     let prefBlock = "";
-    if (signature_style && typeof signature_style === "object") {
+    if (!isTriage && signature_style && typeof signature_style === "object") {
       const tomMap: Record<string, string> = {
         formal_juridico: "Formal jurídico, com linguagem técnica e citações legais quando cabível.",
         tecnico_neutro: "Técnico e neutro, equilibrando clareza e formalidade.",
@@ -193,13 +295,15 @@ serve(async (req) => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT + prefBlock },
+      { role: "system", content: systemPrompt + prefBlock },
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: "Analise o Boletim de Ocorrência anexado e gere o relatório de triagem e as minutas de depoimento conforme instruído.",
+            text: isTriage
+              ? "Faça a triagem rápida do BU em anexo. Retorne SOMENTE o JSON de triagem."
+              : "Analise o Boletim de Ocorrência anexado e gere o relatório de triagem e as minutas de depoimento conforme instruído.",
           },
           {
             type: "image_url",
@@ -209,8 +313,7 @@ serve(async (req) => {
       },
     ];
 
-    // If re-analyzing, add the previous result and instructions
-    if (instructions && previous_result) {
+    if (!isTriage && instructions && previous_result) {
       const isSingleDep = field === "depoimento" && typeof depoimento_index === "number";
       const depTarget = isSingleDep && previous_result?.depoimentos?.[depoimento_index];
       const fieldLabel = field === "triagem" ? "a triagem/relatório"
@@ -219,10 +322,7 @@ serve(async (req) => {
         : field === "depoimentos" ? "os depoimentos"
         : "o resultado completo";
 
-      messages.push({
-        role: "assistant",
-        content: JSON.stringify(previous_result),
-      });
+      messages.push({ role: "assistant", content: JSON.stringify(previous_result) });
       messages.push({
         role: "user",
         content: `Reanalisar ${fieldLabel} com as seguintes instruções do usuário:\n\n${instructions}\n\nMANTENHA INALTERADAS todas as demais seções e os demais itens do array. ${isSingleDep ? `Altere SOMENTE o item de índice ${depoimento_index} no array "depoimentos". Os demais depoimentos devem permanecer EXATAMENTE iguais.` : ""} Retorne o JSON completo atualizado.`,
@@ -235,10 +335,7 @@ serve(async (req) => {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages,
-      }),
+      body: JSON.stringify({ model, messages }),
     });
 
     if (!response.ok) {
@@ -264,53 +361,18 @@ serve(async (req) => {
     if (!content) throw new Error("Resposta vazia da IA");
 
     let cleanContent = content.trim();
-    // Remove markdown code blocks
-    cleanContent = cleanContent
-      .replace(/```json\s*/gi, "")
-      .replace(/```\s*/g, "")
-      .trim();
+    cleanContent = cleanContent.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
 
-    // Find JSON boundaries
     const jsonStart = cleanContent.search(/[{[]/);
     const jsonEnd = cleanContent.lastIndexOf(
       jsonStart !== -1 && cleanContent[jsonStart] === "[" ? "]" : "}"
     );
-
     if (jsonStart !== -1 && jsonEnd !== -1) {
       cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const repairAndParse = (raw: string): any => {
-      let s = raw
-        .replace(/,\s*}/g, "}")
-        .replace(/,\s*]/g, "]")
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\u0000-\u001F\u007F]/g, (ch) => (ch === "\n" || ch === "\t" ? ch : ""));
-
-      // Fix unbalanced braces/brackets (truncated output)
-      let braces = 0, brackets = 0;
-      for (const c of s) {
-        if (c === "{") braces++;
-        else if (c === "}") braces--;
-        else if (c === "[") brackets++;
-        else if (c === "]") brackets--;
-      }
-
-      // If truncated mid-string, close the last open string
-      const quoteCount = (s.match(/(?<!\\)"/g) || []).length;
-      if (quoteCount % 2 !== 0) {
-        s += '"';
-      }
-
-      while (brackets > 0) { s += "]"; brackets--; }
-      while (braces > 0) { s += "}"; braces--; }
-
-      return JSON.parse(s);
-    };
-
     try {
       parsed = JSON.parse(cleanContent);
     } catch (_e) {
@@ -324,6 +386,12 @@ serve(async (req) => {
       }
     }
     await validateCep(parsed, cleanContent);
+
+    // Garante shape mínimo no modo triage
+    if (isTriage) {
+      parsed.depoimentos = parsed.depoimentos || [];
+      parsed.despacho = parsed.despacho || { texto: "", tipificacoes: [], providencias: [] };
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

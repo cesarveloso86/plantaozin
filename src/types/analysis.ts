@@ -31,6 +31,12 @@ export interface RelatorioTriagem {
   unidade_registro?: string;
   /** Código mapeado para uma das REGIONALS oficiais (ou DEACLE) */
   regional_codigo?: string;
+  /** Nomes sugeridos pela triagem rápida (apenas modo "triage") */
+  condutores_nomes?: string[];
+  vitimas_nomes?: string[];
+  interrogados_nomes?: string[];
+  /** Tipificações sugeridas na triagem (apenas modo "triage") */
+  tipificacoes_sugeridas?: Tipificacao[];
 }
 
 export interface AnalysisResult {
@@ -39,6 +45,13 @@ export interface AnalysisResult {
   despacho: Despacho;
 }
 
+/** Resultado da triagem rápida — sem depoimentos/despacho. */
+export interface TriageResult {
+  triagem: RelatorioTriagem;
+}
+
+export type AnalysisMode = "triage" | "full";
+
 export type AnalysisStatus =
   | "idle"
   | "reading"
@@ -46,6 +59,7 @@ export type AnalysisStatus =
   | "analyzing"
   | "generating"
   | "done"
+  | "triage_done"
   | "error";
 
 export const STATUS_MESSAGES: Record<AnalysisStatus, string> = {
@@ -55,5 +69,6 @@ export const STATUS_MESSAGES: Record<AnalysisStatus, string> = {
   analyzing: "Analisando narrativa policial...",
   generating: "Gerando minutas e despacho...",
   done: "Análise concluída",
+  triage_done: "Triagem concluída — pronto para distribuir",
   error: "Erro na análise",
 };
