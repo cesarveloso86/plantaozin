@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
+import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
@@ -21,6 +21,9 @@ import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
 import { fmtTime } from "@/lib/utils";
+import { useAnalysis } from "@/hooks/useAnalysis";
+import AnalysisResultView from "@/components/AnalysisResult";
+import type { AnalysisResult } from "@/types/analysis";
 
 interface PendingItem {
   bu_number: string;
