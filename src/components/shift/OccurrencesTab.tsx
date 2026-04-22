@@ -491,6 +491,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       </Button>
                     </div>
                     <div className="flex gap-1 ml-auto shrink-0">
+                      {occ.analysis_id && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 gap-1"
+                          title="Gerar depoimentos e despacho via IA"
+                          disabled={generatingFor === occ.id}
+                          onClick={() => handleGenerateDepoimentos(occ)}
+                        >
+                          {generatingFor === occ.id
+                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Gerando…</>
+                            : <><Sparkles className="w-3.5 h-3.5" /> Gerar depoimentos</>}
+                        </Button>
+                      )}
                       <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
                         <Edit className="w-3.5 h-3.5" /> Continuar
                       </Button>
