@@ -70,6 +70,32 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
   const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
 
+  // Geração sob demanda (depoimentos+despacho a partir da triagem distribuída).
+  const analysis = useAnalysis();
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [fullResult, setFullResult] = useState<AnalysisResult | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
+
+  const handleGenerateDepoimentos = useCallback(async (occ: ShiftOccurrence) => {
+    if (!occ.analysis_id) {
+      toast.error("Esta ocorrência não tem PDF vinculado.");
+      return;
+    }
+    setGeneratingFor(occ.id);
+    try {
+      const full = await analysis.generateFullFromAnalysis(occ.analysis_id);
+      if (full) {
+        setFullResult(full);
+        setResultOpen(true);
+        toast.success("Depoimentos e despacho gerados.");
+      } else {
+        toast.error("Não foi possível gerar os depoimentos.");
+      }
+    } finally {
+      setGeneratingFor(null);
+    }
+  }, [analysis]);
+
   // Helper: BU normalizado
   const normBu = (s: string) => (s || "").trim().toUpperCase();
   const findExistingBu = (bu: string) => {
