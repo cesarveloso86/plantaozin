@@ -81,7 +81,7 @@ export function useAnalysis() {
 
         const { data: inserted, error: insErr } = await supabase
           .from("analyses")
-          .insert(insertPayload)
+          .insert(insertPayload as never)
           .select("id")
           .single();
         if (insErr || !inserted) throw insErr || new Error("Falha ao salvar análise");
@@ -224,7 +224,7 @@ export function useAnalysis() {
           delegacia: analysisResult.triagem.delegacia || null,
           data_fato: analysisResult.triagem.data_fato || null,
           result: analysisResult as unknown as Record<string, unknown>,
-        });
+        } as never);
       }
 
       setResult(analysisResult);
