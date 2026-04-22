@@ -744,6 +744,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={resultOpen} onOpenChange={setResultOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Depoimentos e despacho gerados</DialogTitle>
+          </DialogHeader>
+          {fullResult && (
+            <AnalysisResultView
+              data={fullResult}
+              onReset={() => { setResultOpen(false); setFullResult(null); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
