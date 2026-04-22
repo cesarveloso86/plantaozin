@@ -23,6 +23,7 @@ export type Database = {
           id: string
           natureza: string | null
           numero_bo: string | null
+          pdf_storage_path: string | null
           result: Json
           user_id: string
         }
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           natureza?: string | null
           numero_bo?: string | null
+          pdf_storage_path?: string | null
           result: Json
           user_id: string
         }
@@ -45,6 +47,7 @@ export type Database = {
           id?: string
           natureza?: string | null
           numero_bo?: string | null
+          pdf_storage_path?: string | null
           result?: Json
           user_id?: string
         }
