@@ -6,38 +6,61 @@ import AnalysisResultView from "@/components/AnalysisResult";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useShift } from "@/hooks/useShift";
 import { Button } from "@/components/ui/button";
-import { RotateCcw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { RotateCcw, Send, Sparkles, AlertTriangle, Calendar, Building2, MapPin, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
+import type { TriageResult, AnalysisResult } from "@/types/analysis";
 
 const Index = () => {
-  const { status, result, error, fileName, analyze, reanalyze, reset } = useAnalysis();
+  const {
+    status, result, triageResult, error, fileName,
+    analyzeTriage, persistTriageForShift, generateFullFromAnalysis,
+    analyze, reanalyze, reset,
+  } = useAnalysis();
   const shift = useShift();
   const navigate = useNavigate();
   const isProcessing = ["reading", "validating", "analyzing", "generating"].includes(status);
 
-  const handleSendToShift = useCallback(async () => {
-    if (!result || !shift.activeShift) {
-      if (!shift.activeShift) {
-        toast.error("Nenhum plantão ativo. Crie um plantão antes de enviar.");
-        navigate("/plantao");
-        return;
-      }
+  const handleUpload = useCallback(async (file: File) => {
+    await analyzeTriage(file);
+  }, [analyzeTriage]);
+
+  const resolveRegional = (t: TriageResult["triagem"] | AnalysisResult["triagem"]) => {
+    let regional = t.regional_codigo || "";
+    if (!regional || !REGIONALS.includes(regional as typeof REGIONALS[number])) {
+      regional = matchRegionalByKeyword(t.unidade_registro || t.delegacia);
+    }
+    return regional;
+  };
+
+  const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
+    const tipification = (t.tipificacoes_sugeridas || [])
+      .map((x) => `${x.artigo} - ${x.descricao}`)
+      .join("; ");
+    return {
+      status: "em_atendimento" as const,
+      bu_number: (t.numero_bo || "").trim(),
+      tipification,
+      conducted_names: (t.interrogados_nomes || []).join(", "),
+      victim_names: (t.vitimas_nomes || []).join(", "),
+      regional: resolveRegional(t),
+      tramitation_time: new Date().toISOString(),
+    };
+  };
+
+  /** Envio rápido: persiste triagem + cria ocorrência vinculada à análise. */
+  const handleSendTriageToShift = useCallback(async () => {
+    if (!triageResult) return;
+    if (!shift.activeShift) {
+      toast.error("Nenhum plantão ativo. Crie um plantão antes de enviar.");
+      navigate("/plantao");
       return;
     }
 
-    // Resolve regional: 1) IA; 2) fallback por palavra-chave; 3) vazio + alerta.
-    let regional = result.triagem.regional_codigo || "";
-    if (!regional || !REGIONALS.includes(regional as typeof REGIONALS[number])) {
-      regional = matchRegionalByKeyword(result.triagem.unidade_registro || result.triagem.delegacia);
-    }
-    if (!regional) {
-      toast.warning("Não foi possível identificar a regional automaticamente — selecione manualmente.");
-    }
-
-    // Bloquear duplicado
-    const buNum = (result.triagem.numero_bo || "").trim();
+    const buNum = (triageResult.triagem.numero_bo || "").trim();
     if (buNum) {
       const dup = shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum);
       if (dup) {
@@ -47,25 +70,73 @@ const Index = () => {
       }
     }
 
+    const persisted = await persistTriageForShift(triageResult);
+    if (!persisted) {
+      toast.error("Erro ao salvar triagem");
+      return;
+    }
+
+    const regional = resolveRegional(triageResult.triagem);
+    if (!regional) {
+      toast.warning("Não foi possível identificar a regional automaticamente — selecione manualmente.");
+    }
+
+    try {
+      await shift.addOccurrence({
+        ...buildOccurrenceFromTriage(triageResult.triagem),
+        analysis_id: persisted.analysisId,
+      });
+      toast.success("Ocorrência distribuída — depoimentos podem ser gerados pelo OIP responsável.");
+      reset();
+      navigate("/plantao");
+    } catch {
+      toast.error("Erro ao enviar ao plantão");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triageResult, shift, navigate, persistTriageForShift, reset]);
+
+  /** Fluxo completo: usuário pediu para gerar tudo localmente antes de enviar. */
+  const handleGenerateFullNow = useCallback(async () => {
+    if (!triageResult || !fileName) return;
+    // Recupera o File do dropzone? Não temos. Usamos o base64 já em memória do hook chamando analyze original
+    // exigiria o File; em vez disso, fazemos uma rota: salvar triagem + gerar full pelo storage.
+    const persisted = await persistTriageForShift(triageResult);
+    if (!persisted) {
+      toast.error("Erro ao preparar geração");
+      return;
+    }
+    await generateFullFromAnalysis(persisted.analysisId);
+  }, [triageResult, fileName, persistTriageForShift, generateFullFromAnalysis]);
+
+  const handleSendFullToShift = useCallback(async () => {
+    if (!result || !shift.activeShift) {
+      if (!shift.activeShift) {
+        toast.error("Nenhum plantão ativo. Crie um plantão antes de enviar.");
+        navigate("/plantao");
+      }
+      return;
+    }
+    const regional = resolveRegional(result.triagem);
+    const buNum = (result.triagem.numero_bo || "").trim();
+    if (buNum) {
+      const dup = shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum);
+      if (dup) {
+        const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+        toast.error(`BU ${buNum} já está ${where} neste plantão.`);
+        return;
+      }
+    }
     try {
       await shift.addOccurrence({
         status: "em_atendimento",
         bu_number: buNum,
         tipification: result.despacho?.tipificacoes?.map(t => `${t.artigo} - ${t.descricao}`).join("; ") || "",
-        conducted_names: result.depoimentos
-          ?.filter(d => d.tipo === "interrogado")
-          .map(d => d.nome)
-          .join(", ") || "",
-        victim_names: result.depoimentos
-          ?.filter(d => d.tipo === "vitima")
-          .map(d => d.nome)
-          .join(", ") || "",
+        conducted_names: result.depoimentos?.filter(d => d.tipo === "interrogado").map(d => d.nome).join(", ") || "",
+        victim_names: result.depoimentos?.filter(d => d.tipo === "vitima").map(d => d.nome).join(", ") || "",
         regional,
-        // observations: começa vazio — usuário preenche manualmente
-        // first_hearing_time: vazio — preenchido ao iniciar a oitiva
         tramitation_time: new Date().toISOString(),
       });
-      toast.success("Ocorrência enviada ao plantão — aguardando atendimento.");
+      toast.success("Ocorrência enviada ao plantão.");
     } catch {
       toast.error("Erro ao enviar ao plantão");
     }
@@ -73,7 +144,7 @@ const Index = () => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      {status === "idle" && <DropZone onFileSelected={analyze} />}
+      {status === "idle" && <DropZone onFileSelected={handleUpload} />}
 
       {isProcessing && <ProcessingStatus status={status} fileName={fileName} />}
 
@@ -88,6 +159,15 @@ const Index = () => {
         </div>
       )}
 
+      {status === "triage_done" && triageResult && (
+        <TriageQuickCard
+          triage={triageResult}
+          onSend={handleSendTriageToShift}
+          onGenerateFull={handleGenerateFullNow}
+          onReset={reset}
+        />
+      )}
+
       {status === "done" && result && (
         <div className="w-full overflow-auto p-2">
           <AnalysisResultView
@@ -95,12 +175,123 @@ const Index = () => {
             onReset={reset}
             onReanalyze={reanalyze}
             reanalyzing={isProcessing}
-            onSendToShift={handleSendToShift}
+            onSendToShift={handleSendFullToShift}
           />
         </div>
       )}
     </div>
   );
 };
+
+interface QuickProps {
+  triage: TriageResult;
+  onSend: () => void;
+  onGenerateFull: () => void;
+  onReset: () => void;
+}
+
+const TriageQuickCard = ({ triage, onSend, onGenerateFull, onReset }: QuickProps) => {
+  const t = triage.triagem;
+  return (
+    <div className="w-full max-w-3xl mx-auto space-y-4">
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="font-mono text-xs">BO {t.numero_bo || "—"}</Badge>
+                <Badge variant="outline" className="text-xs">{t.natureza || "—"}</Badge>
+                <Badge variant="default" className="gap-1 text-xs">
+                  <Sparkles className="w-3 h-3" /> Triagem rápida
+                </Badge>
+              </div>
+              <CardTitle className="text-base">Pronto para distribuir ao plantão</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Depoimentos e despacho serão gerados sob demanda pelo OIP responsável.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Info icon={Calendar} label="Data do Fato" value={t.data_fato} />
+            <Info icon={Building2} label="Delegacia" value={t.delegacia} />
+            <Info icon={Scale} label="Natureza" value={t.natureza} />
+            <Info icon={MapPin} label="Local" value={t.local_fato} />
+            <Info icon={MapPin} label="Regional" value={t.regional_codigo || "(não identificada)"} />
+            <Info icon={Building2} label="Unidade de Registro" value={t.unidade_registro || "—"} />
+          </div>
+
+          {t.resumo && (
+            <div>
+              <h4 className="text-xs font-medium text-muted-foreground mb-1">Resumo</h4>
+              <p className="text-sm leading-relaxed">{t.resumo}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+            <NameList label="Condutores" items={t.condutores_nomes} />
+            <NameList label="Vítimas" items={t.vitimas_nomes} />
+            <NameList label="Interrogados" items={t.interrogados_nomes} />
+          </div>
+
+          {t.tipificacoes_sugeridas && t.tipificacoes_sugeridas.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-muted-foreground mb-2">Tipificações sugeridas</h4>
+              <div className="flex flex-wrap gap-2">
+                {t.tipificacoes_sugeridas.map((tp, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs">
+                    {tp.artigo} — {tp.descricao}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {t.alertas?.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {t.alertas.map((a, i) => (
+                <Badge key={i} variant="destructive" className="gap-1 text-xs">
+                  <AlertTriangle className="w-3 h-3" /> {a}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            <Button onClick={onSend} className="gap-2">
+              <Send className="w-4 h-4" /> Enviar ao Plantão
+            </Button>
+            <Button variant="outline" onClick={onGenerateFull} className="gap-2">
+              <Sparkles className="w-4 h-4" /> Gerar depoimentos agora
+            </Button>
+            <Button variant="ghost" onClick={onReset} className="gap-2 ml-auto">
+              <RotateCcw className="w-4 h-4" /> Nova Ocorrência
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+const Info = ({ icon: Icon, label, value }: { icon: typeof Calendar; label: string; value?: string }) => (
+  <div className="flex items-start gap-2.5 p-2.5 rounded-md bg-muted/30">
+    <Icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground truncate">{value || "—"}</p>
+    </div>
+  </div>
+);
+
+const NameList = ({ label, items }: { label: string; items?: string[] }) => (
+  <div className="p-2.5 rounded-md bg-muted/30">
+    <p className="text-xs text-muted-foreground mb-1">{label}</p>
+    {items && items.length > 0
+      ? <ul className="space-y-0.5">{items.map((n, i) => <li key={i} className="text-sm truncate">{n}</li>)}</ul>
+      : <p className="text-sm text-muted-foreground">—</p>}
+  </div>
+);
 
 export default Index;
