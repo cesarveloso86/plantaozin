@@ -1,117 +1,99 @@
 
 
-# Análise em duas fases: triagem rápida + geração sob demanda
+# Wizard de criação com regras de rotação por equipe
 
-## Objetivo
+## O que muda em relação ao plano anterior
 
-Hoje o `analyze-bo` faz **tudo de uma vez** (triagem + depoimentos + despacho), levando ~30-60s antes da ocorrência poder ser distribuída. Vamos separar em **2 etapas independentes**:
+Removo o "Repetir última escala" (incompatível com rotação) e substituo por **rotação automática**: o sistema lê o último plantão da equipe e aplica as regras de deslocamento de turno e rotação interna automaticamente. O usuário só confirma.
 
-1. **Triagem rápida** (~5-10s): só extrai dados para distribuição (BU, natureza, regional, nomes, tipificação).
-2. **Geração completa** (sob demanda): depoimentos + despacho, disparada pelo OIP responsável depois de receber a ocorrência.
-
-**Não precisa refatorar tudo** — é uma extensão incremental. O fluxo atual continua funcionando como fallback/modo manual.
-
-## Fluxo novo
+## Fluxo novo (3 passos, mobile-first)
 
 ```text
-[Upload PDF]
-     ↓
-[Triagem rápida]  ← 5-10s, só dados estruturados
-     ↓
-[Enviar ao Plantão]  ← imediato, sem esperar depoimentos
-     ↓
-[OIP recebe na fila "Em Distribuição"]
-     ↓
-[OIP clica "Gerar depoimentos"]  ← só agora roda IA pesada
-     ↓
-[Depoimentos + despacho prontos no card da ocorrência]
+Passo 1 — Identificação                Passo 2 — Composição           Passo 3 — Revisão
+┌──────────────────────┐              ┌──────────────────────┐       ┌──────────────────────┐
+│ Equipe  [ A ▾ ]      │              │ [Deleg(2)][OIP(3)][I]│       │ Equipe A · 22/04 10h │
+│ Data    [Hoje][Aman.]│      →       │                      │  →    │ Delegados: ...       │
+│ Início  [10:00]      │              │ ⚡ Rotação aplicada  │       │ OIPs: ...            │
+│                      │              │   (1 toque p/ desfa.)│       │ ISEO: ...            │
+│ ⚡ Aplicar rotação?  │              │                      │       │ + Ausências (opc.)   │
+│   [Sim] [Montar nova]│              │ [+ membro] [Editar]  │       │ [Criar Plantão]      │
+└──────────────────────┘              └──────────────────────┘       └──────────────────────┘
 ```
 
-## Mudanças
+**Caminho mais curto (rotação ok):** equipe → "Sim, aplicar rotação" → revisar → criar = **4 cliques**.
 
-### 1. Edge function `analyze-bo` — adicionar modo `triage_only`
+## Regras de rotação (por equipe)
 
-Aceitar novo parâmetro `mode: "triage" | "full"` (default `"full"` p/ retrocompatibilidade):
-- `"triage"`: prompt enxuto, retorna só `triagem` (numero_bo, natureza, delegacia, data_fato, local_fato, regional_codigo, unidade_registro, resumo curto, alertas, tipificações sugeridas, nomes de condutor/vítima/interrogado).
-- `"full"`: comportamento atual (triagem + depoimentos + despacho).
-
-Prompt de triagem usa modelo mais rápido (`google/gemini-2.5-flash-lite` ou `flash`) e pede JSON menor → resposta em segundos.
-
-### 2. Hook `useAnalysis` — expor `analyzeTriage` e `generateFull`
+Cada equipe tem um arquivo de regras em `src/components/shift/teamRules.ts` (novo), declarativo:
 
 ```ts
-const { 
-  status, result, triageResult, 
-  analyzeTriage,   // novo: roda só triagem
-  generateFull,    // novo: roda depoimentos+despacho a partir do PDF salvo
-  analyze,         // mantido: fluxo completo legado
-  reanalyze, reset
-} = useAnalysis();
+export const TEAM_RULES: Record<string, TeamRule> = {
+  "Equipe A": {
+    delegado: { strategy: "shift", presets: ["Diurno", "Noturno"] },
+    oip:      { strategy: "shift", presets: ["A", "B", "C"] },
+    iseo:     { strategy: "rotateInternal" },
+  },
+  "Equipe B": { ... },
+  // etc.
+};
 ```
 
-- `analyzeTriage(file)`: salva base64 em ref, chama edge function com `mode:"triage"`, retorna rápido.
-- `generateFull(occurrenceId)`: pega base64 + triagem do banco, chama com `mode:"full"`, atualiza `analyses` e a ocorrência vinculada.
+Estratégias suportadas:
+- **`shift`**: subequipe que era preset[0] passa a preset[1], preset[1] → preset[2], último → preset[0] (carrossel de turnos).
+- **`rotateInternal`**: dentro da subequipe, primeiro membro vira último (deslocamento posicional).
+- **`shift+rotateInternal`**: aplica os dois.
+- **`none`**: subequipe fixa (ex: Delegado de plantão único).
 
-### 3. Banco — vincular ocorrência → análise
+A função `applyRotation(lastShift, rules)` em `useShift.ts` recebe o último plantão da equipe e devolve o payload já rotacionado pronto pra criar.
 
-A coluna `shift_occurrences.analysis_id` **já existe**. Vamos usar:
-- Ao enviar triagem ao plantão: cria registro em `analyses` (com `result` parcial só de triagem) e grava `analysis_id` na ocorrência.
-- Adicionar coluna `analyses.pdf_base64 text` (nullable) p/ guardar o PDF temporariamente até a geração completa, OU re-uploadar se necessário. **Alternativa mais limpa:** criar bucket `bo-pdfs` (privado, RLS por user_id) e guardar o PDF — descartado após geração completa.
+**Exemplo concreto** (Equipe A no plantão N):
+- Sub OIP que estava no preset A → vira B
+- Membro que era 1º na sub A → vira último na sub B
+- Delegado Diurno → vira Noturno
 
-**Recomendação:** bucket privado com auto-delete após `full` rodar, mantém princípio LGPD (PDF efêmero).
+No passo 2 o usuário vê o resultado da rotação com badges "🔄 Rotacionado" e pode editar manualmente qualquer subequipe (override). Botão "Desfazer rotação" volta pra escala anterior.
 
-### 4. UI — `Index.tsx` (upload)
+## Como cadastrar as regras (sem código pra você)
 
-Após triagem concluir, mostrar **card resumido** (não o `AnalysisResultView` completo) com:
-- BU, natureza, regional, nomes
-- Botão primário: **"Enviar ao Plantão"** (rápido)
-- Botão secundário: **"Gerar depoimentos agora"** (fluxo antigo, opcional)
+Como as regras variam por equipe e você está no celular, proponho **2 opções de cadastro**:
 
-### 5. UI — `OccurrencesTab.tsx` (plantão)
+1. **Arquivo declarativo** (recomendado pra MVP): eu monto o `teamRules.ts` com as 5 equipes (A-E) usando os presets atuais (`A`, `B`, `C` pra OIP; `Diurno`, `Noturno`, `24h` pra Delegado). Você me confirma a ordem da rotação por equipe em texto livre ("Equipe A: OIP gira A→B→C, Delegado gira Diurno→Noturno") e eu codifico.
+2. **UI de admin** (futuro): tela em `/admin/equipes` pra editar regras visualmente. Fica pra v2 — agora prioriza ganho de UX.
 
-Em cada ocorrência da lista "Em Atendimento" que tenha `analysis_id` mas só com triagem:
-- Botão **"Gerar depoimentos"** com loader inline.
-- Quando pronto, abre `AnalysisResultView` completo no mesmo card (modal ou expand).
+## Componentes / arquivos
 
-### 6. Constante de modelo
-
-Adicionar em `analyze-bo/index.ts`:
-```ts
-const TRIAGE_MODEL = "google/gemini-2.5-flash-lite";
-const FULL_MODEL = "google/gemini-2.5-flash"; // atual
-```
+| Arquivo | Mudança |
+|---|---|
+| `src/components/shift/teamRules.ts` (novo) | Regras declarativas por equipe |
+| `src/components/shift/rotation.ts` (novo) | Funções puras: `applyRotation`, `shiftPresets`, `rotateMembers` (+ testes unitários simples) |
+| `src/components/shift/CreateShiftDialog.tsx` | Reescrito como wizard 3 passos |
+| `src/components/shift/ShiftWizardSteps.tsx` (novo) | Indicador de progresso |
+| `src/components/shift/SubteamComposer.tsx` | Modo `compact` p/ caber em tabs; badge "Rotacionado"; botão "Adicionar todos da equipe X" |
+| `src/hooks/useShift.ts` | `getLastShiftForTeam(teamName)` (lê 1 row do Supabase, ordenado por `created_at desc`) |
+| `src/components/shift/scheduleConstants.ts` | Adicionar presets `Diurno`/`Noturno`/`24h` em `DELEGADO_PRESETS` |
 
 ## Detalhes técnicos
 
-**Tipos novos** em `src/types/analysis.ts`:
-```ts
-export interface TriageResult {
-  triagem: RelatorioTriagem;
-  // depoimentos/despacho ausentes
-}
-export type AnalysisMode = "triage" | "full";
-```
+- Wizard: `useState<1|2|3>`, sem libs.
+- `applyRotation` é função pura (fácil de testar/auditar) — recebe `Shift`, devolve payload do `onCreate`.
+- IDs de subequipe e membros são regenerados com `crypto.randomUUID()` na rotação pra não colidir com o plantão anterior.
+- Se não houver plantão anterior pra equipe, o passo 1 oferece só "Montar nova" (sem opção de rotação).
+- Mantém retrocompatibilidade total com `onCreate` — payload final idêntico.
+- Mobile 375px: cada passo cabe em ~1 viewport. Tabs no passo 2 evitam scroll vertical infinito.
+- `AbsenceSelector` movido pro passo 3 (raramente usado).
+- Validação por passo bloqueia "Próximo" se faltar dado essencial.
 
-`AnalysisResult` permanece como está (full). `TriageResult` é subset.
+## O que preciso de você (texto, sem código)
 
-**Migração SQL** (se optarmos por bucket): criar bucket `bo-pdfs` privado + policies RLS (user lê/escreve só os próprios) + edge function deleta blob ao final do `mode:"full"`.
+Pra eu codar as regras certas, me passa por equipe (A, B, C, D, E) algo assim:
 
-**Retrocompatibilidade**: `analyze` atual continua funcionando — é só um wrapper de `analyzeTriage` + `generateFull` sequencial. Histórico antigo segue exibindo normalmente.
+> "Equipe A — OIP: gira A→B→C→A; rotação interna sim. Delegado: gira Diurno→Noturno→Diurno; sem rotação interna. ISEO: fixo."
+
+Se preferir, posso começar com uma **regra genérica padrão** (todas as equipes giram presets em ordem alfabética + rotação interna) e você ajusta depois pelo computador.
 
 ## O que NÃO muda
 
-- Estrutura de `analyses` (só ganha 1 coluna ou bucket auxiliar).
-- `AnalysisResultView` — segue renderizando full result.
-- `useShift`, `OccurrencesTab` lógica de fila, round-robin, exports.
-- RLS, auth, roles.
-
-## Escopo
-
-**Não é refatoração total.** São ~6 arquivos tocados:
-- `supabase/functions/analyze-bo/index.ts` (adicionar branch `mode`)
-- `src/hooks/useAnalysis.ts` (2 funções novas)
-- `src/types/analysis.ts` (tipo novo)
-- `src/pages/Index.tsx` (card resumido + 2 botões)
-- `src/components/shift/OccurrencesTab.tsx` (botão "Gerar depoimentos")
-- 1 migração (bucket OU coluna `pdf_base64`)
+- Schema do banco, RLS, hooks de ocorrências, round-robin de atendimento.
+- `EditShiftDialog` (foco é criação).
+- Lógica de exports/análise.
 
