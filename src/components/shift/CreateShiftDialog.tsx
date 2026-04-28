@@ -386,7 +386,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate, getLastShiftFo
             <AbsenceSelector
               absences={absences}
               setAbsences={setAbsences}
-              scheduledMembers={allSelectedNames}
+              availableNames={users.map((u) => u.full_name)}
             />
 
             <div className="flex justify-between pt-2">

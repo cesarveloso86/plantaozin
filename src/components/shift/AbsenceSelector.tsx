@@ -9,10 +9,11 @@ import { ABSENCE_REASONS } from "./shiftConstants";
 interface Props {
   absences: ShiftAbsence[];
   setAbsences: (absences: ShiftAbsence[]) => void;
-  scheduledMembers: string[];
+  /** Todos os servidores cadastrados na unidade (não apenas os escalados). */
+  availableNames: string[];
 }
 
-export function AbsenceSelector({ absences, setAbsences, scheduledMembers }: Props) {
+export function AbsenceSelector({ absences, setAbsences, availableNames }: Props) {
   const [name, setName] = useState("");
   const [reason, setReason] = useState("");
 
@@ -27,22 +28,22 @@ export function AbsenceSelector({ absences, setAbsences, scheduledMembers }: Pro
     setAbsences(absences.filter((_, i) => i !== idx));
   };
 
-  // Exclude already-absent members from dropdown
   const absentNames = absences.map((a) => a.name);
-  const available = scheduledMembers.filter((m) => !absentNames.includes(m));
+  const available = availableNames.filter((m) => !absentNames.includes(m));
 
   return (
     <div>
       <Label className="text-sm font-semibold">Registro de Ausências</Label>
+      <p className="text-xs text-muted-foreground mb-1">Qualquer servidor da unidade pode ser marcado como ausente, mesmo se não estiver escalado.</p>
       <div className="flex gap-2 mt-1">
         <Select value={name} onValueChange={setName}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder={available.length > 0 ? "Servidor" : "Nenhum escalado"} />
+            <SelectValue placeholder={available.length > 0 ? "Servidor" : "Nenhum disponível"} />
           </SelectTrigger>
           <SelectContent>
             {available.length > 0
               ? available.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)
-              : <SelectItem value="__empty" disabled>Nenhum servidor escalado</SelectItem>}
+              : <SelectItem value="__empty" disabled>Nenhum servidor disponível</SelectItem>}
           </SelectContent>
         </Select>
         <Select value={reason} onValueChange={setReason}>
