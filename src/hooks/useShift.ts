@@ -249,6 +249,17 @@ export function useShift() {
     [activeShift]
   );
 
+  const getLastShiftForTeam = useCallback(async (teamName: string): Promise<Shift | null> => {
+    const { data } = await supabase
+      .from("shifts")
+      .select("*")
+      .eq("team_name", teamName)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data ? parseShift(data as RawShiftRow) : null;
+  }, []);
+
   const deleteShift = useCallback(async (shiftId: string) => {
     await supabase.from("shift_occurrences").delete().eq("shift_id", shiftId);
     await supabase.from("shifts").delete().eq("id", shiftId);
@@ -276,6 +287,7 @@ export function useShift() {
     selectShift,
     updateShift,
     deleteShift,
+    getLastShiftForTeam,
   };
 }
 
