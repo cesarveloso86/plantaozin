@@ -165,7 +165,7 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           <AbsenceSelector
             absences={absences}
             setAbsences={setAbsences}
-            scheduledMembers={allSelectedNames}
+            availableNames={users.map((u) => u.full_name)}
           />
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
