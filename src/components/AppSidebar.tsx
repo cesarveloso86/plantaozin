@@ -1,4 +1,4 @@
-import { Shield, FilePlus, History, Users, LogOut, Moon, Sun, ClipboardList, UserCog } from "lucide-react";
+import { Shield, FilePlus, History, Users, LogOut, Moon, Sun, ClipboardList, UserCog, BookUser } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 const mainItems = [
   { title: "Plantão", url: "/plantao", icon: ClipboardList },
   { title: "Nova Análise", url: "/", icon: FilePlus },
+  { title: "Meu Histórico", url: "/meu-historico", icon: BookUser },
   { title: "Histórico", url: "/historico", icon: History },
 ];
 
