@@ -174,6 +174,27 @@ export function SubteamComposer({
     );
   };
 
+  const setMemberSubstituting = (subteamId: string, memberName: string, substituting: string | undefined) => {
+    setSubteams((prev) =>
+      prev.map((s) =>
+        s.id === subteamId
+          ? {
+              ...s,
+              members: s.members.map((m) =>
+                m.name === memberName ? { ...m, substituting: substituting || undefined } : m,
+              ),
+            }
+          : s,
+      ),
+    );
+  };
+
+  // Servidores cadastrados na unidade que NÃO estão escalados — candidatos a serem substituídos.
+  const substitutableNames = useMemo(
+    () => users.map((u) => u.full_name).filter((n) => !allSelectedNames.includes(n)),
+    [users, allSelectedNames],
+  );
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
