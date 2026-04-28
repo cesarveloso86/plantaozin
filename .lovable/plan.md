@@ -1,85 +1,74 @@
+## Ajustes no Wizard de Criação de Plantão
 
-# Geração de depoimentos no histórico do OIP (janela 24h)
+Três correções pontuais no `CreateShiftDialog`, sem mexer em schema, RLS ou hooks de ocorrência.
 
-## Decisão LGPD aprovada
+---
 
-PDF do BU fica retido no bucket `bo-pdfs` por **no máximo 24h** após a triagem. Cron diário apaga objetos expirados e zera `pdf_storage_path` em `analyses`. Depois disso, só sobra o resultado processado em `analyses.result` (sem o PDF original).
+### 1. Passo 2 — Aba "OIPs" funcional e visível
 
-A memória `mem://security/data-privacy` será atualizada para refletir essa nova regra ("PDFs retidos no máximo 24h, descartados via cron").
+**Diagnóstico:** a aba existe (`SubteamComposer` com `allowedCargos=["OIP"]`), e o cargo "OIP" está cadastrado no banco. O que provavelmente está faltando é deixar claro na UI quando a equipe selecionada **não tem nenhum OIP elegível** (lista vazia → usuário acha que sumiu).
 
-## O que muda na UX
+**Mudanças em `SubteamComposer.tsx`:**
+- Quando `eligibleUsers.length === 0`, mostrar um aviso curto acima do botão "Adicionar Subequipe": *"Nenhum servidor com cargo OIP cadastrado. Cadastre em Admin → Usuários ou Equipe Operacional."*
+- Tornar a aba "OIPs" no `Tabs` do passo 2 igualmente prominente (já está — confirmar que o `defaultValue` permite o usuário trocar pra "oip" sem fricção; manter `activeTab` controlado, ok).
 
-### 1. Página "Meu Histórico" (rota nova `/meu-historico`)
+**Resultado:** se a equipe não tem OIPs cadastrados, o usuário entende o motivo em vez de achar que a feature sumiu.
 
-Lista as ocorrências em que o usuário logado atuou como **OIP (investigator)** ou **Autoridade**, agrupadas por plantão e ordenadas por data (mais recente primeiro).
+---
 
-```text
-┌────────────────────────────────────────────┐
-│ Meu Histórico              [filtro: data ▾]│
-├────────────────────────────────────────────┤
-│ ▼ Plantão 22/04 — Equipe A                 │
-│   BU 12345 · Furto · 14:32                 │
-│      [👁 Ver triagem] [⚡ Gerar depoimentos]│
-│   BU 12346 · Lesão · 16:10                 │
-│      [👁 Ver triagem] · PDF expirado       │
-│ ▼ Plantão 18/04 — Equipe A                 │
-│   BU 12200 · Roubo                         │
-│      [📄 Ver depoimentos gerados]           │
-└────────────────────────────────────────────┘
+### 2. Reintroduzir "substituindo outro servidor"
+
+O campo `substituting?: string` já existe em `ShiftMember`. Sumiu da UI. Reintroduzir de forma mínima no `SubteamComposer`:
+
+- Em cada badge de membro adicionado à subequipe, um botão pequeno (ícone `UserCog` ou texto "subst.") abre um `Popover` com um `Select` listando **todos os servidores cadastrados na unidade** (profiles + team_members) **que não estão escalados** neste plantão.
+- Ao escolher, grava `m.substituting = nome` e o badge passa a mostrar `Nome (substitui X)`.
+- Botão `X` no popover limpa o campo.
+
+**Onde o dado é usado:** já é serializado em `oip_subteams`/`delegado_subteams`/`iseo_subteams` via JSONB; o `flattenSubteams` precisa propagar `substituting`. Ajuste de uma linha.
+
+---
+
+### 3. AbsenceSelector — dropdown com todos os servidores da unidade
+
+**Hoje:** `scheduledMembers` (só os escalados no plantão atual).
+**Mudança:** trocar a fonte para `useAllShiftMembers(open)` direto dentro do componente OU receber `allUnitMembers: string[]` como prop.
+
+**Implementação escolhida** (menos refactor): passar `allUnitMembers` do `CreateShiftDialog` para o `AbsenceSelector`:
+
+```tsx
+// CreateShiftDialog.tsx
+const allUnitNames = users.map((u) => u.full_name);
+
+<AbsenceSelector
+  absences={absences}
+  setAbsences={setAbsences}
+  availableNames={allUnitNames}   // renomeado para refletir o novo significado
+/>
 ```
 
-Estados possíveis por linha:
-- **PDF disponível + sem depoimentos**: botão `⚡ Gerar depoimentos`
-- **Depoimentos já gerados**: botão `📄 Ver depoimentos gerados` (abre `AnalysisResultView`)
-- **PDF expirado + sem depoimentos**: chip cinza "PDF expirado" com tooltip explicando LGPD
+```tsx
+// AbsenceSelector.tsx
+interface Props {
+  absences: ShiftAbsence[];
+  setAbsences: (a: ShiftAbsence[]) => void;
+  availableNames: string[];   // todos os servidores da unidade
+}
+// available = availableNames.filter(n => !absentNames.includes(n))
+```
 
-Admins veem um filtro extra "Ver de outro OIP" (select de membros).
+**Resultado:** o usuário pode marcar como ausente qualquer servidor cadastrado, mesmo que não tenha sido escalado naquele plantão — sem precisar pré-cadastrar na escala.
 
-### 2. Reforço na aba "Já Atendidas" (OccurrencesTab)
+---
 
-Adicionar o mesmo botão `⚡ Gerar depoimentos` nas linhas da aba "Já Atendidas", para o caso do OIP lembrar antes de sair do plantão. Reaproveita `handleGenerateDepoimentos` que já existe.
+### Arquivos alterados
 
-### 3. Item de menu novo na sidebar
+- `src/components/shift/SubteamComposer.tsx` — aviso de "nenhum elegível" + popover de "substitui"; `flattenSubteams` propaga `substituting`.
+- `src/components/shift/AbsenceSelector.tsx` — prop renomeada (`scheduledMembers` → `availableNames`), filtro ajustado.
+- `src/components/shift/CreateShiftDialog.tsx` — passar `users.map(u => u.full_name)` para o `AbsenceSelector`.
 
-"Meu Histórico" abaixo de "Plantão" (ou agrupado em uma seção "Pessoal" com "Perfil" + "Meu Histórico").
+### O que NÃO muda
 
-## Arquivos a tocar
-
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/MeuHistorico.tsx` (novo) | Lista filtrada de ocorrências do usuário com estados de PDF |
-| `src/App.tsx` | Rota `/meu-historico` protegida |
-| `src/components/AppSidebar.tsx` | Item "Meu Histórico" |
-| `src/components/shift/OccurrencesTab.tsx` | Botão "Gerar" também na aba "Já Atendidas" (reuso do handler existente) |
-| `src/hooks/useShift.ts` | Query: ocorrências por nome de OIP/autoridade + join com `analyses` para saber se PDF ainda existe |
-| `supabase/functions/cleanup-expired-pdfs/index.ts` (novo) | Cron: apaga objetos do bucket >24h e zera `pdf_storage_path` |
-| `supabase/config.toml` | `verify_jwt = false` para a função de cron |
-| Cron via SQL (`pg_cron` + `pg_net`) | Schedule diário `0 3 * * *` (3h da manhã) |
-| `mem://security/data-privacy` | Atualizar regra LGPD: 24h de retenção máxima |
-
-## Detalhes técnicos
-
-- **Reaproveitamento total do backend**: `analyze-bo` modo `full` + `useAnalysis.generateFullFromAnalysis(analysisId)` já fazem exatamente o trabalho. Zero mudança em edge functions de IA.
-- **Filtro "minhas ocorrências"**: query em `shift_occurrences` filtrando `investigator = profile.full_name OR authority = profile.full_name`. RLS atual já permite leitura para autenticados.
-- **Status do PDF**: join leve com `analyses` por `analysis_id` para ler `pdf_storage_path`. Se `null` → expirado. Se preenchido → disponível.
-- **Cron de limpeza**: 
-  - Edge function lista objetos do bucket `bo-pdfs` com `created_at < now() - interval '24h'`.
-  - `storage.from("bo-pdfs").remove([paths])`.
-  - `UPDATE analyses SET pdf_storage_path = NULL WHERE pdf_storage_path = ANY(...)`.
-  - Agendamento com `pg_cron`: roda 1x por dia.
-- **LGPD**: nada novo é exposto. O resultado processado (`analyses.result`) já é persistido hoje — o PDF é o único dado sensível, e ele continua tendo prazo de validade curto.
-
-## O que NÃO muda
-
-- Schema das tabelas (`analyses` e `shift_occurrences` já têm tudo).
-- Edge function `analyze-bo`.
-- RLS existente.
-- Fluxo de upload/triagem/distribuição.
-- `EditShiftDialog`, wizard de criação, exports.
-
-## Próximos passos após aprovação
-
-1. Criar página `MeuHistorico.tsx` + rota + item de menu.
-2. Adicionar botão na aba "Já Atendidas".
-3. Implementar edge function de cleanup + agendar cron.
-4. Atualizar memória LGPD para refletir retenção de 24h.
+- Schema do banco, RLS, edge functions.
+- `EditShiftDialog` (escopo é só a criação, conforme pedido).
+- Lógica de rotação, presets, ISEO 8h.
+- Hooks de ocorrências, exports, cleanup de PDFs.
