@@ -212,7 +212,16 @@ export function SubteamComposer({
         </Button>
       </div>
 
-      {subteams.length === 0 && (
+      {eligibleUsers.length === 0 && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+          <span className="text-foreground">
+            Nenhum servidor com cargo {allowedCargos.join(" ou ")} cadastrado. Cadastre em <strong>Admin → Usuários</strong> ou <strong>Equipe Operacional</strong>.
+          </span>
+        </div>
+      )}
+
+      {subteams.length === 0 && eligibleUsers.length > 0 && (
         <p className="text-xs text-muted-foreground italic px-1">
           Nenhuma subequipe. Clique em "Adicionar Subequipe" para começar.
         </p>
