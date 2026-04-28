@@ -1,99 +1,85 @@
 
+# Geração de depoimentos no histórico do OIP (janela 24h)
 
-# Wizard de criação com regras de rotação por equipe
+## Decisão LGPD aprovada
 
-## O que muda em relação ao plano anterior
+PDF do BU fica retido no bucket `bo-pdfs` por **no máximo 24h** após a triagem. Cron diário apaga objetos expirados e zera `pdf_storage_path` em `analyses`. Depois disso, só sobra o resultado processado em `analyses.result` (sem o PDF original).
 
-Removo o "Repetir última escala" (incompatível com rotação) e substituo por **rotação automática**: o sistema lê o último plantão da equipe e aplica as regras de deslocamento de turno e rotação interna automaticamente. O usuário só confirma.
+A memória `mem://security/data-privacy` será atualizada para refletir essa nova regra ("PDFs retidos no máximo 24h, descartados via cron").
 
-## Fluxo novo (3 passos, mobile-first)
+## O que muda na UX
+
+### 1. Página "Meu Histórico" (rota nova `/meu-historico`)
+
+Lista as ocorrências em que o usuário logado atuou como **OIP (investigator)** ou **Autoridade**, agrupadas por plantão e ordenadas por data (mais recente primeiro).
 
 ```text
-Passo 1 — Identificação                Passo 2 — Composição           Passo 3 — Revisão
-┌──────────────────────┐              ┌──────────────────────┐       ┌──────────────────────┐
-│ Equipe  [ A ▾ ]      │              │ [Deleg(2)][OIP(3)][I]│       │ Equipe A · 22/04 10h │
-│ Data    [Hoje][Aman.]│      →       │                      │  →    │ Delegados: ...       │
-│ Início  [10:00]      │              │ ⚡ Rotação aplicada  │       │ OIPs: ...            │
-│                      │              │   (1 toque p/ desfa.)│       │ ISEO: ...            │
-│ ⚡ Aplicar rotação?  │              │                      │       │ + Ausências (opc.)   │
-│   [Sim] [Montar nova]│              │ [+ membro] [Editar]  │       │ [Criar Plantão]      │
-└──────────────────────┘              └──────────────────────┘       └──────────────────────┘
+┌────────────────────────────────────────────┐
+│ Meu Histórico              [filtro: data ▾]│
+├────────────────────────────────────────────┤
+│ ▼ Plantão 22/04 — Equipe A                 │
+│   BU 12345 · Furto · 14:32                 │
+│      [👁 Ver triagem] [⚡ Gerar depoimentos]│
+│   BU 12346 · Lesão · 16:10                 │
+│      [👁 Ver triagem] · PDF expirado       │
+│ ▼ Plantão 18/04 — Equipe A                 │
+│   BU 12200 · Roubo                         │
+│      [📄 Ver depoimentos gerados]           │
+└────────────────────────────────────────────┘
 ```
 
-**Caminho mais curto (rotação ok):** equipe → "Sim, aplicar rotação" → revisar → criar = **4 cliques**.
+Estados possíveis por linha:
+- **PDF disponível + sem depoimentos**: botão `⚡ Gerar depoimentos`
+- **Depoimentos já gerados**: botão `📄 Ver depoimentos gerados` (abre `AnalysisResultView`)
+- **PDF expirado + sem depoimentos**: chip cinza "PDF expirado" com tooltip explicando LGPD
 
-## Regras de rotação (por equipe)
+Admins veem um filtro extra "Ver de outro OIP" (select de membros).
 
-Cada equipe tem um arquivo de regras em `src/components/shift/teamRules.ts` (novo), declarativo:
+### 2. Reforço na aba "Já Atendidas" (OccurrencesTab)
 
-```ts
-export const TEAM_RULES: Record<string, TeamRule> = {
-  "Equipe A": {
-    delegado: { strategy: "shift", presets: ["Diurno", "Noturno"] },
-    oip:      { strategy: "shift", presets: ["A", "B", "C"] },
-    iseo:     { strategy: "rotateInternal" },
-  },
-  "Equipe B": { ... },
-  // etc.
-};
-```
+Adicionar o mesmo botão `⚡ Gerar depoimentos` nas linhas da aba "Já Atendidas", para o caso do OIP lembrar antes de sair do plantão. Reaproveita `handleGenerateDepoimentos` que já existe.
 
-Estratégias suportadas:
-- **`shift`**: subequipe que era preset[0] passa a preset[1], preset[1] → preset[2], último → preset[0] (carrossel de turnos).
-- **`rotateInternal`**: dentro da subequipe, primeiro membro vira último (deslocamento posicional).
-- **`shift+rotateInternal`**: aplica os dois.
-- **`none`**: subequipe fixa (ex: Delegado de plantão único).
+### 3. Item de menu novo na sidebar
 
-A função `applyRotation(lastShift, rules)` em `useShift.ts` recebe o último plantão da equipe e devolve o payload já rotacionado pronto pra criar.
+"Meu Histórico" abaixo de "Plantão" (ou agrupado em uma seção "Pessoal" com "Perfil" + "Meu Histórico").
 
-**Exemplo concreto** (Equipe A no plantão N):
-- Sub OIP que estava no preset A → vira B
-- Membro que era 1º na sub A → vira último na sub B
-- Delegado Diurno → vira Noturno
-
-No passo 2 o usuário vê o resultado da rotação com badges "🔄 Rotacionado" e pode editar manualmente qualquer subequipe (override). Botão "Desfazer rotação" volta pra escala anterior.
-
-## Como cadastrar as regras (sem código pra você)
-
-Como as regras variam por equipe e você está no celular, proponho **2 opções de cadastro**:
-
-1. **Arquivo declarativo** (recomendado pra MVP): eu monto o `teamRules.ts` com as 5 equipes (A-E) usando os presets atuais (`A`, `B`, `C` pra OIP; `Diurno`, `Noturno`, `24h` pra Delegado). Você me confirma a ordem da rotação por equipe em texto livre ("Equipe A: OIP gira A→B→C, Delegado gira Diurno→Noturno") e eu codifico.
-2. **UI de admin** (futuro): tela em `/admin/equipes` pra editar regras visualmente. Fica pra v2 — agora prioriza ganho de UX.
-
-## Componentes / arquivos
+## Arquivos a tocar
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/shift/teamRules.ts` (novo) | Regras declarativas por equipe |
-| `src/components/shift/rotation.ts` (novo) | Funções puras: `applyRotation`, `shiftPresets`, `rotateMembers` (+ testes unitários simples) |
-| `src/components/shift/CreateShiftDialog.tsx` | Reescrito como wizard 3 passos |
-| `src/components/shift/ShiftWizardSteps.tsx` (novo) | Indicador de progresso |
-| `src/components/shift/SubteamComposer.tsx` | Modo `compact` p/ caber em tabs; badge "Rotacionado"; botão "Adicionar todos da equipe X" |
-| `src/hooks/useShift.ts` | `getLastShiftForTeam(teamName)` (lê 1 row do Supabase, ordenado por `created_at desc`) |
-| `src/components/shift/scheduleConstants.ts` | Adicionar presets `Diurno`/`Noturno`/`24h` em `DELEGADO_PRESETS` |
+| `src/pages/MeuHistorico.tsx` (novo) | Lista filtrada de ocorrências do usuário com estados de PDF |
+| `src/App.tsx` | Rota `/meu-historico` protegida |
+| `src/components/AppSidebar.tsx` | Item "Meu Histórico" |
+| `src/components/shift/OccurrencesTab.tsx` | Botão "Gerar" também na aba "Já Atendidas" (reuso do handler existente) |
+| `src/hooks/useShift.ts` | Query: ocorrências por nome de OIP/autoridade + join com `analyses` para saber se PDF ainda existe |
+| `supabase/functions/cleanup-expired-pdfs/index.ts` (novo) | Cron: apaga objetos do bucket >24h e zera `pdf_storage_path` |
+| `supabase/config.toml` | `verify_jwt = false` para a função de cron |
+| Cron via SQL (`pg_cron` + `pg_net`) | Schedule diário `0 3 * * *` (3h da manhã) |
+| `mem://security/data-privacy` | Atualizar regra LGPD: 24h de retenção máxima |
 
 ## Detalhes técnicos
 
-- Wizard: `useState<1|2|3>`, sem libs.
-- `applyRotation` é função pura (fácil de testar/auditar) — recebe `Shift`, devolve payload do `onCreate`.
-- IDs de subequipe e membros são regenerados com `crypto.randomUUID()` na rotação pra não colidir com o plantão anterior.
-- Se não houver plantão anterior pra equipe, o passo 1 oferece só "Montar nova" (sem opção de rotação).
-- Mantém retrocompatibilidade total com `onCreate` — payload final idêntico.
-- Mobile 375px: cada passo cabe em ~1 viewport. Tabs no passo 2 evitam scroll vertical infinito.
-- `AbsenceSelector` movido pro passo 3 (raramente usado).
-- Validação por passo bloqueia "Próximo" se faltar dado essencial.
-
-## O que preciso de você (texto, sem código)
-
-Pra eu codar as regras certas, me passa por equipe (A, B, C, D, E) algo assim:
-
-> "Equipe A — OIP: gira A→B→C→A; rotação interna sim. Delegado: gira Diurno→Noturno→Diurno; sem rotação interna. ISEO: fixo."
-
-Se preferir, posso começar com uma **regra genérica padrão** (todas as equipes giram presets em ordem alfabética + rotação interna) e você ajusta depois pelo computador.
+- **Reaproveitamento total do backend**: `analyze-bo` modo `full` + `useAnalysis.generateFullFromAnalysis(analysisId)` já fazem exatamente o trabalho. Zero mudança em edge functions de IA.
+- **Filtro "minhas ocorrências"**: query em `shift_occurrences` filtrando `investigator = profile.full_name OR authority = profile.full_name`. RLS atual já permite leitura para autenticados.
+- **Status do PDF**: join leve com `analyses` por `analysis_id` para ler `pdf_storage_path`. Se `null` → expirado. Se preenchido → disponível.
+- **Cron de limpeza**: 
+  - Edge function lista objetos do bucket `bo-pdfs` com `created_at < now() - interval '24h'`.
+  - `storage.from("bo-pdfs").remove([paths])`.
+  - `UPDATE analyses SET pdf_storage_path = NULL WHERE pdf_storage_path = ANY(...)`.
+  - Agendamento com `pg_cron`: roda 1x por dia.
+- **LGPD**: nada novo é exposto. O resultado processado (`analyses.result`) já é persistido hoje — o PDF é o único dado sensível, e ele continua tendo prazo de validade curto.
 
 ## O que NÃO muda
 
-- Schema do banco, RLS, hooks de ocorrências, round-robin de atendimento.
-- `EditShiftDialog` (foco é criação).
-- Lógica de exports/análise.
+- Schema das tabelas (`analyses` e `shift_occurrences` já têm tudo).
+- Edge function `analyze-bo`.
+- RLS existente.
+- Fluxo de upload/triagem/distribuição.
+- `EditShiftDialog`, wizard de criação, exports.
 
+## Próximos passos após aprovação
+
+1. Criar página `MeuHistorico.tsx` + rota + item de menu.
+2. Adicionar botão na aba "Já Atendidas".
+3. Implementar edge function de cleanup + agendar cron.
+4. Atualizar memória LGPD para refletir retenção de 24h.

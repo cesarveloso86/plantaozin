@@ -12,6 +12,7 @@ import { AppLayout } from "@/components/AppLayout";
 const Index = lazy(() => import("@/pages/Index"));
 const Plantao = lazy(() => import("@/pages/Plantao"));
 const Historico = lazy(() => import("@/pages/Historico"));
+const MeuHistorico = lazy(() => import("@/pages/MeuHistorico"));
 const Auth = lazy(() => import("@/pages/Auth"));
 const Perfil = lazy(() => import("@/pages/Perfil"));
 const AdminUsuarios = lazy(() => import("@/pages/AdminUsuarios"));
@@ -63,6 +64,16 @@ const App = () => (
                   <ProtectedRoute>
                     <AppLayout>
                       <Historico />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/meu-historico"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <MeuHistorico />
                     </AppLayout>
                   </ProtectedRoute>
                 }

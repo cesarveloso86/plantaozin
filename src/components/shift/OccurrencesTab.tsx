@@ -613,6 +613,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </td>
                     <td className="p-2.5">
                       <div className="flex gap-1">
+                        {occ.analysis_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Gerar depoimentos via IA (PDF disponível por até 24h)"
+                            disabled={generatingFor === occ.id}
+                            onClick={() => handleGenerateDepoimentos(occ)}
+                          >
+                            {generatingFor === occ.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Sparkles className="w-4 h-4" />}
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
