@@ -331,9 +331,54 @@ export function SubteamComposer({
               {s.members.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {s.members.map((m) => (
-                    <Badge key={m.name} variant="secondary" className="gap-1 pr-1 text-xs">
-                      {m.name}{m.nickname ? ` (${m.nickname})` : ""}{m.nf ? ` — NF ${m.nf}` : ""}
-                      <button type="button" onClick={() => removeMember(s.id, m.name)} className="ml-1 hover:text-destructive">
+                    <Badge key={m.name} variant="secondary" className="gap-1 pr-1 text-xs items-center">
+                      <span>
+                        {m.name}{m.nickname ? ` (${m.nickname})` : ""}{m.nf ? ` — NF ${m.nf}` : ""}
+                        {m.substituting && (
+                          <span className="ml-1 text-[10px] text-primary">· substitui {m.substituting}</span>
+                        )}
+                      </span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="ml-1 hover:text-primary"
+                            title={m.substituting ? `Substitui ${m.substituting}` : "Marcar como substituindo outro servidor"}
+                          >
+                            <UserCog className="w-3 h-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2 space-y-2" align="start">
+                          <Label className="text-xs">Está substituindo:</Label>
+                          <Select
+                            value={m.substituting || ""}
+                            onValueChange={(v) => setMemberSubstituting(s.id, m.name, v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecionar servidor…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {substitutableNames.length > 0 ? substitutableNames.map((n) => (
+                                <SelectItem key={n} value={n} className="text-xs">{n}</SelectItem>
+                              )) : (
+                                <SelectItem value="__empty" disabled className="text-xs">Nenhum disponível</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {m.substituting && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-full text-xs"
+                              onClick={() => setMemberSubstituting(s.id, m.name, undefined)}
+                            >
+                              <X className="w-3 h-3 mr-1" /> Limpar
+                            </Button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                      <button type="button" onClick={() => removeMember(s.id, m.name)} className="ml-0.5 hover:text-destructive" title="Remover">
                         <X className="w-3 h-3" />
                       </button>
                     </Badge>
