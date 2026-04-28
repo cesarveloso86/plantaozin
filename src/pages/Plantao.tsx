@@ -53,6 +53,7 @@ const Plantao = () => {
           open={showCreate}
           onOpenChange={setShowCreate}
           onCreate={shift.createShift}
+          getLastShiftForTeam={shift.getLastShiftForTeam}
         />
       </div>
     );
@@ -160,6 +161,7 @@ const Plantao = () => {
         open={showCreate}
         onOpenChange={setShowCreate}
         onCreate={shift.createShift}
+        getLastShiftForTeam={shift.getLastShiftForTeam}
       />
       {shift.activeShift && (
         <EditShiftDialog
