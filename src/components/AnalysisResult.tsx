@@ -81,7 +81,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
     `Local: ${triagem.local_fato}`,
     ...(triagem.cep_endereco ? [`Endereço (ViaCEP): ${triagem.cep_endereco}`] : []),
     ``, `RESUMO:`, triagem.resumo,
-    ...(triagem.alertas.length > 0 ? [``, `ALERTAS:`, ...triagem.alertas.map((a) => `⚠ ${a}`)] : []),
+    ...(alertas.length > 0 ? [``, `ALERTAS:`, ...alertas.map((a) => `⚠ ${a}`)] : []),
   ].join("\n");
 
   const despachoText = [
