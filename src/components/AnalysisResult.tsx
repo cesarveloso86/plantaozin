@@ -65,7 +65,9 @@ const FIELD_PLACEHOLDERS: Record<string, string> = {
 };
 
 const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
-  const { triagem, depoimentos, despacho } = data;
+  const { triagem, depoimentos: depoimentosRaw, despacho } = data;
+  const depoimentos = depoimentosRaw ?? [];
+  const alertas = triagem?.alertas ?? [];
   const [reanalyzeField, setReanalyzeField] = useState<ReanalyzeField>(null);
   const [reanalyzeIndex, setReanalyzeIndex] = useState<number | null>(null);
   const [instructions, setInstructions] = useState("");
@@ -79,7 +81,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
     `Local: ${triagem.local_fato}`,
     ...(triagem.cep_endereco ? [`Endereço (ViaCEP): ${triagem.cep_endereco}`] : []),
     ``, `RESUMO:`, triagem.resumo,
-    ...(triagem.alertas.length > 0 ? [``, `ALERTAS:`, ...triagem.alertas.map((a) => `⚠ ${a}`)] : []),
+    ...(alertas.length > 0 ? [``, `ALERTAS:`, ...alertas.map((a) => `⚠ ${a}`)] : []),
   ].join("\n");
 
   const despachoText = [
@@ -200,11 +202,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumo dos Fatos</h4>
               <p className="text-sm leading-relaxed text-foreground">{triagem.resumo}</p>
             </div>
-            {triagem.alertas.length > 0 && (
+            {alertas.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Alertas</h4>
                 <div className="flex flex-wrap gap-2">
-                  {triagem.alertas.map((a, i) => (
+                  {alertas.map((a, i) => (
                     <Badge key={i} variant="destructive" className="gap-1 text-xs">
                       <AlertTriangle className="w-3 h-3" /> {a}
                     </Badge>
