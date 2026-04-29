@@ -202,11 +202,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumo dos Fatos</h4>
               <p className="text-sm leading-relaxed text-foreground">{triagem.resumo}</p>
             </div>
-            {triagem.alertas.length > 0 && (
+            {alertas.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Alertas</h4>
                 <div className="flex flex-wrap gap-2">
-                  {triagem.alertas.map((a, i) => (
+                  {alertas.map((a, i) => (
                     <Badge key={i} variant="destructive" className="gap-1 text-xs">
                       <AlertTriangle className="w-3 h-3" /> {a}
                     </Badge>
