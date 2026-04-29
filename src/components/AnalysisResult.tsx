@@ -65,7 +65,9 @@ const FIELD_PLACEHOLDERS: Record<string, string> = {
 };
 
 const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
-  const { triagem, depoimentos, despacho } = data;
+  const { triagem, depoimentos: depoimentosRaw, despacho } = data;
+  const depoimentos = depoimentosRaw ?? [];
+  const alertas = triagem?.alertas ?? [];
   const [reanalyzeField, setReanalyzeField] = useState<ReanalyzeField>(null);
   const [reanalyzeIndex, setReanalyzeIndex] = useState<number | null>(null);
   const [instructions, setInstructions] = useState("");
