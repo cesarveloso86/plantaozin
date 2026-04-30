@@ -18,7 +18,7 @@ import type { TriageResult, AnalysisResult } from "@/types/analysis";
 const Index = () => {
   const {
     status, result, triageResult, error, fileName,
-    analyzeTriage, persistTriageForShift, generateFullFromAnalysis,
+    analyzeTriage, persistTriageForShift,
     analyze, reanalyze, reset,
   } = useAnalysis();
   const shift = useShift();
