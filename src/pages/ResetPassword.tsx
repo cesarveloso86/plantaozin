@@ -15,20 +15,80 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setReady(true);
-    }
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        const hash = window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hash);
+        const queryParams = new URLSearchParams(window.location.search);
+
+        // Erro vindo do Supabase (link expirado, inválido, etc.)
+        const errorDescription =
+          hashParams.get("error_description") || queryParams.get("error_description");
+        if (errorDescription) {
+          setErrorMsg(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
+          return;
+        }
+
+        // Fluxo PKCE: ?code=...
+        const code = queryParams.get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          if (!cancelled) {
+            setReady(true);
+            window.history.replaceState({}, "", "/reset-password");
+          }
+          return;
+        }
+
+        // Fluxo legado com tokens no hash
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const type = hashParams.get("type");
+        if (accessToken && refreshToken && type === "recovery") {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          if (!cancelled) {
+            setReady(true);
+            window.history.replaceState({}, "", "/reset-password");
+          }
+          return;
+        }
+
+        // Sessão pode já estar pronta via onAuthStateChange (PASSWORD_RECOVERY)
+        const { data } = await supabase.auth.getSession();
+        if (data.session && !cancelled) {
+          setReady(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setErrorMsg((err as Error).message || "Link inválido ou expirado.");
+        }
+      }
+    };
+
+    void init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,10 +103,30 @@ const ResetPassword = () => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Senha alterada!", description: "Você já pode usar a nova senha." });
-      navigate("/");
+      await supabase.auth.signOut();
+      navigate("/auth");
     }
     setSubmitting(false);
   };
+
+  if (errorMsg) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-destructive/10 mx-auto flex items-center justify-center">
+            <Shield className="w-7 h-7 text-destructive" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Link inválido</h1>
+            <p className="text-sm text-muted-foreground mt-2">{errorMsg}</p>
+          </div>
+          <Button onClick={() => navigate("/auth")} className="w-full">
+            Voltar para o login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (

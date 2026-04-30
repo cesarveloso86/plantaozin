@@ -33,6 +33,21 @@ const Auth = () => {
     );
   }
 
+  const hasRecoveryParams =
+    typeof window !== "undefined" &&
+    (window.location.hash.includes("type=recovery") ||
+      window.location.hash.includes("access_token=") ||
+      /[?&]code=/.test(window.location.search));
+
+  if (hasRecoveryParams) {
+    return (
+      <Navigate
+        to={{ pathname: "/reset-password", search: window.location.search, hash: window.location.hash }}
+        replace
+      />
+    );
+  }
+
   if (user) return <Navigate to="/" replace />;
 
   const handleLogin = async (e: React.FormEvent) => {
