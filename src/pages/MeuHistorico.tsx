@@ -449,12 +449,33 @@ const MeuHistorico = () => {
         )}
 
         <Dialog open={resultOpen} onOpenChange={setResultOpen}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>Depoimentos e despacho</DialogTitle>
             </DialogHeader>
             {resultData && (
-              <AnalysisResultView data={resultData} onReset={() => setResultOpen(false)} />
+              <AnalysisResultView
+                data={resultData}
+                onReset={() => setResultOpen(false)}
+                reanalyzing={analysis.status === "analyzing"}
+                onReanalyze={async (instructions, field, depoimentoIndex) => {
+                  if (!resultAnalysisId) return;
+                  const updated = await analysis.reanalyzeFromAnalysis(
+                    resultAnalysisId, instructions, field, depoimentoIndex,
+                  );
+                  if (updated) {
+                    setResultData(updated);
+                    setRows((prev) => prev.map((r) =>
+                      r.analysis_id === resultAnalysisId
+                        ? { ...r, has_full_result: true, full_result: updated }
+                        : r,
+                    ));
+                    toast.success("Atualizado.");
+                  } else {
+                    toast.error("Não foi possível reanalisar.");
+                  }
+                }}
+              />
             )}
           </DialogContent>
         </Dialog>
