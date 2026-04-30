@@ -104,16 +104,17 @@ const MeuHistorico = () => {
         .map((o: { analysis_id: string | null }) => o.analysis_id)
         .filter((x): x is string => !!x)));
 
-      let analysesById: Record<string, { pdf_storage_path: string | null; result: AnalysisResult | null }> = {};
+      let analysesById: Record<string, { pdf_storage_path: string | null; result: AnalysisResult | null; created_at: string | null }> = {};
       if (analysisIds.length > 0) {
         const { data: ans } = await supabase
           .from("analyses")
-          .select("id, pdf_storage_path, result")
+          .select("id, pdf_storage_path, result, created_at")
           .in("id", analysisIds);
-        for (const a of (ans || []) as Array<{ id: string; pdf_storage_path: string | null; result: unknown }>) {
+        for (const a of (ans || []) as Array<{ id: string; pdf_storage_path: string | null; result: unknown; created_at: string | null }>) {
           analysesById[a.id] = {
             pdf_storage_path: a.pdf_storage_path,
             result: a.result as AnalysisResult | null,
+            created_at: a.created_at,
           };
         }
       }
@@ -142,6 +143,7 @@ const MeuHistorico = () => {
           pdf_storage_path: a?.pdf_storage_path ?? null,
           has_full_result: hasFull,
           full_result: result,
+          analysis_created_at: a?.created_at ?? null,
         };
       });
 
