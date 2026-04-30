@@ -516,11 +516,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                               title="Horário (opcional)"
                             />
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedInvestigator ? displayLabel(suggestedInvestigator) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickInv ?? suggestedInvestigator ?? ""}
+                              onValueChange={(v) => setPickInv(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedAuthority ? displayLabel(suggestedAuthority) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickAuth ?? suggestedAuthority ?? ""}
+                              onValueChange={(v) => setPickAuth(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Button size="sm" onClick={addToQueue} disabled={adding || !newBu.trim()} className="h-9 gap-1 w-full">
@@ -530,8 +542,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                         </tr>
                       )}
 
-                      {/* Slots seguintes (preview da fila preditiva, sem input) */}
-                      {shift.status === "active" && predictedInv.slice(1, 4).map((inv, i) => {
+                      {/* Slots seguintes (preview da fila preditiva, sem input) — até 10 servidores */}
+                      {shift.status === "active" && predictedInv.slice(1, 10).map((inv, i) => {
                         const auth = predictedAuth[i + 1] || "";
                         const subInv = predictedInvSub[i + 1];
                         const subAuth = predictedAuthSub[i + 1];
