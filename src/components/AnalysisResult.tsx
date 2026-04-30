@@ -235,7 +235,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{despacho.texto}</p>
+              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">{despacho.texto}</p>
               {despacho.tipificacoes?.length > 0 && (
                 <>
                   <Separator />
