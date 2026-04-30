@@ -152,7 +152,7 @@ const Index = () => {
       await shift.addOccurrence({
         status: "em_atendimento",
         bu_number: buNum,
-        tipification: result.despacho?.tipificacoes?.map(t => `${t.artigo} - ${t.descricao}`).join("; ") || "",
+        tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
         conducted_names: result.depoimentos?.filter(d => d.tipo === "interrogado").map(d => d.nome).join(", ") || "",
         victim_names: result.depoimentos?.filter(d => d.tipo === "vitima").map(d => d.nome).join(", ") || "",
         regional,
