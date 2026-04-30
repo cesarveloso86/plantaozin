@@ -20,7 +20,7 @@ import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
-import { fmtTime } from "@/lib/utils";
+
 
 interface Props {
   shift: Shift;
