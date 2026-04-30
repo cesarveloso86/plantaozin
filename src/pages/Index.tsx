@@ -195,11 +195,10 @@ const Index = () => {
 interface QuickProps {
   triage: TriageResult;
   onSend: () => void;
-  onGenerateFull: () => void;
   onReset: () => void;
 }
 
-const TriageQuickCard = ({ triage, onSend, onGenerateFull, onReset }: QuickProps) => {
+const TriageQuickCard = ({ triage, onSend, onReset }: QuickProps) => {
   const t = triage.triagem;
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
