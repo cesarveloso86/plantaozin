@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface UserProfile {
@@ -21,10 +21,12 @@ export const displayName = (m: { nickname?: string | null; full_name: string }):
 /**
  * Fetches both real profiles and operational team_members,
  * merging them into a single list for shift selectors.
+ * Subscribes to realtime updates so newly added members appear immediately.
  */
 export function useAllShiftMembers(enabled: boolean) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +74,24 @@ export function useAllShiftMembers(enabled: boolean) {
 
   useEffect(() => {
     if (enabled) load();
+  }, [enabled, load]);
+
+  // Realtime: revalida quando profiles ou team_members mudam.
+  useEffect(() => {
+    if (!enabled) return;
+    const debouncedReload = () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      reloadTimer.current = setTimeout(() => { load(); }, 300);
+    };
+    const channel = supabase
+      .channel("shift-members-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, debouncedReload)
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      supabase.removeChannel(channel);
+    };
   }, [enabled, load]);
 
   return { users, loading, reload: load };

@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
@@ -21,9 +21,6 @@ import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
 import { fmtTime } from "@/lib/utils";
-import { useAnalysis } from "@/hooks/useAnalysis";
-import AnalysisResultView from "@/components/AnalysisResult";
-import type { AnalysisResult } from "@/types/analysis";
 
 interface PendingItem {
   bu_number: string;
@@ -70,31 +67,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
   const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
 
-  // Geração sob demanda (depoimentos+despacho a partir da triagem distribuída).
-  const analysis = useAnalysis();
-  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [fullResult, setFullResult] = useState<AnalysisResult | null>(null);
-  const [resultOpen, setResultOpen] = useState(false);
-
-  const handleGenerateDepoimentos = useCallback(async (occ: ShiftOccurrence) => {
-    if (!occ.analysis_id) {
-      toast.error("Esta ocorrência não tem PDF vinculado.");
-      return;
-    }
-    setGeneratingFor(occ.id);
-    try {
-      const full = await analysis.generateFullFromAnalysis(occ.analysis_id);
-      if (full) {
-        setFullResult(full);
-        setResultOpen(true);
-        toast.success("Depoimentos e despacho gerados.");
-      } else {
-        toast.error("Não foi possível gerar os depoimentos.");
-      }
-    } finally {
-      setGeneratingFor(null);
-    }
-  }, [analysis]);
+  // Geração de depoimentos foi movida para "Meu Histórico" (acesso unificado por OIP/Autoridade).
 
   // Helper: BU normalizado
   const normBu = (s: string) => (s || "").trim().toUpperCase();
@@ -491,20 +464,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       </Button>
                     </div>
                     <div className="flex gap-1 ml-auto shrink-0">
-                      {occ.analysis_id && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="h-8 gap-1"
-                          title="Gerar depoimentos e despacho via IA"
-                          disabled={generatingFor === occ.id}
-                          onClick={() => handleGenerateDepoimentos(occ)}
-                        >
-                          {generatingFor === occ.id
-                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Gerando…</>
-                            : <><Sparkles className="w-3.5 h-3.5" /> Gerar depoimentos</>}
-                        </Button>
-                      )}
+                      <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
+                        <Edit className="w-3.5 h-3.5" /> Continuar
+                      </Button>
                       <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
                         <Edit className="w-3.5 h-3.5" /> Continuar
                       </Button>
@@ -613,20 +575,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </td>
                     <td className="p-2.5">
                       <div className="flex gap-1">
-                        {occ.analysis_id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Gerar depoimentos via IA (PDF disponível por até 24h)"
-                            disabled={generatingFor === occ.id}
-                            onClick={() => handleGenerateDepoimentos(occ)}
-                          >
-                            {generatingFor === occ.id
-                              ? <Loader2 className="w-4 h-4 animate-spin" />
-                              : <Sparkles className="w-4 h-4" />}
-                          </Button>
-                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -756,20 +704,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                   : "Registrar"}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={resultOpen} onOpenChange={setResultOpen}>
-        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Depoimentos e despacho gerados</DialogTitle>
-          </DialogHeader>
-          {fullResult && (
-            <AnalysisResultView
-              data={fullResult}
-              onReset={() => { setResultOpen(false); setFullResult(null); }}
-            />
-          )}
         </DialogContent>
       </Dialog>
     </div>
