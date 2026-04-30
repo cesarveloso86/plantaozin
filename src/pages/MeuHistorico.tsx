@@ -403,7 +403,9 @@ const MeuHistorico = () => {
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[260px]">
-                                Os depoimentos foram gerados e o PDF original foi descartado conforme política LGPD. Use "Ver depoimentos" para consultar o resultado.
+                                {isPdfExpiredByTime(row.analysis_created_at)
+                                  ? "Os depoimentos já foram gerados e o PDF original foi descartado pela política de retenção de 24h. Use \"Ver depoimentos\" para consultar o resultado."
+                                  : "Os depoimentos já foram gerados e o PDF original foi excluído manualmente. Use \"Ver depoimentos\" para consultar o resultado."}
                               </TooltipContent>
                             </Tooltip>
                           )}
