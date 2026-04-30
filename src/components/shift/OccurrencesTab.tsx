@@ -228,7 +228,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     }
   };
 
-  /** Adiciona a ocorrência à fila "Sem Oitiva" (procedimentos sem ordem rígida). */
+  /** Registra uma ocorrência da aba "Sem Oitiva".
+   * Como esses procedimentos não geram oitiva real, gravamos direto como "atendida"
+   * — entram em "Já Atendidas" e são exportadas na PO (DOCX) e na planilha (XLSX). */
   const addToQueueSO = async () => {
     const bu = normBu(newBuSO);
     if (!bu) { toast.error("Informe o número do BU"); return; }
@@ -245,15 +247,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setAddingSO(true);
     try {
       await onAdd({
-        status: "sem_oitiva",
+        status: "atendida",
         bu_number: bu,
         tramitation_time: tramitationIso,
-        investigator: suggestedInvestigatorSO,
-        authority: suggestedAuthoritySO,
+        investigator: pickInvSO ?? suggestedInvestigatorSO,
+        authority: pickAuthSO ?? suggestedAuthoritySO,
       });
-      toast.success(`BU ${bu} adicionado em Sem Oitiva`);
+      toast.success(`BU ${bu} registrado em Sem Oitiva`);
       setNewBuSO("");
       setNewTimeSO("");
+      setPickInvSO(null);
+      setPickAuthSO(null);
     } catch {
       toast.error("Erro ao adicionar à fila");
     } finally {
