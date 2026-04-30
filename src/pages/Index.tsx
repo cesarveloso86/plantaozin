@@ -70,9 +70,7 @@ const Index = () => {
   };
 
   const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
-    const tipification = (t.tipificacoes_sugeridas || [])
-      .map((x) => `${x.artigo} - ${x.descricao}`)
-      .join("; ");
+    const tipification = formatTipificacoesShort(t.tipificacoes_sugeridas);
     const { investigator, authority } = pickNextAssignees();
     return {
       status: "em_atendimento" as const,
