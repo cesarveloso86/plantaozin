@@ -57,6 +57,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newTime, setNewTime] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Estado independente para a aba "Sem Oitiva".
+  const [newBuSO, setNewBuSO] = useState("");
+  const [newTimeSO, setNewTimeSO] = useState("");
+  const [addingSO, setAddingSO] = useState(false);
+
   // Skip histórico por ocorrência em atendimento (id).
   const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
   const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
@@ -76,8 +81,12 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     () => occurrences.filter((o) => o.status === "em_atendimento"),
     [occurrences],
   );
+  const semOitiva = useMemo(
+    () => occurrences.filter((o) => o.status === "sem_oitiva"),
+    [occurrences],
+  );
   const completed = useMemo(
-    () => occurrences.filter((o) => o.status !== "em_atendimento"),
+    () => occurrences.filter((o) => o.status === "atendida"),
     [occurrences],
   );
 
