@@ -251,6 +251,73 @@ export function useAnalysis() {
     }
   }, []);
 
+  /**
+   * Reanaliza um campo (triagem/despacho/depoimentos/depoimento) a partir
+   * de uma análise persistida (sem precisar carregar PDF de novo).
+   */
+  const reanalyzeFromAnalysis = useCallback(
+    async (
+      analysisId: string,
+      instructions: string,
+      field?: string,
+      depoimentoIndex?: number,
+    ): Promise<AnalysisResult | null> => {
+      setError(null);
+      try {
+        setStatus("analyzing");
+        const { data: row, error: rowErr } = await supabase
+          .from("analyses")
+          .select("file_name, pdf_storage_path, result")
+          .eq("id", analysisId)
+          .maybeSingle();
+        if (rowErr || !row) throw rowErr || new Error("Análise não encontrada");
+        const storagePath = (row as { pdf_storage_path?: string | null }).pdf_storage_path;
+        if (!storagePath) throw new Error("PDF original não está mais disponível");
+
+        const { data: { user } } = await supabase.auth.getUser();
+        const signatureStyle = user ? await fetchSignatureStyle(user.id) : null;
+
+        const { data, error: fnError } = await supabase.functions.invoke("analyze-bo", {
+          body: {
+            pdf_storage_path: storagePath,
+            file_name: row.file_name,
+            mode: "full",
+            signature_style: signatureStyle,
+            instructions,
+            previous_result: row.result,
+            field,
+            depoimento_index: typeof depoimentoIndex === "number" ? depoimentoIndex : undefined,
+          },
+        });
+        if (fnError) throw new Error(fnError.message || "Erro ao reprocessar");
+        if (!data || !data.triagem || !data.depoimentos || !data.despacho) {
+          throw new Error("Resposta inválida do servidor");
+        }
+
+        const full = data as AnalysisResult;
+        await supabase
+          .from("analyses")
+          .update({
+            result: full as unknown as Record<string, unknown>,
+            numero_bo: full.triagem.numero_bo || null,
+            natureza: full.triagem.natureza || null,
+            delegacia: full.triagem.delegacia || null,
+            data_fato: full.triagem.data_fato || null,
+          } as never)
+          .eq("id", analysisId);
+
+        setResult(full);
+        setStatus("done");
+        return full;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro desconhecido");
+        setStatus("error");
+        return null;
+      }
+    },
+    [],
+  );
+
   const reanalyze = useCallback(
     async (instructions: string, field?: string, depoimentoIndex?: number) => {
       if (!lastBase64.current) return;
