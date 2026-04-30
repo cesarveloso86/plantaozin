@@ -60,6 +60,7 @@ const MeuHistorico = () => {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState<AnalysisResult | null>(null);
+  const [resultAnalysisId, setResultAnalysisId] = useState<string | null>(null);
 
   // Quem é "eu" para filtragem por nome (investigator/authority).
   const myName = profile?.full_name || "";
