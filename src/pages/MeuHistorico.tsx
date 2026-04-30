@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import AnalysisResultView from "@/components/AnalysisResult";
 import type { AnalysisResult } from "@/types/analysis";
-import { fmtDateTime, fmtTime } from "@/lib/utils";
+import { fmtDateTime, fmtTime, formatLocalDateBR } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Row {
