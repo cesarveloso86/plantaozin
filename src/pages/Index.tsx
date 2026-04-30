@@ -173,7 +173,6 @@ const Index = () => {
         <TriageQuickCard
           triage={triageResult}
           onSend={handleSendTriageToShift}
-          onGenerateFull={handleGenerateFullNow}
           onReset={reset}
         />
       )}
