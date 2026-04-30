@@ -376,7 +376,21 @@ const MeuHistorico = () => {
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[260px]">
-                                Por LGPD, o PDF original do BU é descartado em até 24h após a triagem. Não é mais possível gerar depoimentos para esta ocorrência.
+                                {isPdfExpiredByTime(row.analysis_created_at)
+                                  ? "Por LGPD, o PDF original do BU é descartado automaticamente após 24h da triagem. Não é mais possível gerar depoimentos para esta ocorrência."
+                                  : "O PDF original já foi descartado (geração anterior ou política de retenção). Não é mais possível gerar depoimentos para esta ocorrência."}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {!pdfAvailable && hasFull && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                                  <AlertCircle className="w-3.5 h-3.5" /> PDF descartado
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[260px]">
+                                Os depoimentos foram gerados e o PDF original foi descartado conforme política LGPD. Use "Ver depoimentos" para consultar o resultado.
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -385,6 +399,30 @@ const MeuHistorico = () => {
                               Sem PDF vinculado
                             </span>
                           )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Excluir do histórico">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir do histórico?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  BU {row.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => handleDeleteOne(row)}
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     );
