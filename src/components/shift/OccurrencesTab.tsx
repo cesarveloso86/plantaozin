@@ -62,6 +62,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newTimeSO, setNewTimeSO] = useState("");
   const [addingSO, setAddingSO] = useState(false);
 
+  // Picks editáveis na linha de confirmação (override da sugestão da fila).
+  // null = seguir sugestão automática; string = escolha manual fixada.
+  const [pickInv, setPickInv] = useState<string | null>(null);
+  const [pickAuth, setPickAuth] = useState<string | null>(null);
+  const [pickInvSO, setPickInvSO] = useState<string | null>(null);
+  const [pickAuthSO, setPickAuthSO] = useState<string | null>(null);
+
   // Skip histórico por ocorrência em atendimento (id).
   const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
   const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
