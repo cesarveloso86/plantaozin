@@ -42,7 +42,7 @@ export interface Shift {
   created_at: string;
 }
 
-export type OccurrenceStatus = "em_atendimento" | "atendida";
+export type OccurrenceStatus = "em_atendimento" | "atendida" | "sem_oitiva";
 
 export interface ShiftOccurrence {
   id: string;

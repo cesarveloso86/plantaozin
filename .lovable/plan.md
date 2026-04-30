@@ -1,42 +1,68 @@
-## Plano
+## Problemas e plano
 
-### 1. Fila preditiva como tabela compacta (estilo planilha)
+### 1. Bug: distribuição repete servidor que já está em atendimento
 
-Em `src/components/shift/OccurrencesTab.tsx` (aba "Em Distribuição"):
+**Causa**: em `src/pages/Index.tsx` a função `pickNextAssignees` (linha 56) calcula a fila usando apenas `occurrences.filter(o => o.status !== "em_atendimento")` — ou seja, ignora a carga das ocorrências em andamento. Se o OIP X já tem 1 BU em atendimento, ele aparece com carga 0 e é escolhido de novo no próximo BU.
 
-- **Remover** o parágrafo de instrução (`"Próximos OIPs e Autoridades já pré-distribuídos..."`) — deixar só o título "Em Atendimento" + relógio.
-- **Remover** os rótulos repetidos `OIP:` / `Autoridade:` em cada linha.
-- **Remover** os badges `Slot 2`, `Slot 3`, `Slot 4` e o texto `aguardando BU`.
-- Reformular a seção como uma **tabela única** (cabeçalho fixo: `BU` · `Hora` · `OIP` · `Autoridade` · `Ações`):
-  - **Linhas 1..N**: ocorrências reais já em atendimento (com selects inline editáveis para OIP/Autoridade, botão Continuar/Remover, igual ao atual mas em formato `<tr>`).
-  - **Linha "Próximo"**: input de Nº BU + input de hora + OIP/Autoridade pré-preenchidos (como texto, sem rótulo) + botão Confirmar.
-  - **Linhas seguintes (slots preview)**: apenas mostram OIP / Autoridade previstos como texto simples, sem badge "Slot N" e sem o texto "aguardando BU". Estilo `opacity-60` para distinguir.
-- Resultado visual: parece uma planilha enxuta, com colunas alinhadas e sem repetição de rótulos linha a linha.
+A `OccurrencesTab` (que mostra a tabela em distribuição) usa `occurrences` inteiro, por isso a previsão lá está correta. Daí a divergência: a tabela mostra um nome, mas ao enviar pela triagem é gravado outro (ou o mesmo de novo).
 
-### 2. Editar horário de tramitação em ocorrências em atendimento
+**Correção**: passar `shift.occurrences` (todas) para `predictSubteamQueue` / `predictQueue` em `pickNextAssignees`, exatamente como `OccurrencesTab.tsx` faz. Remover o `.filter(o => o.status !== "em_atendimento")`.
 
-Hoje a hora aparece como texto somente leitura na linha em atendimento (`fmtTime(occ.tramitation_time)`). Vou trocar por um `<input type="time" step="1">` inline que, ao alterar (`onBlur` ou `onChange` debounced), chama `onUpdate(occ.id, { tramitation_time: ISO })`. O ISO é construído com `shift.shift_date` + horário escolhido. Mostrar "—" quando vazio e permitir limpar.
-
-A mesma edição inline também valerá na aba "Já Atendidas" (coluna Horário), trocando o `<td>` estático por input de hora.
-
-### 3. Remover preenchimento automático de `tramitation_time` ao enviar ao plantão
-
-O usuário esclareceu que esse horário vem de outro sistema; o app não deve mais inserir um valor automático. Mudanças em `src/pages/Index.tsx`:
-
-- Linha 82 (envio da triagem ao plantão, fluxo principal): remover `tramitation_time: new Date().toISOString()` do payload — deixar o campo `null`.
-- Linha 194 (segundo fluxo análogo de envio ao plantão): mesma remoção.
-- Os blocos que removem `tramitation_time` no merge (linhas 122 e 201) continuam corretos e ficam.
-
-Em `src/components/shift/OccurrencesTab.tsx`:
-
-- Linha 228 (cadastro manual concluído via modal): remover o fallback `|| new Date().toISOString()`, enviando apenas `form.tramitation_time` (pode ser `null/undefined`).
-- A entrada via slot "Próximo" (linha 148–156) **mantém** o uso de `newTime || agora`, pois ali o usuário está digitando manualmente o horário no momento da entrada à fila — é o caso legítimo de input direto. Mas como o usuário quer poder editar depois (item 2), isso já fica resolvido.
-
-### 4. Arquivos alterados
-
-```text
-src/components/shift/OccurrencesTab.tsx   — refatorar "Em Atendimento" para tabela; input de hora editável; remover fallback de tramitation_time no save
-src/pages/Index.tsx                       — não setar tramitation_time automaticamente ao enviar ao plantão (2 ocorrências)
+```ts
+// src/pages/Index.tsx — pickNextAssignees
+const all = shift.occurrences;          // antes: completed = filter !== em_atendimento
+const invSub  = predictSubteamQueue(active.oip_subteams || [], all, [], "investigator", 1, now);
+const authSub = predictSubteamQueue(active.delegado_subteams || [], all, [], "authority", 1, now);
 ```
 
-Sem mudanças em DB, edge functions, tipos ou hooks.
+### 2. Nova aba "Sem Oitiva" (procedimentos sem ordem rígida)
+
+**Modelo de dados**
+
+Adicionar um novo valor ao status da ocorrência: `sem_oitiva`. É um plantão paralelo ao "em atendimento", com sua própria fila independente, mas usando os mesmos OIPs/Autoridades do plantão (a flexibilidade fica por conta do usuário, que pode editar OIP/Autoridade inline).
+
+Migração SQL (Cloud):
+- Não há CHECK constraint em `shift_occurrences.status` hoje — basta ampliar o tipo TS. Adicionar `sem_oitiva` ao enum TS `OccurrenceStatus` em `src/types/shift.ts`.
+- RLS já cobre (por `created_by`). Sem alteração.
+
+**UI — `src/components/shift/OccurrencesTab.tsx`**
+
+Renomear/reordenar as abas:
+
+```text
+[ Em Distribuição (N) ]  [ Sem Oitiva (M) ]  [ Já Atendidas (K) ]
+```
+
+A aba "Sem Oitiva" replica visualmente o card "Em Atendimento" (mesma tabela: BU · Hora · OIP · Autoridade · Ações), com:
+
+- Lista das ocorrências `status === "sem_oitiva"` (editáveis inline igual à aba em distribuição: hora, OIP, autoridade via Select, skip, Continuar, Remover).
+- Linha de entrada (input BU + hora + OIP/Autoridade pré-preenchidos pela fila preditiva) para registrar uma ocorrência diretamente como `sem_oitiva`.
+- A fila preditiva é calculada **considerando apenas as ocorrências `sem_oitiva`** (ordem independente da aba "em distribuição"), usando os mesmos `oip_subteams` / `delegado_subteams`.
+
+```ts
+const inAttendance  = occurrences.filter(o => o.status === "em_atendimento");
+const semOitiva     = occurrences.filter(o => o.status === "sem_oitiva");
+const completed     = occurrences.filter(o => o.status === "atendida");
+
+// Fila preditiva independente para Sem Oitiva
+const predictedInvSO  = predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now);
+const predictedAuthSO = predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now);
+```
+
+**Continuar atendimento (botão "Continuar")**: ao salvar com finalize, status passa para `atendida` (move para "Já Atendidas"), igual à aba em distribuição. Também permitir "mover para em distribuição" via select de status (caso o usuário decida que o procedimento precisa de oitiva).
+
+**Triagem → Sem Oitiva (opcional, fora deste loop)**: por enquanto a triagem continua mandando para `em_atendimento`. O usuário pode mover manualmente. Se quiser detecção automática (ex.: TC/BOC entram direto em sem_oitiva), fica para iteração futura.
+
+**Resumo / Estatísticas**: rapidamente verificar `ResumoTab.tsx` e `StatisticsTab.tsx` — onde houver distinção `em_atendimento` vs `atendida`, tratar `sem_oitiva` como "ainda não finalizada" (mesmo bucket de em atendimento, ou contador próprio se útil). Sem mudança comportamental significativa esperada.
+
+### Arquivos alterados
+
+```text
+src/pages/Index.tsx                        — corrigir pickNextAssignees (usar todas as occurrences)
+src/types/shift.ts                         — adicionar "sem_oitiva" ao OccurrenceStatus
+src/components/shift/OccurrencesTab.tsx    — nova aba + fila preditiva independente
+src/components/shift/ResumoTab.tsx         — incluir sem_oitiva como pendente (revisar)
+src/components/shift/StatisticsTab.tsx     — idem (revisar)
+```
+
+Sem migração de banco, sem edge functions, sem mudanças em hooks.

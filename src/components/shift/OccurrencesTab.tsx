@@ -57,6 +57,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newTime, setNewTime] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Estado independente para a aba "Sem Oitiva".
+  const [newBuSO, setNewBuSO] = useState("");
+  const [newTimeSO, setNewTimeSO] = useState("");
+  const [addingSO, setAddingSO] = useState(false);
+
   // Skip histórico por ocorrência em atendimento (id).
   const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
   const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
@@ -76,13 +81,19 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     () => occurrences.filter((o) => o.status === "em_atendimento"),
     [occurrences],
   );
+  const semOitiva = useMemo(
+    () => occurrences.filter((o) => o.status === "sem_oitiva"),
+    [occurrences],
+  );
   const completed = useMemo(
-    () => occurrences.filter((o) => o.status !== "em_atendimento"),
+    () => occurrences.filter((o) => o.status === "atendida"),
     [occurrences],
   );
 
   const editingOcc = editingId ? occurrences.find((o) => o.id === editingId) : null;
-  const isInAttendance = editingOcc?.status === "em_atendimento";
+  // Tanto em_atendimento quanto sem_oitiva são ocorrências "abertas" — finalizar leva a "atendida".
+  const isInAttendance = editingOcc?.status === "em_atendimento" || editingOcc?.status === "sem_oitiva";
+  const isSemOitivaEdit = editingOcc?.status === "sem_oitiva";
 
   const allInvestigators = shift.investigators;
   const allAuthorities = shift.authorities;
@@ -107,30 +118,65 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const oipSubteams = shift.oip_subteams || [];
   const delSubteams = shift.delegado_subteams || [];
 
+  // Ocorrências que contam para a fila "Em Distribuição" (exclui sem_oitiva).
+  const mainQueueOccs = useMemo(
+    () => occurrences.filter((o) => o.status !== "sem_oitiva"),
+    [occurrences],
+  );
+
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, occurrences, [], "investigator", 5, now),
-    [oipSubteams, occurrences, now],
+    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 5, now),
+    [oipSubteams, mainQueueOccs, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, occurrences, [], "authority", 5, now),
-    [delSubteams, occurrences, now],
+    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 5, now),
+    [delSubteams, mainQueueOccs, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, occurrences, [], "investigator", 5, now),
-    [predictedInvSub, allInvestigators, occurrences, now],
+      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 5, now),
+    [predictedInvSub, allInvestigators, mainQueueOccs, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, occurrences, [], "authority", 5, now),
-    [predictedAuthSub, allAuthorities, occurrences, now],
+      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 5, now),
+    [predictedAuthSub, allAuthorities, mainQueueOccs, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
   const suggestedAuthority = predictedAuth[0] || "";
+
+  // Fila preditiva independente para "Sem Oitiva" — só conta ocorrências sem_oitiva.
+  const predictedInvSubSO = useMemo(
+    () => predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now),
+    [oipSubteams, semOitiva, now],
+  );
+  const predictedAuthSubSO = useMemo(
+    () => predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now),
+    [delSubteams, semOitiva, now],
+  );
+  const predictedInvSO = useMemo(
+    () => predictedInvSubSO.length > 0
+      ? predictedInvSubSO.map((p) => p.memberPick)
+      : predictQueue(allInvestigators, semOitiva, [], "investigator", 5, now),
+    [predictedInvSubSO, allInvestigators, semOitiva, now],
+  );
+  const predictedAuthSO = useMemo(
+    () => predictedAuthSubSO.length > 0
+      ? predictedAuthSubSO.map((p) => p.memberPick)
+      : predictQueue(allAuthorities, semOitiva, [], "authority", 5, now),
+    [predictedAuthSubSO, allAuthorities, semOitiva, now],
+  );
+  const suggestedInvestigatorSO = predictedInvSO[0] || "";
+  const suggestedAuthoritySO = predictedAuthSO[0] || "";
+
+  const dupMsg = (status: string) =>
+    status === "em_atendimento" ? "em distribuição"
+    : status === "sem_oitiva" ? "em sem oitiva"
+    : "já atendida";
 
   /** Adiciona a ocorrência DIRETO ao card "Em Atendimento" com OIP/Autoridade
    * já preenchidos pela fila preditiva. */
@@ -139,8 +185,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     if (!bu) { toast.error("Informe o número do BU"); return; }
     const dup = findExistingBu(bu);
     if (dup) {
-      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
-      toast.error(`BU ${bu} já está ${where} neste plantão.`);
+      toast.error(`BU ${bu} já está ${dupMsg(dup.status)} neste plantão.`);
       return;
     }
 
@@ -164,6 +209,39 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       toast.error("Erro ao adicionar à fila");
     } finally {
       setAdding(false);
+    }
+  };
+
+  /** Adiciona a ocorrência à fila "Sem Oitiva" (procedimentos sem ordem rígida). */
+  const addToQueueSO = async () => {
+    const bu = normBu(newBuSO);
+    if (!bu) { toast.error("Informe o número do BU"); return; }
+    const dup = findExistingBu(bu);
+    if (dup) {
+      toast.error(`BU ${bu} já está ${dupMsg(dup.status)} neste plantão.`);
+      return;
+    }
+
+    const today = shift.shift_date;
+    const timeVal = newTimeSO || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const tramitationIso = new Date(`${today}T${timeVal}`).toISOString();
+
+    setAddingSO(true);
+    try {
+      await onAdd({
+        status: "sem_oitiva",
+        bu_number: bu,
+        tramitation_time: tramitationIso,
+        investigator: suggestedInvestigatorSO,
+        authority: suggestedAuthoritySO,
+      });
+      toast.success(`BU ${bu} adicionado em Sem Oitiva`);
+      setNewBuSO("");
+      setNewTimeSO("");
+    } catch {
+      toast.error("Erro ao adicionar à fila");
+    } finally {
+      setAddingSO(false);
     }
   };
 
@@ -205,7 +283,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       if (editingId) {
         const updates = { ...form };
         if (isInAttendance && finalize) updates.status = "atendida";
-        else if (isInAttendance) updates.status = "em_atendimento";
+        else if (isInAttendance) updates.status = isSemOitivaEdit ? "sem_oitiva" : "em_atendimento";
         await onUpdate(editingId, updates);
         toast.success(isInAttendance ? (finalize ? "Atendimento concluído" : "Progresso salvo") : "Ocorrência atualizada");
       } else {
@@ -293,6 +371,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
           <TabsTrigger value="distribuicao">Em Distribuição ({inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="sem_oitiva">Sem Oitiva ({semOitiva.length})</TabsTrigger>
           <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
@@ -452,6 +531,152 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       })}
 
                       {inAttendance.length === 0 && predictedInv.length === 0 && predictedAuth.length === 0 && (
+                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">Nenhum servidor disponível neste horário.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Aba: Sem Oitiva ── */}
+        <TabsContent value="sem_oitiva" className="space-y-4 mt-4">
+          {(shift.status === "active" || semOitiva.length > 0) && (
+            <Card className="border-accent/40 bg-accent/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-accent-foreground" />
+                  Sem Oitiva ({semOitiva.length})
+                  <Badge variant="outline" className="ml-2 gap-1 font-normal text-xs">
+                    Ordem flexível · fila independente
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[150px]">BU</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[120px]">Hora</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">OIP</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Autoridade</th>
+                        <th className="px-3 py-2 w-[140px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {semOitiva.map((occ) => (
+                        <tr key={occ.id} className="border-b border-border hover:bg-background/50">
+                          <td className="px-3 py-2 font-mono font-bold">{occ.bu_number || "—"}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="time"
+                              step="1"
+                              defaultValue={isoToTimeInput(occ.tramitation_time)}
+                              onBlur={(e) => {
+                                const cur = isoToTimeInput(occ.tramitation_time);
+                                if (e.target.value !== cur) handleInlineTime(occ.id, e.target.value);
+                              }}
+                              className="h-8 text-sm w-[110px] px-2"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
+                                <Edit className="w-3.5 h-3.5" /> Continuar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remover ocorrência?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      BU {occ.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => onDelete(occ.id)}
+                                    >
+                                      Remover
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {shift.status === "active" && (predictedInvSO.length > 0 || predictedAuthSO.length > 0) && (
+                        <tr className="border-b border-dashed border-accent/40 bg-accent/10">
+                          <td className="px-3 py-2">
+                            <Input
+                              value={newBuSO}
+                              onChange={(e) => setNewBuSO(e.target.value)}
+                              placeholder="Nº BU"
+                              className="h-9 text-base font-mono"
+                              onKeyDown={(e) => { if (e.key === "Enter") addToQueueSO(); }}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="time"
+                              step="1"
+                              value={newTimeSO}
+                              onChange={(e) => setNewTimeSO(e.target.value)}
+                              className="h-9 text-sm w-[110px] px-2"
+                              title="Horário (opcional)"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-base font-medium">
+                            {suggestedInvestigatorSO ? displayLabel(suggestedInvestigatorSO) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-base font-medium">
+                            {suggestedAuthoritySO ? displayLabel(suggestedAuthoritySO) : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Button size="sm" onClick={addToQueueSO} disabled={addingSO || !newBuSO.trim()} className="h-9 gap-1 w-full">
+                              <Plus className="w-4 h-4" /> {addingSO ? "..." : "Confirmar"}
+                            </Button>
+                          </td>
+                        </tr>
+                      )}
+
+                      {shift.status === "active" && predictedInvSO.slice(1, 4).map((inv, i) => {
+                        const auth = predictedAuthSO[i + 1] || "";
+                        return (
+                          <tr key={`slot-so-${i}`} className="border-b border-border/40 opacity-60">
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground italic">—</td>
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground italic">—</td>
+                            <td className="px-3 py-1.5 text-base">{inv ? displayLabel(inv) : "—"}</td>
+                            <td className="px-3 py-1.5 text-base">{auth ? displayLabel(auth) : "—"}</td>
+                            <td className="px-3 py-1.5"></td>
+                          </tr>
+                        );
+                      })}
+
+                      {semOitiva.length === 0 && predictedInvSO.length === 0 && predictedAuthSO.length === 0 && (
                         <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">Nenhum servidor disponível neste horário.</td></tr>
                       )}
                     </tbody>

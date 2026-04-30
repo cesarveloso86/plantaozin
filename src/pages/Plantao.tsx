@@ -79,7 +79,7 @@ const Plantao = () => {
             })()}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {shift.activeShift.status === "active" ? "🟢 Plantão ativo" : "🔴 Plantão encerrado"} · {shift.occurrences.filter(o => o.status !== "em_atendimento").length} atendida(s){shift.occurrences.some(o => o.status === "em_atendimento") && ` · ${shift.occurrences.filter(o => o.status === "em_atendimento").length} em atendimento`}
+            {shift.activeShift.status === "active" ? "🟢 Plantão ativo" : "🔴 Plantão encerrado"} · {shift.occurrences.filter(o => o.status === "atendida").length} atendida(s){shift.occurrences.some(o => o.status === "em_atendimento") && ` · ${shift.occurrences.filter(o => o.status === "em_atendimento").length} em atendimento`}{shift.occurrences.some(o => o.status === "sem_oitiva") && ` · ${shift.occurrences.filter(o => o.status === "sem_oitiva").length} sem oitiva`}
           </p>
         </div>
         <div className="flex gap-2">
