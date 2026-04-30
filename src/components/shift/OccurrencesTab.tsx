@@ -342,73 +342,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <Label className="text-sm font-medium">Horário</Label>
                     <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-10 text-sm" />
                   </div>
-                  <Button size="default" variant="outline" onClick={addToQueue} className="h-10 gap-2 shrink-0">
-                    <Plus className="w-4 h-4" /> Adicionar à Fila
+                  <Button size="default" onClick={addToQueue} disabled={adding} className="h-10 gap-2 shrink-0">
+                    <Plus className="w-4 h-4" /> {adding ? "Adicionando..." : "Adicionar à Em Atendimento"}
                   </Button>
                 </div>
-
-                {/* Pending */}
-                {pendingQueue.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Aguardando registro ({pendingQueue.length})</p>
-                    {pendingQueue.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
-                        <span className="font-mono font-bold text-sm min-w-[90px]">{item.bu_number}</span>
-                        <span className="text-xs text-muted-foreground min-w-[70px]">{item.tramitation_time}</span>
-                        <div className="flex items-center gap-1">
-                          <Select value={item.investigator} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, investigator: v } : p))}>
-                            <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                            <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular OIP" onClick={() => skipPendingInv(idx)}>
-                            <SkipForward className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Select value={item.authority} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, authority: v } : p))}>
-                            <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                            <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Autoridade" onClick={() => skipPendingAuth(idx)}>
-                            <SkipForward className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 ml-auto shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Registrar" onClick={() => registerPending(item)}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remover da fila?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  BU {item.bu_number} será removido da fila pendente.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  onClick={() => removePending(idx)}
-                                >
-                                  Remover
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
           {inAttendance.length > 0 && (
