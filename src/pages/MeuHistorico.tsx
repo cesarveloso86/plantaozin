@@ -43,6 +43,7 @@ interface Row {
   pdf_storage_path?: string | null;
   has_full_result?: boolean;
   full_result?: AnalysisResult | null;
+  analysis_created_at?: string | null;
 }
 
 const MeuHistorico = () => {
