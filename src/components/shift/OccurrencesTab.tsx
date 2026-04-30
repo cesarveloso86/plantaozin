@@ -123,25 +123,25 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const delSubteams = shift.delegado_subteams || [];
 
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, completed, pendingQueue, "investigator", 5, now),
-    [oipSubteams, completed, pendingQueue, now],
+    () => predictSubteamQueue(oipSubteams, occurrences, pendingQueue, "investigator", 5, now),
+    [oipSubteams, occurrences, pendingQueue, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, completed, pendingQueue, "authority", 5, now),
-    [delSubteams, completed, pendingQueue, now],
+    () => predictSubteamQueue(delSubteams, occurrences, pendingQueue, "authority", 5, now),
+    [delSubteams, occurrences, pendingQueue, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
-    [predictedInvSub, allInvestigators, completed, pendingQueue, now],
+      : predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 5, now),
+    [predictedInvSub, allInvestigators, occurrences, pendingQueue, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
-    [predictedAuthSub, allAuthorities, completed, pendingQueue, now],
+      : predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 5, now),
+    [predictedAuthSub, allAuthorities, occurrences, pendingQueue, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
