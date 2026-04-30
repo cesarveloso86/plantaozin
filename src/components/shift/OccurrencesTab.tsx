@@ -300,11 +300,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   };
 
   const handleSkipInv = async (occ: ShiftOccurrence) => {
-    const next = nextSkipping(allInvestigators, occ.investigator || "", now);
+    const skipped = [...(skippedInvByOcc[occ.id] || []), occ.investigator || ""].filter(Boolean);
+    const next = pickNextWithSkip(allInvestigators, oipSubteams, "investigator", skipped);
+    setSkippedInvByOcc((s) => ({ ...s, [occ.id]: skipped }));
     try { await onUpdate(occ.id, { investigator: next }); toast.success("OIP remanejado"); } catch { toast.error("Erro"); }
   };
   const handleSkipAuth = async (occ: ShiftOccurrence) => {
-    const next = nextSkipping(allAuthorities, occ.authority || "", now);
+    const skipped = [...(skippedAuthByOcc[occ.id] || []), occ.authority || ""].filter(Boolean);
+    const next = pickNextWithSkip(allAuthorities, delSubteams, "authority", skipped);
+    setSkippedAuthByOcc((s) => ({ ...s, [occ.id]: skipped }));
     try { await onUpdate(occ.id, { authority: next }); toast.success("Autoridade remanejada"); } catch { toast.error("Erro"); }
   };
 
