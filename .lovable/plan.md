@@ -1,72 +1,56 @@
-## Plano de correção
+## Plano
 
-### 1. "PDF expirado" no Meu Histórico — causa raiz identificada
+### 1. `MeuHistorico.tsx` — card sem rolagem horizontal e regeneração individual
 
-**Bug**: a tabela `analyses` **não tem** uma policy `UPDATE` para o próprio dono. As policies existentes só permitem UPDATE para OIP/Autoridade vinculados via `shift_occurrences`. Quando `persistTriageForShift` (em `useAnalysis.ts`) faz:
+**Bug do scroll horizontal**: o `<DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">` não força wrap nos textos longos (despacho, depoimentos com palavras grandes). Vou:
 
-```ts
-INSERT analyses (user_id = auth.uid(), pdf_storage_path = null)  -- ✅ OK
-upload bo-pdfs/{user}/{id}.pdf                                   -- ✅ OK
-UPDATE analyses SET pdf_storage_path = '...' WHERE id = ...      -- ❌ 0 rows (RLS bloqueia)
-```
+- Adicionar `overflow-x-hidden` ao `DialogContent`.
+- Em `AnalysisResult.tsx`, trocar `whitespace-pre-wrap` puro pelo combinado com `break-words` (ou `overflow-wrap: anywhere`) nos blocos de texto longo (despacho `<p>`, conteúdo do depoimento, alertas). Adicionar `min-w-0` nos pais dos textos para evitar que filhos com conteúdo longo expandam o flex/grid pai.
+- Reduzir `max-w-5xl` para `max-w-4xl` no Dialog não é necessário; o problema é wrap.
 
-O Supabase JS client **não retorna erro** em UPDATE que afeta 0 linhas — só atualiza nada. Resultado: `pdf_storage_path` permanece `null` para sempre, o tooltip mostra "PDF expirado".
+**Regenerar individual por depoimento (a partir de Meu Histórico)**:
 
-**Fix (migração)**:
+- Hoje, `AnalysisResult.tsx` já tem o botão "Corrigir" por depoimento (`FieldEditButton field="depoimento" index={i}`), mas não é exibido em `MeuHistorico` porque `onReanalyze` não é passado.
+- Em `MeuHistorico.tsx`, passar `onReanalyze` ao `<AnalysisResultView>` que delega para uma nova função `useAnalysis.reanalyzeFromAnalysis(analysisId, instructions, field, depoimentoIndex)`.
+- Em `useAnalysis.ts`, criar `reanalyzeFromAnalysis`:
+  - Lê o `pdf_storage_path` e `result` da `analyses` row.
+  - Busca `signature_style` do usuário logado (já existe `fetchSignatureStyle`).
+  - Chama `analyze-bo` com `mode: "full"`, `pdf_storage_path`, `previous_result`, `instructions`, `field`, `depoimento_index`, `signature_style`.
+  - Atualiza a row `analyses.result` com o novo resultado.
+  - Atualiza `setResult` e retorna o resultado.
+- `MeuHistorico` consome o `result`/`status` retornados, atualiza `resultData` e mostra spinner enquanto reanalyzing.
 
-```sql
-CREATE POLICY "Users can update own analyses"
-ON public.analyses
-FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
-```
+**Geração conforme perfil do usuário**: já funciona — `generateFullFromAnalysis` chama `fetchSignatureStyle(user.id)` do usuário logado (não do criador da análise). Sem mudança necessária. Vou apenas confirmar e remover comentário enganoso, se houver.
 
-Também aplicar `ALTER TABLE public.shift_occurrences REPLICA IDENTITY FULL;` para garantir payloads de realtime completos.
+### 2. `OccurrencesTab.tsx` — fila preditiva pré-preenchida em "Em Atendimento"
 
-### 2. Inserção manual não aparece em tempo real na fila "Em Atendimento"
+**Comportamento novo**:
 
-**Bug**: `addOccurrence` em `src/hooks/useShift.ts` só faz `INSERT` e confia no realtime para popular o estado local. Se o realtime atrasar/falhar, a UI fica vazia até o próximo reload. Além disso, `select().single()` não é chamado, então o registro inserido não é retornado.
+- Remover o card "Fila Preditiva — Disponíveis Agora" com badges dos próximos OIPs/Autoridades.
+- Em vez disso, no card "Em Atendimento", **adicionar slots vazios pré-preenchidos** (placeholders virtuais) para os próximos N (=3 ou 5) atendimentos previstos:
+  - Cada slot mostra: OIP sugerido + Autoridade sugerida + um campo de input para "Nº BU" e "Horário".
+  - Ao preencher o BU e dar Enter (ou clicar "Confirmar"), chama `onAdd` com o BU e os OIP/Autoridade do slot, virando uma ocorrência real.
+  - Os slots virtuais recalculam automaticamente conforme novas ocorrências entram.
+- O botão único atual de "Inline add" (Nº BU / Horário / Adicionar à Em Atendimento) é substituído por essa lista de slots — o primeiro slot é equivalente ao add inline atual.
+- Manter o cabeçalho do card com o relógio e a frase explicativa (compactada).
 
-**Fix em `src/hooks/useShift.ts`**:
-- `addOccurrence` passa a usar `.insert(...).select().single()`.
-- Atualiza `setOccurrences` otimisticamente (com guard contra duplicar quando o realtime chegar depois).
+**Aumentar fonte dos nomes dos servidores**:
 
-### 3. Botão "Registrar Manualmente" duplicado
+- Selects inline na seção "Em Atendimento" (linhas ~367-378): trocar `text-sm` por `text-base` no `SelectTrigger` e nos `SelectItem`. Aumentar largura de `w-[150px]` para `w-[180px]` para acomodar.
+- Nos slots virtuais novos, mostrar nomes em `text-base font-medium` em vez de badges pequenas.
 
-Em `src/components/shift/OccurrencesTab.tsx`, há dois caminhos para registrar uma ocorrência:
-1. Inserir BU + horário no inline form → "Adicionar à Em Atendimento" (cria direto).
-2. Botão "Registrar Manualmente" → abre dialog modal e salva como **atendida** (concluída) já preenchida.
+**Predição**:
 
-O fluxo (1) já cobre todos os casos: o usuário insere, vai pra fila, clica em "Continuar" no card e edita os campos. O caminho (2) é redundante.
+- A função `predictSubteamQueue`/`predictQueue` recebe `count = N` e retorna a sequência. Cada slot virtual `i` consome `predictedInv[i]` e `predictedAuth[i]`.
+- Ao confirmar um slot, a próxima ocorrência real entra no array `occurrences`, e os slots se reordenam naturalmente porque a predição já considera carga.
 
-**Fix**: remover o botão "Registrar Manualmente" e a função `openNew()`. O `<Dialog>` permanece para o fluxo de **edição/continuar** (que ainda é necessário). O dialog também atende edição de ocorrências já atendidas.
-
-### 4. Análise + BU duplicado: mesclar campos faltantes em vez de bloquear
-
-Em `src/pages/Index.tsx`, `handleSendTriageToShift` hoje rejeita com `toast.error("BU já está em distribuição/atendida")` se houver duplicata. O usuário pediu para, em vez de rejeitar, **completar os campos vazios** da ocorrência existente com os dados da análise.
-
-**Fix em `src/pages/Index.tsx`**:
-- Quando `findExistingBu` encontra a ocorrência, em vez de cancelar:
-  - Construir o objeto da triagem (`buildOccurrenceFromTriage`).
-  - Chamar `shift.updateOccurrence(existing.id, mergeFields)` onde `mergeFields` contém apenas chaves cujo valor atual está vazio (ou é null/""). Não sobrescreve OIP/Autoridade nem horário já preenchidos.
-  - Se a ocorrência existente já tinha `analysis_id`, NÃO criar uma nova análise (reaproveita a existente). Se não tinha, persiste a triagem nova e linka via update do `analysis_id`.
-- Toast: "Ocorrência {bu} atualizada com dados da análise".
-
-Aplicar a mesma lógica em `handleSendFullToShift`.
-
-### 5. Logs de debug (já presentes em `useAnalysis.ts`)
-
-Os logs adicionados na iteração anterior em `persistTriageForShift` ajudarão a confirmar o fix do (1). Manter.
-
-### Resumo dos arquivos
+### 3. Arquivos alterados
 
 ```text
-supabase/migrations/<timestamp>_users_update_own_analyses.sql  — nova policy UPDATE + REPLICA IDENTITY
-src/hooks/useShift.ts                                           — addOccurrence otimista
-src/components/shift/OccurrencesTab.tsx                         — remover botão "Registrar Manualmente"
-src/pages/Index.tsx                                             — merge em vez de rejeitar BU duplicado
+src/hooks/useAnalysis.ts                      — nova função reanalyzeFromAnalysis
+src/pages/MeuHistorico.tsx                    — overflow-x-hidden no Dialog, passar onReanalyze
+src/components/AnalysisResult.tsx             — break-words / min-w-0 nos blocos de texto
+src/components/shift/OccurrencesTab.tsx       — remover card "Fila Preditiva"; slots virtuais em "Em Atendimento" com OIP/Autoridade pré-preenchidos; aumentar tamanho dos nomes
 ```
 
-Sem mudanças em edge functions, tipos ou outros arquivos.
+Sem mudanças em DB, edge functions ou tipos.
