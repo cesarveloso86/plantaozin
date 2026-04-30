@@ -132,50 +132,57 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 5, now),
+    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 10, now),
     [oipSubteams, mainQueueOccs, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 5, now),
+    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 10, now),
     [delSubteams, mainQueueOccs, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 5, now),
+      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 10, now),
     [predictedInvSub, allInvestigators, mainQueueOccs, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 5, now),
+      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 10, now),
     [predictedAuthSub, allAuthorities, mainQueueOccs, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
   const suggestedAuthority = predictedAuth[0] || "";
 
-  // Fila preditiva independente para "Sem Oitiva" — só conta ocorrências sem_oitiva.
+  // Fila preditiva independente para "Sem Oitiva".
+  // Como Sem Oitiva grava direto como "atendida", reaproveitamos a mesma base
+  // de carga (todas as ocorrências do plantão), mas mantemos uma fila própria
+  // para que o usuário possa distribuir paralelamente sem afetar a aba principal.
+  const semOitivaBase = useMemo(
+    () => occurrences,
+    [occurrences],
+  );
   const predictedInvSubSO = useMemo(
-    () => predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now),
-    [oipSubteams, semOitiva, now],
+    () => predictSubteamQueue(oipSubteams, semOitivaBase, [], "investigator", 10, now),
+    [oipSubteams, semOitivaBase, now],
   );
   const predictedAuthSubSO = useMemo(
-    () => predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now),
-    [delSubteams, semOitiva, now],
+    () => predictSubteamQueue(delSubteams, semOitivaBase, [], "authority", 10, now),
+    [delSubteams, semOitivaBase, now],
   );
   const predictedInvSO = useMemo(
     () => predictedInvSubSO.length > 0
       ? predictedInvSubSO.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, semOitiva, [], "investigator", 5, now),
-    [predictedInvSubSO, allInvestigators, semOitiva, now],
+      : predictQueue(allInvestigators, semOitivaBase, [], "investigator", 10, now),
+    [predictedInvSubSO, allInvestigators, semOitivaBase, now],
   );
   const predictedAuthSO = useMemo(
     () => predictedAuthSubSO.length > 0
       ? predictedAuthSubSO.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, semOitiva, [], "authority", 5, now),
-    [predictedAuthSubSO, allAuthorities, semOitiva, now],
+      : predictQueue(allAuthorities, semOitivaBase, [], "authority", 10, now),
+    [predictedAuthSubSO, allAuthorities, semOitivaBase, now],
   );
   const suggestedInvestigatorSO = predictedInvSO[0] || "";
   const suggestedAuthoritySO = predictedAuthSO[0] || "";
