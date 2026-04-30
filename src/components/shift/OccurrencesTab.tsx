@@ -29,12 +29,7 @@ interface Props {
   onUpdate: (id: string, updates: Partial<ShiftOccurrence>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
-  shift: Shift;
-  occurrences: ShiftOccurrence[];
-  onAdd: (occ: Partial<ShiftOccurrence>) => Promise<void>;
-  onUpdate: (id: string, updates: Partial<ShiftOccurrence>) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-}
+
 
 const emptyForm = (): Partial<ShiftOccurrence> => ({
   bu_number: "",
