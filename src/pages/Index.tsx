@@ -270,9 +270,6 @@ const TriageQuickCard = ({ triage, onSend, onReset }: QuickProps) => {
             <Button onClick={onSend} className="gap-2">
               <Send className="w-4 h-4" /> Enviar ao Plantão
             </Button>
-            <Button variant="outline" onClick={onGenerateFull} className="gap-2">
-              <Sparkles className="w-4 h-4" /> Gerar depoimentos agora
-            </Button>
             <Button variant="ghost" onClick={onReset} className="gap-2 ml-auto">
               <RotateCcw className="w-4 h-4" /> Nova Ocorrência
             </Button>
