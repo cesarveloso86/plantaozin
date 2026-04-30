@@ -322,7 +322,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-4">
+                    <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words bg-muted/30 rounded-md p-4">
                       {dep.texto}
                     </div>
                   </CardContent>
