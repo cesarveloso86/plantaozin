@@ -328,7 +328,7 @@ const MeuHistorico = () => {
               <Card key={g.shift_id}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <span>Plantão {g.shift_date ? fmtDateTime(g.shift_date) : "—"}</span>
+                    <span>Plantão {g.shift_date ? formatLocalDateBR(g.shift_date) : "—"}</span>
                     {g.team_name && <Badge variant="outline">{g.team_name}</Badge>}
                     <Badge variant="secondary" className="ml-auto">{g.items.length} ocorr.</Badge>
                   </CardTitle>
