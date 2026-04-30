@@ -483,7 +483,18 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 {completed.map((occ) => (
                   <tr key={occ.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="p-2.5 font-mono font-semibold">{occ.bu_number}</td>
-                    <td className="p-2.5">{fmtTime(occ.tramitation_time)}</td>
+                    <td className="p-2.5">
+                      <Input
+                        type="time"
+                        step="1"
+                        defaultValue={isoToTimeInput(occ.tramitation_time)}
+                        onBlur={(e) => {
+                          const cur = isoToTimeInput(occ.tramitation_time);
+                          if (e.target.value !== cur) handleInlineTime(occ.id, e.target.value);
+                        }}
+                        className="h-8 text-xs w-[110px] px-2"
+                      />
+                    </td>
                     <td className="p-2.5">
                       <div className="flex gap-1 flex-wrap">
                         {occ.procedure_type && <Badge variant="secondary">{occ.procedure_type}</Badge>}
