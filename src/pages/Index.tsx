@@ -85,7 +85,22 @@ const Index = () => {
     };
   };
 
-  /** Envio rápido: persiste triagem + cria ocorrência vinculada à análise. */
+  /** Mantém apenas chaves cujo valor atual da ocorrência está vazio/nulo. */
+  const onlyEmptyFields = (
+    existing: { [k: string]: unknown },
+    incoming: Record<string, unknown>
+  ): Record<string, unknown> => {
+    const merged: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(incoming)) {
+      const cur = existing[k];
+      const isEmpty = cur === null || cur === undefined || cur === "" || (Array.isArray(cur) && cur.length === 0);
+      if (isEmpty && v !== null && v !== undefined && v !== "") merged[k] = v;
+    }
+    return merged;
+  };
+
+  /** Envio rápido: persiste triagem + cria ocorrência vinculada à análise.
+   *  Se BU já existir no plantão, mescla campos faltantes em vez de bloquear. */
   const handleSendTriageToShift = useCallback(async () => {
     if (!triageResult) return;
     if (!shift.activeShift) {
@@ -95,15 +110,40 @@ const Index = () => {
     }
 
     const buNum = (triageResult.triagem.numero_bo || "").trim();
-    if (buNum) {
-      const dup = shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum);
-      if (dup) {
-        const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
-        toast.error(`BU ${buNum} já está ${where} neste plantão.`);
-        return;
+    const existing = buNum
+      ? shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum)
+      : null;
+
+    // ── Caso 1: BU já existe → mescla campos vazios. ──
+    if (existing) {
+      try {
+        const incoming = buildOccurrenceFromTriage(triageResult.triagem);
+        // Não sobrescreve atribuições nem horário já definidos.
+        const { investigator: _i, authority: _a, tramitation_time: _t, status: _s, ...rest } =
+          incoming as Record<string, unknown>;
+        const mergeFields = onlyEmptyFields(existing as unknown as Record<string, unknown>, rest);
+
+        // Linka análise se a ocorrência ainda não tinha uma.
+        if (!existing.analysis_id) {
+          const persisted = await persistTriageForShift(triageResult);
+          if (persisted) mergeFields.analysis_id = persisted.analysisId;
+        }
+
+        if (Object.keys(mergeFields).length > 0) {
+          await shift.updateOccurrence(existing.id, mergeFields as Partial<typeof existing>);
+          toast.success(`Ocorrência ${buNum} atualizada com dados da análise.`);
+        } else {
+          toast.info(`BU ${buNum} já estava completo — nada a mesclar.`);
+        }
+        reset();
+        navigate("/plantao");
+      } catch {
+        toast.error("Erro ao mesclar dados na ocorrência existente");
       }
+      return;
     }
 
+    // ── Caso 2: BU novo → fluxo padrão. ──
     const persisted = await persistTriageForShift(triageResult);
     if (!persisted) {
       toast.error("Erro ao salvar triagem");
@@ -139,28 +179,38 @@ const Index = () => {
     }
     const regional = resolveRegional(result.triagem);
     const buNum = (result.triagem.numero_bo || "").trim();
-    if (buNum) {
-      const dup = shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum);
-      if (dup) {
-        const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
-        toast.error(`BU ${buNum} já está ${where} neste plantão.`);
-        return;
-      }
-    }
+    const existing = buNum
+      ? shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum)
+      : null;
+
+    const { investigator, authority } = pickNextAssignees();
+    const incoming = {
+      status: "em_atendimento" as const,
+      bu_number: buNum,
+      tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
+      conducted_names: result.depoimentos?.filter((d) => d.tipo === "interrogado").map((d) => d.nome).join(", ") || "",
+      victim_names: result.depoimentos?.filter((d) => d.tipo === "vitima").map((d) => d.nome).join(", ") || "",
+      regional,
+      tramitation_time: new Date().toISOString(),
+      investigator,
+      authority,
+    };
+
     try {
-      const { investigator, authority } = pickNextAssignees();
-      await shift.addOccurrence({
-        status: "em_atendimento",
-        bu_number: buNum,
-        tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
-        conducted_names: result.depoimentos?.filter(d => d.tipo === "interrogado").map(d => d.nome).join(", ") || "",
-        victim_names: result.depoimentos?.filter(d => d.tipo === "vitima").map(d => d.nome).join(", ") || "",
-        regional,
-        tramitation_time: new Date().toISOString(),
-        investigator,
-        authority,
-      });
-      toast.success("Ocorrência enviada ao plantão.");
+      if (existing) {
+        const { investigator: _i, authority: _a, tramitation_time: _t, status: _s, ...rest } =
+          incoming as Record<string, unknown>;
+        const mergeFields = onlyEmptyFields(existing as unknown as Record<string, unknown>, rest);
+        if (Object.keys(mergeFields).length > 0) {
+          await shift.updateOccurrence(existing.id, mergeFields as Partial<typeof existing>);
+          toast.success(`Ocorrência ${buNum} atualizada com dados da análise.`);
+        } else {
+          toast.info(`BU ${buNum} já estava completo — nada a mesclar.`);
+        }
+      } else {
+        await shift.addOccurrence(incoming);
+        toast.success("Ocorrência enviada ao plantão.");
+      }
     } catch {
       toast.error("Erro ao enviar ao plantão");
     }
