@@ -346,8 +346,12 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <Plus className="w-4 h-4" /> {adding ? "Adicionando..." : "Adicionar à Em Atendimento"}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
+
           {inAttendance.length > 0 && (
             <Card className="border-primary/40 bg-primary/5">
               <CardHeader className="pb-3">
