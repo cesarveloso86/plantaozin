@@ -187,9 +187,9 @@ const MeuHistorico = () => {
       setResultData(full);
       setResultOpen(true);
       toast.success("Depoimentos gerados.");
-      // Atualiza a linha localmente: PDF foi descartado pela edge function.
+      // PDF permanece disponível por 24h após a triagem (ou até exclusão manual).
       setRows((prev) => prev.map((r) => r.id === row.id
-        ? { ...r, pdf_storage_path: null, has_full_result: true, full_result: full }
+        ? { ...r, has_full_result: true, full_result: full }
         : r));
     } else {
       toast.error("Não foi possível gerar os depoimentos.");
