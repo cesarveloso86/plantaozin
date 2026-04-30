@@ -102,8 +102,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
   const now = useNow(30_000);
-  const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators, now]);
-  const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities, now]);
 
   // Fila preditiva por subequipe (v5). Fallback: fila plana legada.
   const oipSubteams = shift.oip_subteams || [];
