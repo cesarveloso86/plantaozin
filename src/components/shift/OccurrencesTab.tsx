@@ -236,15 +236,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           await onAdd({ ...form, bu_number: bu, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
-        // Limpa pending + skip-state da posição
-        setPendingQueue((prev) => {
-          const idx = prev.findIndex((p) => normBu(p.bu_number) === bu);
-          if (idx < 0) return prev;
-          setSkippedInvByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
-          setSkippedAuthByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
-          return prev.filter((_, i) => i !== idx);
-        });
       }
+
       setShowForm(false);
     } catch {
       toast.error("Erro ao salvar");
