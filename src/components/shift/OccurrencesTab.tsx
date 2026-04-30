@@ -283,7 +283,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       if (editingId) {
         const updates = { ...form };
         if (isInAttendance && finalize) updates.status = "atendida";
-        else if (isInAttendance) updates.status = "em_atendimento";
+        else if (isInAttendance) updates.status = isSemOitivaEdit ? "sem_oitiva" : "em_atendimento";
         await onUpdate(editingId, updates);
         toast.success(isInAttendance ? (finalize ? "Atendimento concluído" : "Progresso salvo") : "Ocorrência atualizada");
       } else {
