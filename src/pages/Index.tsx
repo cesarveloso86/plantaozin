@@ -115,19 +115,6 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triageResult, shift, navigate, persistTriageForShift, reset]);
 
-  /** Fluxo completo: usuário pediu para gerar tudo localmente antes de enviar. */
-  const handleGenerateFullNow = useCallback(async () => {
-    if (!triageResult || !fileName) return;
-    // Recupera o File do dropzone? Não temos. Usamos o base64 já em memória do hook chamando analyze original
-    // exigiria o File; em vez disso, fazemos uma rota: salvar triagem + gerar full pelo storage.
-    const persisted = await persistTriageForShift(triageResult);
-    if (!persisted) {
-      toast.error("Erro ao preparar geração");
-      return;
-    }
-    await generateFullFromAnalysis(persisted.analysisId);
-  }, [triageResult, fileName, persistTriageForShift, generateFullFromAnalysis]);
-
   const handleSendFullToShift = useCallback(async () => {
     if (!result || !shift.activeShift) {
       if (!shift.activeShift) {
