@@ -225,7 +225,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           await onUpdate(existing.id, mergeFields);
           toast.success(`BU ${bu} mesclado e atendido`);
         } else {
-          await onAdd({ ...form, bu_number: bu, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
+          await onAdd({ ...form, bu_number: bu, status: "atendida" });
           toast.success("Ocorrência registrada");
         }
       }
