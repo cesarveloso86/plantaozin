@@ -18,7 +18,7 @@ import type { TriageResult, AnalysisResult } from "@/types/analysis";
 const Index = () => {
   const {
     status, result, triageResult, error, fileName,
-    analyzeTriage, persistTriageForShift, generateFullFromAnalysis,
+    analyzeTriage, persistTriageForShift,
     analyze, reanalyze, reset,
   } = useAnalysis();
   const shift = useShift();
@@ -115,19 +115,6 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triageResult, shift, navigate, persistTriageForShift, reset]);
 
-  /** Fluxo completo: usuário pediu para gerar tudo localmente antes de enviar. */
-  const handleGenerateFullNow = useCallback(async () => {
-    if (!triageResult || !fileName) return;
-    // Recupera o File do dropzone? Não temos. Usamos o base64 já em memória do hook chamando analyze original
-    // exigiria o File; em vez disso, fazemos uma rota: salvar triagem + gerar full pelo storage.
-    const persisted = await persistTriageForShift(triageResult);
-    if (!persisted) {
-      toast.error("Erro ao preparar geração");
-      return;
-    }
-    await generateFullFromAnalysis(persisted.analysisId);
-  }, [triageResult, fileName, persistTriageForShift, generateFullFromAnalysis]);
-
   const handleSendFullToShift = useCallback(async () => {
     if (!result || !shift.activeShift) {
       if (!shift.activeShift) {
@@ -186,7 +173,6 @@ const Index = () => {
         <TriageQuickCard
           triage={triageResult}
           onSend={handleSendTriageToShift}
-          onGenerateFull={handleGenerateFullNow}
           onReset={reset}
         />
       )}
@@ -209,11 +195,10 @@ const Index = () => {
 interface QuickProps {
   triage: TriageResult;
   onSend: () => void;
-  onGenerateFull: () => void;
   onReset: () => void;
 }
 
-const TriageQuickCard = ({ triage, onSend, onGenerateFull, onReset }: QuickProps) => {
+const TriageQuickCard = ({ triage, onSend, onReset }: QuickProps) => {
   const t = triage.triagem;
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
@@ -284,9 +269,6 @@ const TriageQuickCard = ({ triage, onSend, onGenerateFull, onReset }: QuickProps
           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
             <Button onClick={onSend} className="gap-2">
               <Send className="w-4 h-4" /> Enviar ao Plantão
-            </Button>
-            <Button variant="outline" onClick={onGenerateFull} className="gap-2">
-              <Sparkles className="w-4 h-4" /> Gerar depoimentos agora
             </Button>
             <Button variant="ghost" onClick={onReset} className="gap-2 ml-auto">
               <RotateCcw className="w-4 h-4" /> Nova Ocorrência

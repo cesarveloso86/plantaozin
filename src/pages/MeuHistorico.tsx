@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useAnalysis } from "@/hooks/useAnalysis";
-import { Loader2, FileText, Sparkles, Eye, AlertCircle, Search } from "lucide-react";
+import { Loader2, FileText, Sparkles, Eye, AlertCircle, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -38,6 +43,7 @@ interface Row {
   pdf_storage_path?: string | null;
   has_full_result?: boolean;
   full_result?: AnalysisResult | null;
+  analysis_created_at?: string | null;
 }
 
 const MeuHistorico = () => {
@@ -98,16 +104,17 @@ const MeuHistorico = () => {
         .map((o: { analysis_id: string | null }) => o.analysis_id)
         .filter((x): x is string => !!x)));
 
-      let analysesById: Record<string, { pdf_storage_path: string | null; result: AnalysisResult | null }> = {};
+      let analysesById: Record<string, { pdf_storage_path: string | null; result: AnalysisResult | null; created_at: string | null }> = {};
       if (analysisIds.length > 0) {
         const { data: ans } = await supabase
           .from("analyses")
-          .select("id, pdf_storage_path, result")
+          .select("id, pdf_storage_path, result, created_at")
           .in("id", analysisIds);
-        for (const a of (ans || []) as Array<{ id: string; pdf_storage_path: string | null; result: unknown }>) {
+        for (const a of (ans || []) as Array<{ id: string; pdf_storage_path: string | null; result: unknown; created_at: string | null }>) {
           analysesById[a.id] = {
             pdf_storage_path: a.pdf_storage_path,
             result: a.result as AnalysisResult | null,
+            created_at: a.created_at,
           };
         }
       }
@@ -136,6 +143,7 @@ const MeuHistorico = () => {
           pdf_storage_path: a?.pdf_storage_path ?? null,
           has_full_result: hasFull,
           full_result: result,
+          analysis_created_at: a?.created_at ?? null,
         };
       });
 
@@ -195,6 +203,35 @@ const MeuHistorico = () => {
     }
   };
 
+  const handleDeleteOne = async (row: Row) => {
+    const { error } = await supabase.from("shift_occurrences").delete().eq("id", row.id);
+    if (error) {
+      toast.error("Erro ao excluir ocorrência.");
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    toast.success("Ocorrência excluída do histórico.");
+  };
+
+  const handleClearAll = async () => {
+    const targetName = isAdmin && filterName ? filterName : myName;
+    if (!targetName) return;
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("shift_occurrences").delete().in("id", ids);
+    if (error) {
+      toast.error("Erro ao limpar histórico.");
+      return;
+    }
+    setRows([]);
+    toast.success(`Histórico limpo (${ids.length} ocorrências removidas).`);
+  };
+
+  const isPdfExpiredByTime = (createdAt?: string | null) => {
+    if (!createdAt) return false;
+    return Date.now() - new Date(createdAt).getTime() > 24 * 3600 * 1000;
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -232,6 +269,32 @@ const MeuHistorico = () => {
                 className="pl-9"
               />
             </div>
+            {rows.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="default" className="gap-1.5 text-destructive hover:text-destructive">
+                    <Trash2 className="w-4 h-4" /> Limpar histórico
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Limpar todo o histórico?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Todas as {rows.length} ocorrências listadas serão excluídas permanentemente. Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleClearAll}
+                    >
+                      Limpar tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
 
@@ -313,7 +376,21 @@ const MeuHistorico = () => {
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[260px]">
-                                Por LGPD, o PDF original do BU é descartado em até 24h após a triagem. Não é mais possível gerar depoimentos para esta ocorrência.
+                                {isPdfExpiredByTime(row.analysis_created_at)
+                                  ? "Por LGPD, o PDF original do BU é descartado automaticamente após 24h da triagem. Não é mais possível gerar depoimentos para esta ocorrência."
+                                  : "O PDF original já foi descartado (geração anterior ou política de retenção). Não é mais possível gerar depoimentos para esta ocorrência."}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {!pdfAvailable && hasFull && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                                  <AlertCircle className="w-3.5 h-3.5" /> PDF descartado
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[260px]">
+                                Os depoimentos foram gerados e o PDF original foi descartado conforme política LGPD. Use "Ver depoimentos" para consultar o resultado.
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -322,6 +399,30 @@ const MeuHistorico = () => {
                               Sem PDF vinculado
                             </span>
                           )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Excluir do histórico">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir do histórico?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  BU {row.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => handleDeleteOne(row)}
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     );

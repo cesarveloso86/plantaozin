@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
-import type { Shift, ShiftOccurrence } from "@/types/shift";
+import type { Shift, ShiftOccurrence, ShiftMember, ShiftSubteam } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
 import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
@@ -66,6 +66,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   // Skip histórico por slot (idx do pendingQueue) — pulados vão para o final.
   const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
   const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
+  // Skip histórico por ocorrência em atendimento (id).
+  const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
+  const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
 
   // Geração de depoimentos foi movida para "Meu Histórico" (acesso unificado por OIP/Autoridade).
 
@@ -120,25 +123,25 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const delSubteams = shift.delegado_subteams || [];
 
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, completed, pendingQueue, "investigator", 5, now),
-    [oipSubteams, completed, pendingQueue, now],
+    () => predictSubteamQueue(oipSubteams, occurrences, pendingQueue, "investigator", 5, now),
+    [oipSubteams, occurrences, pendingQueue, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, completed, pendingQueue, "authority", 5, now),
-    [delSubteams, completed, pendingQueue, now],
+    () => predictSubteamQueue(delSubteams, occurrences, pendingQueue, "authority", 5, now),
+    [delSubteams, occurrences, pendingQueue, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, completed, pendingQueue, "investigator", 5, now),
-    [predictedInvSub, allInvestigators, completed, pendingQueue, now],
+      : predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 5, now),
+    [predictedInvSub, allInvestigators, occurrences, pendingQueue, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, completed, pendingQueue, "authority", 5, now),
-    [predictedAuthSub, allAuthorities, completed, pendingQueue, now],
+      : predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 5, now),
+    [predictedAuthSub, allAuthorities, occurrences, pendingQueue, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
@@ -173,13 +176,37 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setSkippedAuthByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
   };
 
+  // Helper: próximo nome respeitando carga + lista de skipados (rotação 1→2→3).
+  const pickNextWithSkip = useCallback(
+    (
+      members: ShiftMember[],
+      subteams: ShiftSubteam[],
+      field: "investigator" | "authority",
+      skipped: string[],
+    ): string => {
+      // Pula subequipes cujos membros disponíveis já foram todos skipados.
+      const skipSet = new Set(skipped);
+      const skippedSubteamIds: string[] = [];
+      for (const s of subteams) {
+        const available = s.members.filter((m) => !skipSet.has(m.name));
+        if (available.length === 0) skippedSubteamIds.push(s.id);
+      }
+      const sub = predictSubteamQueue(subteams, occurrences, pendingQueue, field, 1, now, skippedSubteamIds);
+      if (sub[0]?.memberPick && !skipSet.has(sub[0].memberPick)) return sub[0].memberPick;
+      const flat = predictQueue(members, occurrences, pendingQueue, field, 1, now, skipped);
+      if (flat[0]) return flat[0];
+      return nextSkipping(members, skipped[skipped.length - 1] || "", now, skipped);
+    },
+    [occurrences, pendingQueue, now],
+  );
+
   const skipPendingInv = (idx: number) => {
     setPendingQueue((prev) => {
       const item = prev[idx];
       if (!item) return prev;
       const skipped = [...(skippedInvByIdx[idx] || []), item.investigator].filter(Boolean);
       setSkippedInvByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = nextSkipping(allInvestigators, item.investigator, now, skipped);
+      const next = pickNextWithSkip(allInvestigators, oipSubteams, "investigator", skipped);
       return prev.map((p, i) => i === idx ? { ...p, investigator: next } : p);
     });
   };
@@ -189,7 +216,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       if (!item) return prev;
       const skipped = [...(skippedAuthByIdx[idx] || []), item.authority].filter(Boolean);
       setSkippedAuthByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = nextSkipping(allAuthorities, item.authority, now, skipped);
+      const next = pickNextWithSkip(allAuthorities, delSubteams, "authority", skipped);
       return prev.map((p, i) => i === idx ? { ...p, authority: next } : p);
     });
   };
@@ -220,16 +247,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setShowForm(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (finalize = true) => {
     const bu = normBu(form.bu_number || "");
     if (!bu) { toast.error("Informe o número do BU"); return; }
     setSaving(true);
     try {
       if (editingId) {
         const updates = { ...form };
-        if (isInAttendance) updates.status = "atendida";
+        if (isInAttendance && finalize) updates.status = "atendida";
+        else if (isInAttendance) updates.status = "em_atendimento";
         await onUpdate(editingId, updates);
-        toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
+        toast.success(isInAttendance ? (finalize ? "Atendimento concluído" : "Progresso salvo") : "Ocorrência atualizada");
       } else {
         const existing = findExistingBu(bu);
         if (existing) {
@@ -273,11 +301,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   };
 
   const handleSkipInv = async (occ: ShiftOccurrence) => {
-    const next = nextSkipping(allInvestigators, occ.investigator || "", now);
+    const skipped = [...(skippedInvByOcc[occ.id] || []), occ.investigator || ""].filter(Boolean);
+    const next = pickNextWithSkip(allInvestigators, oipSubteams, "investigator", skipped);
+    setSkippedInvByOcc((s) => ({ ...s, [occ.id]: skipped }));
     try { await onUpdate(occ.id, { investigator: next }); toast.success("OIP remanejado"); } catch { toast.error("Erro"); }
   };
   const handleSkipAuth = async (occ: ShiftOccurrence) => {
-    const next = nextSkipping(allAuthorities, occ.authority || "", now);
+    const skipped = [...(skippedAuthByOcc[occ.id] || []), occ.authority || ""].filter(Boolean);
+    const next = pickNextWithSkip(allAuthorities, delSubteams, "authority", skipped);
+    setSkippedAuthByOcc((s) => ({ ...s, [occ.id]: skipped }));
     try { await onUpdate(occ.id, { authority: next }); toast.success("Autoridade remanejada"); } catch { toast.error("Erro"); }
   };
 
@@ -464,9 +496,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       </Button>
                     </div>
                     <div className="flex gap-1 ml-auto shrink-0">
-                      <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
-                        <Edit className="w-3.5 h-3.5" /> Continuar
-                      </Button>
                       <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
                         <Edit className="w-3.5 h-3.5" /> Continuar
                       </Button>
@@ -696,13 +725,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => setField("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
             <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => setField("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving
-                ? "Salvando..."
-                : editingId
-                  ? (isInAttendance ? "Concluir Atendimento" : "Atualizar")
-                  : "Registrar"}
-            </Button>
+            {isInAttendance ? (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleSave(false)} disabled={saving} className="flex-1">
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
+                <Button onClick={() => handleSave(true)} disabled={saving} className="flex-1">
+                  {saving ? "Salvando..." : "Concluir Atendimento"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => handleSave(true)} disabled={saving} className="w-full">
+                {saving ? "Salvando..." : editingId ? "Atualizar" : "Registrar"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
