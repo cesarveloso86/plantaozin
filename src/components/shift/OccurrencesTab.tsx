@@ -66,6 +66,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   // Skip histórico por slot (idx do pendingQueue) — pulados vão para o final.
   const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
   const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
+  // Skip histórico por ocorrência em atendimento (id).
+  const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
+  const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
 
   // Geração de depoimentos foi movida para "Meu Histórico" (acesso unificado por OIP/Autoridade).
 
