@@ -22,14 +22,13 @@ import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } 
 import { useNow } from "@/hooks/useNow";
 import { fmtTime } from "@/lib/utils";
 
-interface PendingItem {
-  bu_number: string;
-  tramitation_time: string;
-  investigator: string;
-  authority: string;
-}
-
 interface Props {
+  shift: Shift;
+  occurrences: ShiftOccurrence[];
+  onAdd: (occ: Partial<ShiftOccurrence>) => Promise<void>;
+  onUpdate: (id: string, updates: Partial<ShiftOccurrence>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}
   shift: Shift;
   occurrences: ShiftOccurrence[];
   onAdd: (occ: Partial<ShiftOccurrence>) => Promise<void>;
