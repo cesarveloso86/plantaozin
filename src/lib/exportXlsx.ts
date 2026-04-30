@@ -6,6 +6,17 @@ import { PROCEDURE_TYPES } from "@/types/shift";
 export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence[]) {
   // Apenas ocorrências atendidas entram no relatório oficial.
   const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
+
+  // Map full_name -> nickname para exibir apenas o apelido em colunas de pessoas.
+  const nicknameMap = new Map<string, string>();
+  [...(shift.investigators || []), ...(shift.authorities || []), ...(shift.iseo || [])].forEach((m) => {
+    if (m?.nickname && m.nickname.trim()) nicknameMap.set(m.name, m.nickname.trim());
+  });
+  const displayLabel = (name: string | null | undefined) => {
+    if (!name) return "";
+    return nicknameMap.get(name) ?? name;
+  };
+
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Controle de procedimentos");
 
@@ -54,8 +65,8 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
       occ.procedure_type || "",
       occ.procedure_type_2 || "",
       occ.procedure_type_3 || "",
-      occ.investigator || "",
-      occ.authority || "",
+      displayLabel(occ.investigator),
+      displayLabel(occ.authority),
       occ.regional || "",
       fmtTime(occ.final_time),
       fmtTime(occ.first_hearing_time),
@@ -132,7 +143,7 @@ export async function exportShiftXlsx(shift: Shift, occurrences: ShiftOccurrence
     if (o.investigator) invCounts[o.investigator] = (invCounts[o.investigator] || 0) + 1;
   });
   Object.entries(invCounts).sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
-    invSheet.addRow([name, count]);
+    invSheet.addRow([displayLabel(name), count]);
   });
 
   const buf = await wb.xlsx.writeBuffer();
