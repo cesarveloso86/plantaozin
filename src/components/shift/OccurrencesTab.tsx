@@ -22,13 +22,6 @@ import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } 
 import { useNow } from "@/hooks/useNow";
 import { fmtTime } from "@/lib/utils";
 
-interface PendingItem {
-  bu_number: string;
-  tramitation_time: string;
-  investigator: string;
-  authority: string;
-}
-
 interface Props {
   shift: Shift;
   occurrences: ShiftOccurrence[];
@@ -36,6 +29,7 @@ interface Props {
   onUpdate: (id: string, updates: Partial<ShiftOccurrence>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
+
 
 const emptyForm = (): Partial<ShiftOccurrence> => ({
   bu_number: "",
@@ -59,13 +53,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [form, setForm] = useState<Partial<ShiftOccurrence>>(emptyForm());
   const [saving, setSaving] = useState(false);
 
-  const [pendingQueue, setPendingQueue] = useState<PendingItem[]>([]);
   const [newBu, setNewBu] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [adding, setAdding] = useState(false);
 
-  // Skip histórico por slot (idx do pendingQueue) — pulados vão para o final.
-  const [skippedInvByIdx, setSkippedInvByIdx] = useState<Record<number, string[]>>({});
-  const [skippedAuthByIdx, setSkippedAuthByIdx] = useState<Record<number, string[]>>({});
   // Skip histórico por ocorrência em atendimento (id).
   const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
   const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
@@ -78,10 +69,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     const n = normBu(bu);
     if (!n) return null;
     return occurrences.find((o) => normBu(o.bu_number) === n) || null;
-  };
-  const findInPending = (bu: string) => {
-    const n = normBu(bu);
-    return pendingQueue.find((p) => normBu(p.bu_number) === n) || null;
   };
 
   // Split by status
@@ -123,34 +110,35 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const delSubteams = shift.delegado_subteams || [];
 
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, occurrences, pendingQueue, "investigator", 5, now),
-    [oipSubteams, occurrences, pendingQueue, now],
+    () => predictSubteamQueue(oipSubteams, occurrences, [], "investigator", 5, now),
+    [oipSubteams, occurrences, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, occurrences, pendingQueue, "authority", 5, now),
-    [delSubteams, occurrences, pendingQueue, now],
+    () => predictSubteamQueue(delSubteams, occurrences, [], "authority", 5, now),
+    [delSubteams, occurrences, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, occurrences, pendingQueue, "investigator", 5, now),
-    [predictedInvSub, allInvestigators, occurrences, pendingQueue, now],
+      : predictQueue(allInvestigators, occurrences, [], "investigator", 5, now),
+    [predictedInvSub, allInvestigators, occurrences, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, occurrences, pendingQueue, "authority", 5, now),
-    [predictedAuthSub, allAuthorities, occurrences, pendingQueue, now],
+      : predictQueue(allAuthorities, occurrences, [], "authority", 5, now),
+    [predictedAuthSub, allAuthorities, occurrences, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
   const suggestedAuthority = predictedAuth[0] || "";
 
-  const addToQueue = () => {
+  /** Adiciona a ocorrência DIRETO ao card "Em Atendimento" com OIP/Autoridade
+   * já preenchidos pela fila preditiva. */
+  const addToQueue = async () => {
     const bu = normBu(newBu);
     if (!bu) { toast.error("Informe o número do BU"); return; }
-    if (findInPending(bu)) { toast.error(`BU ${bu} já está em distribuição.`); return; }
     const dup = findExistingBu(bu);
     if (dup) {
       const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
@@ -158,22 +146,27 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       return;
     }
 
-    const nextInv = suggestedInvestigator;
-    const nextAuth = suggestedAuthority;
-
+    const today = shift.shift_date;
     const timeVal = newTime || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-    setPendingQueue((prev) => [
-      ...prev,
-      { bu_number: bu, tramitation_time: timeVal, investigator: nextInv, authority: nextAuth },
-    ]);
-    setNewBu("");
-    setNewTime("");
-  };
+    const tramitationIso = new Date(`${today}T${timeVal}`).toISOString();
 
-  const removePending = (idx: number) => {
-    setPendingQueue((prev) => prev.filter((_, i) => i !== idx));
-    setSkippedInvByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
-    setSkippedAuthByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
+    setAdding(true);
+    try {
+      await onAdd({
+        status: "em_atendimento",
+        bu_number: bu,
+        tramitation_time: tramitationIso,
+        investigator: suggestedInvestigator,
+        authority: suggestedAuthority,
+      });
+      toast.success(`BU ${bu} em atendimento`);
+      setNewBu("");
+      setNewTime("");
+    } catch {
+      toast.error("Erro ao adicionar à fila");
+    } finally {
+      setAdding(false);
+    }
   };
 
   // Helper: próximo nome respeitando carga + lista de skipados (rotação 1→2→3).
@@ -184,56 +177,21 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       field: "investigator" | "authority",
       skipped: string[],
     ): string => {
-      // Pula subequipes cujos membros disponíveis já foram todos skipados.
       const skipSet = new Set(skipped);
       const skippedSubteamIds: string[] = [];
       for (const s of subteams) {
         const available = s.members.filter((m) => !skipSet.has(m.name));
         if (available.length === 0) skippedSubteamIds.push(s.id);
       }
-      const sub = predictSubteamQueue(subteams, occurrences, pendingQueue, field, 1, now, skippedSubteamIds);
+      const sub = predictSubteamQueue(subteams, occurrences, [], field, 1, now, skippedSubteamIds);
       if (sub[0]?.memberPick && !skipSet.has(sub[0].memberPick)) return sub[0].memberPick;
-      const flat = predictQueue(members, occurrences, pendingQueue, field, 1, now, skipped);
+      const flat = predictQueue(members, occurrences, [], field, 1, now, skipped);
       if (flat[0]) return flat[0];
       return nextSkipping(members, skipped[skipped.length - 1] || "", now, skipped);
     },
-    [occurrences, pendingQueue, now],
+    [occurrences, now],
   );
 
-  const skipPendingInv = (idx: number) => {
-    setPendingQueue((prev) => {
-      const item = prev[idx];
-      if (!item) return prev;
-      const skipped = [...(skippedInvByIdx[idx] || []), item.investigator].filter(Boolean);
-      setSkippedInvByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = pickNextWithSkip(allInvestigators, oipSubteams, "investigator", skipped);
-      return prev.map((p, i) => i === idx ? { ...p, investigator: next } : p);
-    });
-  };
-  const skipPendingAuth = (idx: number) => {
-    setPendingQueue((prev) => {
-      const item = prev[idx];
-      if (!item) return prev;
-      const skipped = [...(skippedAuthByIdx[idx] || []), item.authority].filter(Boolean);
-      setSkippedAuthByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = pickNextWithSkip(allAuthorities, delSubteams, "authority", skipped);
-      return prev.map((p, i) => i === idx ? { ...p, authority: next } : p);
-    });
-  };
-
-  const registerPending = (item: PendingItem) => {
-    const today = shift.shift_date;
-    const isoTime = new Date(`${today}T${item.tramitation_time}`).toISOString();
-    setForm({
-      ...emptyForm(),
-      bu_number: item.bu_number,
-      tramitation_time: isoTime,
-      investigator: item.investigator,
-      authority: item.authority,
-    });
-    setEditingId(null);
-    setShowForm(true);
-  };
 
   const openNew = () => {
     setForm({ ...emptyForm(), investigator: suggestedInvestigator, authority: suggestedAuthority });
@@ -278,15 +236,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           await onAdd({ ...form, bu_number: bu, status: "atendida", tramitation_time: form.tramitation_time || new Date().toISOString() });
           toast.success("Ocorrência registrada");
         }
-        // Limpa pending + skip-state da posição
-        setPendingQueue((prev) => {
-          const idx = prev.findIndex((p) => normBu(p.bu_number) === bu);
-          if (idx < 0) return prev;
-          setSkippedInvByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
-          setSkippedAuthByIdx((s) => { const c = { ...s }; delete c[idx]; return c; });
-          return prev.filter((_, i) => i !== idx);
-        });
       }
+
       setShowForm(false);
     } catch {
       toast.error("Erro ao salvar");
@@ -327,7 +278,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     <div className="space-y-4">
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
-          <TabsTrigger value="distribuicao">Em Distribuição ({pendingQueue.length + inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="distribuicao">Em Distribuição ({inAttendance.length})</TabsTrigger>
           <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
@@ -391,75 +342,16 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <Label className="text-sm font-medium">Horário</Label>
                     <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-10 text-sm" />
                   </div>
-                  <Button size="default" variant="outline" onClick={addToQueue} className="h-10 gap-2 shrink-0">
-                    <Plus className="w-4 h-4" /> Adicionar à Fila
+                  <Button size="default" onClick={addToQueue} disabled={adding} className="h-10 gap-2 shrink-0">
+                    <Plus className="w-4 h-4" /> {adding ? "Adicionando..." : "Adicionar à Em Atendimento"}
                   </Button>
                 </div>
-
-                {/* Pending */}
-                {pendingQueue.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Aguardando registro ({pendingQueue.length})</p>
-                    {pendingQueue.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
-                        <span className="font-mono font-bold text-sm min-w-[90px]">{item.bu_number}</span>
-                        <span className="text-xs text-muted-foreground min-w-[70px]">{item.tramitation_time}</span>
-                        <div className="flex items-center gap-1">
-                          <Select value={item.investigator} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, investigator: v } : p))}>
-                            <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                            <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular OIP" onClick={() => skipPendingInv(idx)}>
-                            <SkipForward className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Select value={item.authority} onValueChange={(v) => setPendingQueue((prev) => prev.map((p, i) => i === idx ? { ...p, authority: v } : p))}>
-                            <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                            <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Autoridade" onClick={() => skipPendingAuth(idx)}>
-                            <SkipForward className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 ml-auto shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Registrar" onClick={() => registerPending(item)}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remover da fila?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  BU {item.bu_number} será removido da fila pendente.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  onClick={() => removePending(idx)}
-                                >
-                                  Remover
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
 
           {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
+
           {inAttendance.length > 0 && (
             <Card className="border-primary/40 bg-primary/5">
               <CardHeader className="pb-3">

@@ -8,7 +8,7 @@ interface ProcessingStatusProps {
   fileName?: string;
 }
 
-const STEPS: AnalysisStatus[] = ["reading", "validating", "analyzing", "generating"];
+const STEPS: AnalysisStatus[] = ["reading", "analyzing"];
 
 const ProcessingStatus = ({ status, fileName }: ProcessingStatusProps) => {
   const currentIdx = STEPS.indexOf(status);

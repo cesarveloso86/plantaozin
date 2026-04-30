@@ -64,6 +64,7 @@ export function useAnalysis() {
    */
   const persistTriageForShift = useCallback(
     async (triage: TriageResult): Promise<{ analysisId: string; storagePath: string } | null> => {
+      let createdAnalysisId: string | null = null;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Usuário não autenticado");
@@ -84,9 +85,13 @@ export function useAnalysis() {
           .insert(insertPayload as never)
           .select("id")
           .single();
-        if (insErr || !inserted) throw insErr || new Error("Falha ao salvar análise");
+        if (insErr || !inserted) {
+          console.error("[persistTriageForShift] insert analyses error:", insErr);
+          throw insErr || new Error("Falha ao salvar análise");
+        }
 
         const analysisId = inserted.id as string;
+        createdAnalysisId = analysisId;
         const storagePath = `${user.id}/${analysisId}.pdf`;
 
         const bin = atob(lastBase64.current);
@@ -97,18 +102,33 @@ export function useAnalysis() {
         const { error: upErr } = await supabase.storage
           .from("bo-pdfs")
           .upload(storagePath, blob, { contentType: "application/pdf", upsert: true });
-        if (upErr) throw upErr;
+        if (upErr) {
+          console.error("[persistTriageForShift] storage upload error:", upErr);
+          throw upErr;
+        }
 
         const { error: updErr } = await supabase
           .from("analyses")
           .update({ pdf_storage_path: storagePath } as never)
           .eq("id", analysisId);
-        if (updErr) throw updErr;
+        if (updErr) {
+          console.error("[persistTriageForShift] update pdf_storage_path error:", updErr);
+          throw updErr;
+        }
 
         pendingStoragePath.current = storagePath;
+        console.log("[persistTriageForShift] PDF persisted:", { analysisId, storagePath });
         return { analysisId, storagePath };
       } catch (err) {
         console.error("persistTriageForShift error:", err);
+        // Rollback: remove a row órfã (sem PDF) se chegou a ser criada.
+        if (createdAnalysisId) {
+          try {
+            await supabase.from("analyses").delete().eq("id", createdAnalysisId);
+          } catch (rbErr) {
+            console.error("[persistTriageForShift] rollback failed:", rbErr);
+          }
+        }
         setError(err instanceof Error ? err.message : "Erro ao salvar triagem");
         return null;
       }

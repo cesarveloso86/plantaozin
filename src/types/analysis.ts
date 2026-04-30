@@ -66,7 +66,7 @@ export const STATUS_MESSAGES: Record<AnalysisStatus, string> = {
   idle: "",
   reading: "Lendo documento PDF...",
   validating: "Validando dados cadastrais e CEP...",
-  analyzing: "Analisando narrativa policial...",
+  analyzing: "Analisando o BU...",
   generating: "Gerando minutas e despacho...",
   done: "Análise concluída",
   triage_done: "Triagem concluída — pronto para distribuir",
