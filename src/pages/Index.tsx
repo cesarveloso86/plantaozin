@@ -37,10 +37,27 @@ const Index = () => {
     return regional;
   };
 
+  const pickNextAssignees = () => {
+     const active = shift.activeShift;
+     if (!active) return { investigator: "", authority: "" };
+     const completed = shift.occurrences.filter((o) => o.status !== "em_atendimento");
+     const now = new Date();
+     const invSub = predictSubteamQueue(active.oip_subteams || [], completed, [], "investigator", 1, now);
+     const authSub = predictSubteamQueue(active.delegado_subteams || [], completed, [], "authority", 1, now);
+     const investigator = invSub[0]?.memberPick
+       ?? predictQueue(active.investigators || [], completed, [], "investigator", 1, now)[0]
+       ?? "";
+     const authority = authSub[0]?.memberPick
+       ?? predictQueue(active.authorities || [], completed, [], "authority", 1, now)[0]
+       ?? "";
+     return { investigator, authority };
+  };
+
   const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
     const tipification = (t.tipificacoes_sugeridas || [])
       .map((x) => `${x.artigo} - ${x.descricao}`)
       .join("; ");
+    const { investigator, authority } = pickNextAssignees();
     return {
       status: "em_atendimento" as const,
       bu_number: (t.numero_bo || "").trim(),
@@ -49,6 +66,8 @@ const Index = () => {
       victim_names: (t.vitimas_nomes || []).join(", "),
       regional: resolveRegional(t),
       tramitation_time: new Date().toISOString(),
+      investigator,
+      authority,
     };
   };
 
