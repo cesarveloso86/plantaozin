@@ -147,6 +147,7 @@ const Index = () => {
       }
     }
     try {
+      const { investigator, authority } = pickNextAssignees();
       await shift.addOccurrence({
         status: "em_atendimento",
         bu_number: buNum,
@@ -155,6 +156,8 @@ const Index = () => {
         victim_names: result.depoimentos?.filter(d => d.tipo === "vitima").map(d => d.nome).join(", ") || "",
         regional,
         tramitation_time: new Date().toISOString(),
+        investigator,
+        authority,
       });
       toast.success("Ocorrência enviada ao plantão.");
     } catch {
