@@ -213,12 +213,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
         status: "em_atendimento",
         bu_number: bu,
         tramitation_time: tramitationIso,
-        investigator: suggestedInvestigator,
-        authority: suggestedAuthority,
+        investigator: pickInv ?? suggestedInvestigator,
+        authority: pickAuth ?? suggestedAuthority,
       });
       toast.success(`BU ${bu} em atendimento`);
       setNewBu("");
       setNewTime("");
+      setPickInv(null);
+      setPickAuth(null);
     } catch {
       toast.error("Erro ao adicionar à fila");
     } finally {
