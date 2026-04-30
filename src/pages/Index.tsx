@@ -37,6 +37,22 @@ const Index = () => {
     return regional;
   };
 
+  /** Formata tipificações de forma curta (apenas artigo + lei) para o campo
+   * `tipification` da ocorrência. A descrição completa permanece visível na
+   * tela de análise. Ex.: "Art. 33 da Lei 11.343/06; Art. 35 da Lei 11.343/06". */
+  const formatTipificacoesShort = (
+    tips: Array<{ artigo?: string; lei?: string }> = [],
+  ) =>
+    tips
+      .map((t) => {
+        const artigo = (t.artigo || "").trim();
+        const lei = (t.lei || "").trim();
+        if (!artigo) return "";
+        return lei ? `${artigo} da ${lei}` : artigo;
+      })
+      .filter(Boolean)
+      .join("; ");
+
   const pickNextAssignees = () => {
      const active = shift.activeShift;
      if (!active) return { investigator: "", authority: "" };
@@ -54,9 +70,7 @@ const Index = () => {
   };
 
   const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
-    const tipification = (t.tipificacoes_sugeridas || [])
-      .map((x) => `${x.artigo} - ${x.descricao}`)
-      .join("; ");
+    const tipification = formatTipificacoesShort(t.tipificacoes_sugeridas);
     const { investigator, authority } = pickNextAssignees();
     return {
       status: "em_atendimento" as const,
@@ -138,7 +152,7 @@ const Index = () => {
       await shift.addOccurrence({
         status: "em_atendimento",
         bu_number: buNum,
-        tipification: result.despacho?.tipificacoes?.map(t => `${t.artigo} - ${t.descricao}`).join("; ") || "",
+        tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
         conducted_names: result.depoimentos?.filter(d => d.tipo === "interrogado").map(d => d.nome).join(", ") || "",
         victim_names: result.depoimentos?.filter(d => d.tipo === "vitima").map(d => d.nome).join(", ") || "",
         regional,

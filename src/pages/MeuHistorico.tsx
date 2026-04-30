@@ -187,9 +187,9 @@ const MeuHistorico = () => {
       setResultData(full);
       setResultOpen(true);
       toast.success("Depoimentos gerados.");
-      // Atualiza a linha localmente: PDF foi descartado pela edge function.
+      // PDF permanece disponível por 24h após a triagem (ou até exclusão manual).
       setRows((prev) => prev.map((r) => r.id === row.id
-        ? { ...r, pdf_storage_path: null, has_full_result: true, full_result: full }
+        ? { ...r, has_full_result: true, full_result: full }
         : r));
     } else {
       toast.error("Não foi possível gerar os depoimentos.");
@@ -203,7 +203,19 @@ const MeuHistorico = () => {
     }
   };
 
+  /** Remove o PDF do bucket (se ainda existir) e zera pdf_storage_path. */
+  const purgePdfsForOccurrences = async (occRows: Row[]) => {
+    const analysisIds = occRows.map((r) => r.analysis_id).filter((x): x is string => !!x);
+    if (analysisIds.length === 0) return;
+    const paths = occRows.map((r) => r.pdf_storage_path).filter((p): p is string => !!p);
+    if (paths.length > 0) {
+      await supabase.storage.from("bo-pdfs").remove(paths);
+    }
+    await supabase.from("analyses").update({ pdf_storage_path: null } as never).in("id", analysisIds);
+  };
+
   const handleDeleteOne = async (row: Row) => {
+    await purgePdfsForOccurrences([row]);
     const { error } = await supabase.from("shift_occurrences").delete().eq("id", row.id);
     if (error) {
       toast.error("Erro ao excluir ocorrência.");
@@ -216,8 +228,9 @@ const MeuHistorico = () => {
   const handleClearAll = async () => {
     const targetName = isAdmin && filterName ? filterName : myName;
     if (!targetName) return;
+    if (rows.length === 0) return;
+    await purgePdfsForOccurrences(rows);
     const ids = rows.map((r) => r.id);
-    if (ids.length === 0) return;
     const { error } = await supabase.from("shift_occurrences").delete().in("id", ids);
     if (error) {
       toast.error("Erro ao limpar histórico.");
@@ -247,7 +260,7 @@ const MeuHistorico = () => {
           <div>
             <h2 className="text-xl font-semibold text-foreground">Meu Histórico</h2>
             <p className="text-sm text-muted-foreground">
-              Ocorrências em que você atuou como OIP ou Autoridade. Gere depoimentos sob demanda enquanto o PDF estiver disponível (≤ 24h).
+              Ocorrências em que você atuou como OIP ou Autoridade. O PDF original fica disponível por até 24h após a triagem (ou até exclusão manual) e pode ser usado para gerar/regerar depoimentos.
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -390,7 +403,9 @@ const MeuHistorico = () => {
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[260px]">
-                                Os depoimentos foram gerados e o PDF original foi descartado conforme política LGPD. Use "Ver depoimentos" para consultar o resultado.
+                                {isPdfExpiredByTime(row.analysis_created_at)
+                                  ? "Os depoimentos já foram gerados e o PDF original foi descartado pela política de retenção de 24h. Use \"Ver depoimentos\" para consultar o resultado."
+                                  : "Os depoimentos já foram gerados e o PDF original foi excluído manualmente. Use \"Ver depoimentos\" para consultar o resultado."}
                               </TooltipContent>
                             </Tooltip>
                           )}
