@@ -269,6 +269,32 @@ const MeuHistorico = () => {
                 className="pl-9"
               />
             </div>
+            {rows.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="default" className="gap-1.5 text-destructive hover:text-destructive">
+                    <Trash2 className="w-4 h-4" /> Limpar histórico
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Limpar todo o histórico?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Todas as {rows.length} ocorrências listadas serão excluídas permanentemente. Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleClearAll}
+                    >
+                      Limpar tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
 
