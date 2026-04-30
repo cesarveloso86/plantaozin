@@ -260,6 +260,28 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     try { await onUpdate(occId, { [field]: value }); } catch { toast.error("Erro ao atualizar"); }
   };
 
+  /** Converte um valor "HH:mm[:ss]" em ISO usando shift_date; vazio → null. */
+  const handleInlineTime = async (occId: string, timeStr: string) => {
+    try {
+      const iso = timeStr
+        ? new Date(`${shift.shift_date}T${timeStr.length === 5 ? `${timeStr}:00` : timeStr}`).toISOString()
+        : null;
+      await onUpdate(occId, { tramitation_time: iso });
+    } catch { toast.error("Erro ao atualizar horário"); }
+  };
+
+  /** Extrai "HH:mm:ss" de um ISO para uso em <input type="time"> */
+  const isoToTimeInput = (iso: string | null): string => {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    } catch { return ""; }
+  };
+
   const setField = useCallback(
     <K extends keyof ShiftOccurrence>(key: K, value: ShiftOccurrence[K]) =>
       setForm((prev) => ({ ...prev, [key]: value })),
