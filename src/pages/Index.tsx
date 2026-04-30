@@ -12,6 +12,7 @@ import { RotateCcw, Send, Sparkles, AlertTriangle, Calendar, Building2, MapPin, 
 import { toast } from "sonner";
 import { REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
+import { predictSubteamQueue, predictQueue } from "@/lib/availability";
 import type { TriageResult, AnalysisResult } from "@/types/analysis";
 
 const Index = () => {
