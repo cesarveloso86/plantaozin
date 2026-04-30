@@ -186,6 +186,7 @@ const MeuHistorico = () => {
     setGeneratingFor(null);
     if (full) {
       setResultData(full);
+      setResultAnalysisId(row.analysis_id);
       setResultOpen(true);
       toast.success("Depoimentos gerados.");
       // PDF permanece disponível por 24h após a triagem (ou até exclusão manual).
@@ -200,6 +201,7 @@ const MeuHistorico = () => {
   const handleView = (row: Row) => {
     if (row.full_result) {
       setResultData(row.full_result);
+      setResultAnalysisId(row.analysis_id);
       setResultOpen(true);
     }
   };
