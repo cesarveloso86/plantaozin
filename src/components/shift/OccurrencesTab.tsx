@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
+import { Plus, Trash2, Edit, SkipForward, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence, ShiftMember, ShiftSubteam } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
