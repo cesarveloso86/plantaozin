@@ -193,12 +193,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
 
-  const openNew = () => {
-    setForm({ ...emptyForm(), investigator: suggestedInvestigator, authority: suggestedAuthority });
-    setEditingId(null);
-    setShowForm(true);
-  };
-
   const openEdit = (occ: ShiftOccurrence) => {
     setForm(occ);
     setEditingId(occ.id);
@@ -421,14 +415,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
               </CardContent>
             </Card>
           )}
-
-          <div className="flex justify-end">
-            {shift.status === "active" && (
-              <Button size="default" onClick={openNew} className="gap-2">
-                <Plus className="w-4 h-4" /> Registrar Manualmente
-              </Button>
-            )}
-          </div>
         </TabsContent>
 
         {/* ── Aba: Já Atendidas ── */}
