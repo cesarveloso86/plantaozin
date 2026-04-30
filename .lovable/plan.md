@@ -1,62 +1,34 @@
-# Ajustes: Retenção do PDF e formato da Tipificação
+# Corrigir data do plantão no Meu Histórico (off-by-one)
 
-## Problemas identificados
+## Causa raiz
 
-1. **PDF descartado prematuramente.** Hoje, em `src/hooks/useAnalysis.ts` (`generateFullFromAnalysis`), logo após gerar os depoimentos, o código remove o PDF do Storage e zera `pdf_storage_path`. Isso faz com que o servidor não consiga regerar/consultar o PDF dentro das 24h — contrariando a regra desejada (manter por 24h ou até deleção manual, o que ocorrer primeiro).
-2. **Tipificação exportada com descrição completa.** Em `src/pages/Index.tsx`, ao enviar triagem ou análise completa para o plantão, o campo `tipification` da ocorrência é montado como `"Art. 33 - Tráfico de drogas; Art. 35 - Associação..."`. O usuário quer apenas os números dos artigos + leis correspondentes (ex.: `Art. 33 da Lei 11.343/06; Art. 35 da Lei 11.343/06`).
+Em `src/pages/MeuHistorico.tsx` (linha 331), a data do plantão é renderizada com `fmtDateTime(g.shift_date)`. O valor de `shift_date` vem da coluna `shifts.shift_date` do Postgres (tipo `date`, formato `YYYY-MM-DD`, sem fuso).
 
-## Mudanças
+`fmtDateTime` (em `src/lib/utils.ts`) faz `new Date(iso).toLocaleString("pt-BR", ...)`. Quando `iso` é `"2026-05-01"`, o JS interpreta como **UTC meia-noite** e, ao formatar em pt-BR (BRT = UTC-3), exibe **30/04/2026** — um dia antes. É exatamente o comportamento que o usuário descreveu.
 
-### 1. Retenção do PDF por 24h (LGPD com janela mínima de operação)
+O projeto já tem o helper correto para esse caso: `formatLocalDateBR` (mesmo arquivo `utils.ts`), que faz parse manual de `YYYY-MM-DD` em data local. Ele é usado em `Plantao.tsx` e `ShiftSelector.tsx` justamente para evitar esse off-by-one.
 
-**Arquivo:** `src/hooks/useAnalysis.ts` — função `generateFullFromAnalysis`
-
-- Remover o trecho que apaga o PDF do bucket e o `pdf_storage_path` imediatamente após gerar a análise completa.
-- O PDF passa a ser removido apenas:
-  - automaticamente pela edge function `cleanup-expired-pdfs` (já existente, faz cutoff de 24h sobre `analyses.created_at`);
-  - manualmente pelo próprio servidor, ao excluir a ocorrência/análise no "Meu Histórico".
-- Após gerar depoimentos, manter `pdf_storage_path` populado para permitir regeração dentro da janela de 24h.
+## Mudança
 
 **Arquivo:** `src/pages/MeuHistorico.tsx`
 
-- Ajustar o tooltip "PDF descartado" — quando há resultado completo mas o PDF ainda existe, exibir "Gerar depoimentos / Regerar" normalmente. O caso "PDF descartado" passa a aparecer apenas quando passou de 24h ou quando a ocorrência foi excluída.
-- Atualizar copy do cabeçalho para deixar claro: "PDF disponível por até 24h após a triagem ou até exclusão manual."
+1. Adicionar `formatLocalDateBR` ao import de `@/lib/utils`.
+2. Trocar `fmtDateTime(g.shift_date)` por `formatLocalDateBR(g.shift_date)` na linha 331.
 
-**Exclusão manual:**
-- Em `handleDeleteOne` e `handleClearAll`, antes de deletar a ocorrência, buscar `pdf_storage_path` das `analyses` vinculadas e remover do Storage (`supabase.storage.from("bo-pdfs").remove([...])`), zerando `pdf_storage_path`. Isso garante o "deletar antes de 24h se o servidor quiser".
+`fmtDateTime` continua sendo usado para timestamps reais (`tramitation_time`, `created_at`) — esses são `timestamptz` e estão corretos. A troca é apenas para o campo `shift_date` (tipo `date`).
 
-### 2. Tipificação: apenas artigos + leis na ocorrência
-
-**Arquivo:** `src/pages/Index.tsx`
-
-Criar helper local:
+## Diff conceitual
 
 ```ts
-const formatTipificacoesShort = (tips: Tipificacao[] = []) =>
-  tips
-    .map((t) => {
-      const artigo = (t.artigo || "").trim();
-      const lei = (t.lei || "").trim();
-      if (!artigo) return "";
-      return lei ? `${artigo} da ${lei}` : artigo;
-    })
-    .filter(Boolean)
-    .join("; ");
+// import
+- import { fmtDateTime } from "@/lib/utils";
++ import { fmtDateTime, formatLocalDateBR } from "@/lib/utils";
+
+// render
+- <span>Plantão {g.shift_date ? fmtDateTime(g.shift_date) : "—"}</span>
++ <span>Plantão {g.shift_date ? formatLocalDateBR(g.shift_date) : "—"}</span>
 ```
-
-- Em `buildOccurrenceFromTriage`: substituir o `map(... ` ${artigo} - ${descricao}`)` por `formatTipificacoesShort(t.tipificacoes_sugeridas)`.
-- Em `handleSendFullToShift`: substituir o map atual de `result.despacho?.tipificacoes` por `formatTipificacoesShort(result.despacho?.tipificacoes)`.
-
-A análise (tela de resultado e despacho) continua exibindo a descrição completa — só o que vai para o campo `tipification` da `shift_occurrences` muda.
-
-### Observações
-
-- Os textos descritivos completos seguem visíveis em `AnalysisResult.tsx` (despacho e lista de tipificações), inalterados.
-- A edge function `cleanup-expired-pdfs` já implementa o corte de 24h — nenhuma mudança lá.
-- RLS atual já permite ao OIP/Autoridade vinculados regerar dentro da janela.
 
 ## Arquivos a editar
 
-- `src/hooks/useAnalysis.ts`
-- `src/pages/Index.tsx`
 - `src/pages/MeuHistorico.tsx`
