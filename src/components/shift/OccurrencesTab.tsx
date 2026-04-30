@@ -725,13 +725,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => setField("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
             <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => setField("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving
-                ? "Salvando..."
-                : editingId
-                  ? (isInAttendance ? "Concluir Atendimento" : "Atualizar")
-                  : "Registrar"}
-            </Button>
+            {isInAttendance ? (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleSave(false)} disabled={saving} className="flex-1">
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
+                <Button onClick={() => handleSave(true)} disabled={saving} className="flex-1">
+                  {saving ? "Salvando..." : "Concluir Atendimento"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => handleSave(true)} disabled={saving} className="w-full">
+                {saving ? "Salvando..." : editingId ? "Atualizar" : "Registrar"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
