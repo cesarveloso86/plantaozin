@@ -1,60 +1,72 @@
 ## Plano de correção
 
-### 1. UI esmaecida de "gerando depoimentos" durante a análise prévia
+### 1. "PDF expirado" no Meu Histórico — causa raiz identificada
 
-**Causa**: `src/components/ProcessingStatus.tsx` lista 4 passos fixos: `reading`, `validating`, `analyzing`, `generating`. No fluxo de **triagem** (`analyzeTriage`), o status nunca passa por `validating` nem `generating` — vai de `reading` → `analyzing` → `triage_done`. O passo "Gerando minutas e despacho..." aparece sempre, esmaecido (`text-muted-foreground/50`), dando a impressão de que algo está sendo gerado.
+**Bug**: a tabela `analyses` **não tem** uma policy `UPDATE` para o próprio dono. As policies existentes só permitem UPDATE para OIP/Autoridade vinculados via `shift_occurrences`. Quando `persistTriageForShift` (em `useAnalysis.ts`) faz:
 
-**Correção**: tornar os passos exibidos dependentes do modo. Como a triagem é o fluxo padrão hoje, exibir apenas `reading` e `analyzing` enquanto `status` ∈ desses valores; remover `validating` e `generating` da lista quando estamos no fluxo de triagem. Como o fluxo "full" legado (`analyze()`) ainda existe em `useAnalysis.ts` mas não é mais chamado pela UI principal, simplificar `STEPS` para `["reading", "analyzing"]` e ajustar `STATUS_MESSAGES.analyzing` para "Analisando o BU..." (mais neutro, sem sugerir geração de depoimentos).
-
-Arquivos: `src/components/ProcessingStatus.tsx`, `src/types/analysis.ts`.
-
-### 2. PDF sumindo / "guardar PDF para geração de depoimentos não funciona"
-
-**Diagnóstico**: o fluxo atual em `src/hooks/useAnalysis.ts` está correto em tese (`persistTriageForShift` faz upload no bucket `bo-pdfs` e grava `pdf_storage_path`), e o cleanup só apaga após 24h. Possíveis quebras reais que estão fazendo o PDF "não estar disponível":
-
-  a. `persistTriageForShift` é chamado dentro de `handleSendTriageToShift` (`src/pages/Index.tsx`). Se o usuário clicar **"Enviar ao Plantão"**, o PDF é salvo. Mas se o registro for criado pelo fluxo de **inserção manual** (sem passar pela triagem da IA), nunca há `analysis_id` e portanto nunca há PDF — o histórico mostra "PDF expirado". Isso é esperado para inserção manual e não é bug.
-
-  b. Há um caminho onde a ocorrência é criada em `Index.tsx` mesmo se o upload do storage falhar silenciosamente, porque `persistTriageForShift` retorna `null` em erro mas a UI mostra "Erro ao salvar triagem" — verificar se realmente está caindo aí.
-
-  c. Após `generateFullFromAnalysis`, o código atual NÃO apaga o PDF (a remoção foi removida em iteração anterior). Bom — manteremos.
-
-**Verificações/correções**:
-
-- Adicionar logs em `persistTriageForShift` para distinguir falha de insert vs upload vs update.
-- Em `Index.tsx`, tratar caso o upload falhe e a row `analyses` já tenha sido criada: nesse caso, fazer rollback (delete da row) para não deixar lixo órfão sem PDF.
-- Confirmar visualmente que após "Enviar ao Plantão" o registro `analyses` tem `pdf_storage_path` preenchido e o objeto existe no bucket. Se não, o sintoma do usuário é real e só o log vai apontar a causa.
-- Documentar no tooltip do "Meu Histórico" que **inserção manual** nunca terá PDF (já está implícito, mas tornar explícito).
-
-Arquivos: `src/hooks/useAnalysis.ts`, `src/pages/Index.tsx`.
-
-### 3. Inserção manual: direto para "Em Atendimento" com OIP/Autoridade da fila
-
-**Comportamento atual** (`src/components/shift/OccurrencesTab.tsx`):
-- Há uma fila local `pendingQueue` ("Aguardando registro"). O botão **"Adicionar à Fila"** insere ali. Para virar ocorrência real, precisa clicar em **"Registrar"** → abre o dialog → salva como `atendida` (concluída) direto.
-- O botão **"Registrar Manualmente"** abre dialog vazio e também salva como `atendida`.
-- Não há um caminho de "inserção manual → em atendimento".
-
-**Mudança pedida**: substituir a fila intermediária ("Aguardando registro") por adicionar **diretamente em "Em Atendimento"**, já com OIP e Autoridade preenchidos pela fila preditiva (round-robin). O usuário depois clica em "Continuar" para preencher os campos e concluir.
-
-**Implementação**:
-
-1. Remover o estado `pendingQueue`, `skippedInvByIdx`, `skippedAuthByIdx`, `removePending`, `skipPendingInv`, `skipPendingAuth`, `registerPending` e a UI da seção "Aguardando registro".
-2. Substituir o botão **"Adicionar à Fila"** por **"Adicionar à Em Atendimento"**: ao clicar, chama `onAdd({ status: "em_atendimento", bu_number, tramitation_time, investigator: suggestedInvestigator, authority: suggestedAuthority })`. A nova ocorrência aparece imediatamente no card "Em Atendimento", onde o usuário já pode pular OIP/Autoridade ou clicar em "Continuar".
-3. Atualizar o contador da aba: `Em Distribuição ({inAttendance.length})` (não há mais `pendingQueue`).
-4. Remover usos de `pendingQueue` em `predictSubteamQueue` / `predictQueue` — passar `[]` no lugar (a carga já é refletida pelas ocorrências reais agora).
-5. Manter o botão **"Registrar Manualmente"** (`openNew`) que continua abrindo o dialog completo para registrar uma ocorrência **já atendida** retroativamente (caso de uso diferente).
-6. Remover a limpeza de `pendingQueue` em `handleSave`.
-
-Arquivos: `src/components/shift/OccurrencesTab.tsx`.
-
-### Resumo dos arquivos editados
-
-```text
-src/components/ProcessingStatus.tsx       — só passos relevantes ao fluxo de triagem
-src/types/analysis.ts                      — STEPS reduzidos / mensagens neutras
-src/hooks/useAnalysis.ts                   — logs + rollback se upload falhar
-src/pages/Index.tsx                        — tratamento de erro robusto na persistência
-src/components/shift/OccurrencesTab.tsx    — remover pendingQueue, ir direto p/ Em Atendimento
+```ts
+INSERT analyses (user_id = auth.uid(), pdf_storage_path = null)  -- ✅ OK
+upload bo-pdfs/{user}/{id}.pdf                                   -- ✅ OK
+UPDATE analyses SET pdf_storage_path = '...' WHERE id = ...      -- ❌ 0 rows (RLS bloqueia)
 ```
 
-Sem migrações de banco; sem mudança de RLS; sem novas tabelas.
+O Supabase JS client **não retorna erro** em UPDATE que afeta 0 linhas — só atualiza nada. Resultado: `pdf_storage_path` permanece `null` para sempre, o tooltip mostra "PDF expirado".
+
+**Fix (migração)**:
+
+```sql
+CREATE POLICY "Users can update own analyses"
+ON public.analyses
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+```
+
+Também aplicar `ALTER TABLE public.shift_occurrences REPLICA IDENTITY FULL;` para garantir payloads de realtime completos.
+
+### 2. Inserção manual não aparece em tempo real na fila "Em Atendimento"
+
+**Bug**: `addOccurrence` em `src/hooks/useShift.ts` só faz `INSERT` e confia no realtime para popular o estado local. Se o realtime atrasar/falhar, a UI fica vazia até o próximo reload. Além disso, `select().single()` não é chamado, então o registro inserido não é retornado.
+
+**Fix em `src/hooks/useShift.ts`**:
+- `addOccurrence` passa a usar `.insert(...).select().single()`.
+- Atualiza `setOccurrences` otimisticamente (com guard contra duplicar quando o realtime chegar depois).
+
+### 3. Botão "Registrar Manualmente" duplicado
+
+Em `src/components/shift/OccurrencesTab.tsx`, há dois caminhos para registrar uma ocorrência:
+1. Inserir BU + horário no inline form → "Adicionar à Em Atendimento" (cria direto).
+2. Botão "Registrar Manualmente" → abre dialog modal e salva como **atendida** (concluída) já preenchida.
+
+O fluxo (1) já cobre todos os casos: o usuário insere, vai pra fila, clica em "Continuar" no card e edita os campos. O caminho (2) é redundante.
+
+**Fix**: remover o botão "Registrar Manualmente" e a função `openNew()`. O `<Dialog>` permanece para o fluxo de **edição/continuar** (que ainda é necessário). O dialog também atende edição de ocorrências já atendidas.
+
+### 4. Análise + BU duplicado: mesclar campos faltantes em vez de bloquear
+
+Em `src/pages/Index.tsx`, `handleSendTriageToShift` hoje rejeita com `toast.error("BU já está em distribuição/atendida")` se houver duplicata. O usuário pediu para, em vez de rejeitar, **completar os campos vazios** da ocorrência existente com os dados da análise.
+
+**Fix em `src/pages/Index.tsx`**:
+- Quando `findExistingBu` encontra a ocorrência, em vez de cancelar:
+  - Construir o objeto da triagem (`buildOccurrenceFromTriage`).
+  - Chamar `shift.updateOccurrence(existing.id, mergeFields)` onde `mergeFields` contém apenas chaves cujo valor atual está vazio (ou é null/""). Não sobrescreve OIP/Autoridade nem horário já preenchidos.
+  - Se a ocorrência existente já tinha `analysis_id`, NÃO criar uma nova análise (reaproveita a existente). Se não tinha, persiste a triagem nova e linka via update do `analysis_id`.
+- Toast: "Ocorrência {bu} atualizada com dados da análise".
+
+Aplicar a mesma lógica em `handleSendFullToShift`.
+
+### 5. Logs de debug (já presentes em `useAnalysis.ts`)
+
+Os logs adicionados na iteração anterior em `persistTriageForShift` ajudarão a confirmar o fix do (1). Manter.
+
+### Resumo dos arquivos
+
+```text
+supabase/migrations/<timestamp>_users_update_own_analyses.sql  — nova policy UPDATE + REPLICA IDENTITY
+src/hooks/useShift.ts                                           — addOccurrence otimista
+src/components/shift/OccurrencesTab.tsx                         — remover botão "Registrar Manualmente"
+src/pages/Index.tsx                                             — merge em vez de rejeitar BU duplicado
+```
+
+Sem mudanças em edge functions, tipos ou outros arquivos.
