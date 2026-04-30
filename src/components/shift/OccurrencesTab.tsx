@@ -176,13 +176,37 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setSkippedAuthByIdx((prev) => { const c = { ...prev }; delete c[idx]; return c; });
   };
 
+  // Helper: próximo nome respeitando carga + lista de skipados (rotação 1→2→3).
+  const pickNextWithSkip = useCallback(
+    (
+      members: ShiftMember[],
+      subteams: ShiftSubteam[],
+      field: "investigator" | "authority",
+      skipped: string[],
+    ): string => {
+      // Pula subequipes cujos membros disponíveis já foram todos skipados.
+      const skipSet = new Set(skipped);
+      const skippedSubteamIds: string[] = [];
+      for (const s of subteams) {
+        const available = s.members.filter((m) => !skipSet.has(m.name));
+        if (available.length === 0) skippedSubteamIds.push(s.id);
+      }
+      const sub = predictSubteamQueue(subteams, occurrences, pendingQueue, field, 1, now, skippedSubteamIds);
+      if (sub[0]?.memberPick && !skipSet.has(sub[0].memberPick)) return sub[0].memberPick;
+      const flat = predictQueue(members, occurrences, pendingQueue, field, 1, now, skipped);
+      if (flat[0]) return flat[0];
+      return nextSkipping(members, skipped[skipped.length - 1] || "", now, skipped);
+    },
+    [occurrences, pendingQueue, now],
+  );
+
   const skipPendingInv = (idx: number) => {
     setPendingQueue((prev) => {
       const item = prev[idx];
       if (!item) return prev;
       const skipped = [...(skippedInvByIdx[idx] || []), item.investigator].filter(Boolean);
       setSkippedInvByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = nextSkipping(allInvestigators, item.investigator, now, skipped);
+      const next = pickNextWithSkip(allInvestigators, oipSubteams, "investigator", skipped);
       return prev.map((p, i) => i === idx ? { ...p, investigator: next } : p);
     });
   };
@@ -192,7 +216,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       if (!item) return prev;
       const skipped = [...(skippedAuthByIdx[idx] || []), item.authority].filter(Boolean);
       setSkippedAuthByIdx((s) => ({ ...s, [idx]: skipped }));
-      const next = nextSkipping(allAuthorities, item.authority, now, skipped);
+      const next = pickNextWithSkip(allAuthorities, delSubteams, "authority", skipped);
       return prev.map((p, i) => i === idx ? { ...p, authority: next } : p);
     });
   };
