@@ -371,6 +371,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
           <TabsTrigger value="distribuicao">Em Distribuição ({inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="sem_oitiva">Sem Oitiva ({semOitiva.length})</TabsTrigger>
           <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
