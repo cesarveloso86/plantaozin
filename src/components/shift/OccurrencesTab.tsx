@@ -681,11 +681,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                               title="Horário (opcional)"
                             />
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedInvestigatorSO ? displayLabel(suggestedInvestigatorSO) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickInvSO ?? suggestedInvestigatorSO ?? ""}
+                              onValueChange={(v) => setPickInvSO(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedAuthoritySO ? displayLabel(suggestedAuthoritySO) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickAuthSO ?? suggestedAuthoritySO ?? ""}
+                              onValueChange={(v) => setPickAuthSO(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Button size="sm" onClick={addToQueueSO} disabled={addingSO || !newBuSO.trim()} className="h-9 gap-1 w-full">
@@ -695,7 +707,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                         </tr>
                       )}
 
-                      {shift.status === "active" && predictedInvSO.slice(1, 4).map((inv, i) => {
+                      {shift.status === "active" && predictedInvSO.slice(1, 10).map((inv, i) => {
                         const auth = predictedAuthSO[i + 1] || "";
                         return (
                           <tr key={`slot-so-${i}`} className="border-b border-border/40 opacity-60">
