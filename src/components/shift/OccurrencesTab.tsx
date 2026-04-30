@@ -467,9 +467,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                       <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
                         <Edit className="w-3.5 h-3.5" /> Continuar
                       </Button>
-                      <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
-                        <Edit className="w-3.5 h-3.5" /> Continuar
-                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
