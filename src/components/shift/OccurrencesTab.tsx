@@ -91,7 +91,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
   const editingOcc = editingId ? occurrences.find((o) => o.id === editingId) : null;
-  const isInAttendance = editingOcc?.status === "em_atendimento";
+  // Tanto em_atendimento quanto sem_oitiva são ocorrências "abertas" — finalizar leva a "atendida".
+  const isInAttendance = editingOcc?.status === "em_atendimento" || editingOcc?.status === "sem_oitiva";
+  const isSemOitivaEdit = editingOcc?.status === "sem_oitiva";
 
   const allInvestigators = shift.investigators;
   const allAuthorities = shift.authorities;
