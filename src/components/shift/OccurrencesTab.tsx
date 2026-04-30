@@ -541,6 +541,152 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
           )}
         </TabsContent>
 
+        {/* ── Aba: Sem Oitiva ── */}
+        <TabsContent value="sem_oitiva" className="space-y-4 mt-4">
+          {(shift.status === "active" || semOitiva.length > 0) && (
+            <Card className="border-accent/40 bg-accent/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-accent-foreground" />
+                  Sem Oitiva ({semOitiva.length})
+                  <Badge variant="outline" className="ml-2 gap-1 font-normal text-xs">
+                    Ordem flexível · fila independente
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[150px]">BU</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[120px]">Hora</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">OIP</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Autoridade</th>
+                        <th className="px-3 py-2 w-[140px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {semOitiva.map((occ) => (
+                        <tr key={occ.id} className="border-b border-border hover:bg-background/50">
+                          <td className="px-3 py-2 font-mono font-bold">{occ.bu_number || "—"}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="time"
+                              step="1"
+                              defaultValue={isoToTimeInput(occ.tramitation_time)}
+                              onBlur={(e) => {
+                                const cur = isoToTimeInput(occ.tramitation_time);
+                                if (e.target.value !== cur) handleInlineTime(occ.id, e.target.value);
+                              }}
+                              className="h-8 text-sm w-[110px] px-2"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
+                                <Edit className="w-3.5 h-3.5" /> Continuar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remover ocorrência?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      BU {occ.bu_number} será removido permanentemente. Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => onDelete(occ.id)}
+                                    >
+                                      Remover
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {shift.status === "active" && (predictedInvSO.length > 0 || predictedAuthSO.length > 0) && (
+                        <tr className="border-b border-dashed border-accent/40 bg-accent/10">
+                          <td className="px-3 py-2">
+                            <Input
+                              value={newBuSO}
+                              onChange={(e) => setNewBuSO(e.target.value)}
+                              placeholder="Nº BU"
+                              className="h-9 text-base font-mono"
+                              onKeyDown={(e) => { if (e.key === "Enter") addToQueueSO(); }}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="time"
+                              step="1"
+                              value={newTimeSO}
+                              onChange={(e) => setNewTimeSO(e.target.value)}
+                              className="h-9 text-sm w-[110px] px-2"
+                              title="Horário (opcional)"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-base font-medium">
+                            {suggestedInvestigatorSO ? displayLabel(suggestedInvestigatorSO) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-base font-medium">
+                            {suggestedAuthoritySO ? displayLabel(suggestedAuthoritySO) : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Button size="sm" onClick={addToQueueSO} disabled={addingSO || !newBuSO.trim()} className="h-9 gap-1 w-full">
+                              <Plus className="w-4 h-4" /> {addingSO ? "..." : "Confirmar"}
+                            </Button>
+                          </td>
+                        </tr>
+                      )}
+
+                      {shift.status === "active" && predictedInvSO.slice(1, 4).map((inv, i) => {
+                        const auth = predictedAuthSO[i + 1] || "";
+                        return (
+                          <tr key={`slot-so-${i}`} className="border-b border-border/40 opacity-60">
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground italic">—</td>
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground italic">—</td>
+                            <td className="px-3 py-1.5 text-base">{inv ? displayLabel(inv) : "—"}</td>
+                            <td className="px-3 py-1.5 text-base">{auth ? displayLabel(auth) : "—"}</td>
+                            <td className="px-3 py-1.5"></td>
+                          </tr>
+                        );
+                      })}
+
+                      {semOitiva.length === 0 && predictedInvSO.length === 0 && predictedAuthSO.length === 0 && (
+                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">Nenhum servidor disponível neste horário.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* ── Aba: Já Atendidas ── */}
         <TabsContent value="atendidas" className="space-y-4 mt-4">
           <div className="overflow-x-auto">
