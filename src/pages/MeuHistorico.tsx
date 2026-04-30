@@ -260,7 +260,7 @@ const MeuHistorico = () => {
           <div>
             <h2 className="text-xl font-semibold text-foreground">Meu Histórico</h2>
             <p className="text-sm text-muted-foreground">
-              Ocorrências em que você atuou como OIP ou Autoridade. Gere depoimentos sob demanda enquanto o PDF estiver disponível (≤ 24h).
+              Ocorrências em que você atuou como OIP ou Autoridade. O PDF original fica disponível por até 24h após a triagem (ou até exclusão manual) e pode ser usado para gerar/regerar depoimentos.
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
