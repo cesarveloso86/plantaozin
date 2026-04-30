@@ -363,6 +363,6 @@ export function useAnalysis() {
   return {
     status, result, triageResult, error, fileName,
     analyze, analyzeTriage, persistTriageForShift, generateFullFromAnalysis,
-    reanalyze, reset,
+    reanalyzeFromAnalysis, reanalyze, reset,
   };
 }
