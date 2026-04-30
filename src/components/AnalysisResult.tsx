@@ -200,7 +200,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             <Separator />
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumo dos Fatos</h4>
-              <p className="text-sm leading-relaxed text-foreground">{triagem.resumo}</p>
+              <p className="text-sm leading-relaxed text-foreground break-words">{triagem.resumo}</p>
             </div>
             {alertas.length > 0 && (
               <div>
