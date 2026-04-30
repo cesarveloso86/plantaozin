@@ -62,6 +62,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const [newTimeSO, setNewTimeSO] = useState("");
   const [addingSO, setAddingSO] = useState(false);
 
+  // Picks editáveis na linha de confirmação (override da sugestão da fila).
+  // null = seguir sugestão automática; string = escolha manual fixada.
+  const [pickInv, setPickInv] = useState<string | null>(null);
+  const [pickAuth, setPickAuth] = useState<string | null>(null);
+  const [pickInvSO, setPickInvSO] = useState<string | null>(null);
+  const [pickAuthSO, setPickAuthSO] = useState<string | null>(null);
+
   // Skip histórico por ocorrência em atendimento (id).
   const [skippedInvByOcc, setSkippedInvByOcc] = useState<Record<string, string[]>>({});
   const [skippedAuthByOcc, setSkippedAuthByOcc] = useState<Record<string, string[]>>({});
@@ -125,50 +132,57 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 5, now),
+    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 10, now),
     [oipSubteams, mainQueueOccs, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 5, now),
+    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 10, now),
     [delSubteams, mainQueueOccs, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 5, now),
+      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 10, now),
     [predictedInvSub, allInvestigators, mainQueueOccs, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 5, now),
+      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 10, now),
     [predictedAuthSub, allAuthorities, mainQueueOccs, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
   const suggestedAuthority = predictedAuth[0] || "";
 
-  // Fila preditiva independente para "Sem Oitiva" — só conta ocorrências sem_oitiva.
+  // Fila preditiva independente para "Sem Oitiva".
+  // Como Sem Oitiva grava direto como "atendida", reaproveitamos a mesma base
+  // de carga (todas as ocorrências do plantão), mas mantemos uma fila própria
+  // para que o usuário possa distribuir paralelamente sem afetar a aba principal.
+  const semOitivaBase = useMemo(
+    () => occurrences,
+    [occurrences],
+  );
   const predictedInvSubSO = useMemo(
-    () => predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now),
-    [oipSubteams, semOitiva, now],
+    () => predictSubteamQueue(oipSubteams, semOitivaBase, [], "investigator", 10, now),
+    [oipSubteams, semOitivaBase, now],
   );
   const predictedAuthSubSO = useMemo(
-    () => predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now),
-    [delSubteams, semOitiva, now],
+    () => predictSubteamQueue(delSubteams, semOitivaBase, [], "authority", 10, now),
+    [delSubteams, semOitivaBase, now],
   );
   const predictedInvSO = useMemo(
     () => predictedInvSubSO.length > 0
       ? predictedInvSubSO.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, semOitiva, [], "investigator", 5, now),
-    [predictedInvSubSO, allInvestigators, semOitiva, now],
+      : predictQueue(allInvestigators, semOitivaBase, [], "investigator", 10, now),
+    [predictedInvSubSO, allInvestigators, semOitivaBase, now],
   );
   const predictedAuthSO = useMemo(
     () => predictedAuthSubSO.length > 0
       ? predictedAuthSubSO.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, semOitiva, [], "authority", 5, now),
-    [predictedAuthSubSO, allAuthorities, semOitiva, now],
+      : predictQueue(allAuthorities, semOitivaBase, [], "authority", 10, now),
+    [predictedAuthSubSO, allAuthorities, semOitivaBase, now],
   );
   const suggestedInvestigatorSO = predictedInvSO[0] || "";
   const suggestedAuthoritySO = predictedAuthSO[0] || "";
@@ -199,12 +213,14 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
         status: "em_atendimento",
         bu_number: bu,
         tramitation_time: tramitationIso,
-        investigator: suggestedInvestigator,
-        authority: suggestedAuthority,
+        investigator: pickInv ?? suggestedInvestigator,
+        authority: pickAuth ?? suggestedAuthority,
       });
       toast.success(`BU ${bu} em atendimento`);
       setNewBu("");
       setNewTime("");
+      setPickInv(null);
+      setPickAuth(null);
     } catch {
       toast.error("Erro ao adicionar à fila");
     } finally {
@@ -212,7 +228,9 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     }
   };
 
-  /** Adiciona a ocorrência à fila "Sem Oitiva" (procedimentos sem ordem rígida). */
+  /** Registra uma ocorrência da aba "Sem Oitiva".
+   * Como esses procedimentos não geram oitiva real, gravamos direto como "atendida"
+   * — entram em "Já Atendidas" e são exportadas na PO (DOCX) e na planilha (XLSX). */
   const addToQueueSO = async () => {
     const bu = normBu(newBuSO);
     if (!bu) { toast.error("Informe o número do BU"); return; }
@@ -229,15 +247,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setAddingSO(true);
     try {
       await onAdd({
-        status: "sem_oitiva",
+        status: "atendida",
         bu_number: bu,
         tramitation_time: tramitationIso,
-        investigator: suggestedInvestigatorSO,
-        authority: suggestedAuthoritySO,
+        investigator: pickInvSO ?? suggestedInvestigatorSO,
+        authority: pickAuthSO ?? suggestedAuthoritySO,
       });
-      toast.success(`BU ${bu} adicionado em Sem Oitiva`);
+      toast.success(`BU ${bu} registrado em Sem Oitiva`);
       setNewBuSO("");
       setNewTimeSO("");
+      setPickInvSO(null);
+      setPickAuthSO(null);
     } catch {
       toast.error("Erro ao adicionar à fila");
     } finally {
@@ -496,11 +516,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                               title="Horário (opcional)"
                             />
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedInvestigator ? displayLabel(suggestedInvestigator) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickInv ?? suggestedInvestigator ?? ""}
+                              onValueChange={(v) => setPickInv(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedAuthority ? displayLabel(suggestedAuthority) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickAuth ?? suggestedAuthority ?? ""}
+                              onValueChange={(v) => setPickAuth(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Button size="sm" onClick={addToQueue} disabled={adding || !newBu.trim()} className="h-9 gap-1 w-full">
@@ -510,8 +542,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                         </tr>
                       )}
 
-                      {/* Slots seguintes (preview da fila preditiva, sem input) */}
-                      {shift.status === "active" && predictedInv.slice(1, 4).map((inv, i) => {
+                      {/* Slots seguintes (preview da fila preditiva, sem input) — até 10 servidores */}
+                      {shift.status === "active" && predictedInv.slice(1, 10).map((inv, i) => {
                         const auth = predictedAuth[i + 1] || "";
                         const subInv = predictedInvSub[i + 1];
                         const subAuth = predictedAuthSub[i + 1];
@@ -649,11 +681,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                               title="Horário (opcional)"
                             />
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedInvestigatorSO ? displayLabel(suggestedInvestigatorSO) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickInvSO ?? suggestedInvestigatorSO ?? ""}
+                              onValueChange={(v) => setPickInvSO(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
+                              <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
-                          <td className="px-3 py-2 text-base font-medium">
-                            {suggestedAuthoritySO ? displayLabel(suggestedAuthoritySO) : "—"}
+                          <td className="px-3 py-2">
+                            <Select
+                              value={pickAuthSO ?? suggestedAuthoritySO ?? ""}
+                              onValueChange={(v) => setPickAuthSO(v)}
+                            >
+                              <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                              <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Button size="sm" onClick={addToQueueSO} disabled={addingSO || !newBuSO.trim()} className="h-9 gap-1 w-full">
@@ -663,7 +707,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                         </tr>
                       )}
 
-                      {shift.status === "active" && predictedInvSO.slice(1, 4).map((inv, i) => {
+                      {shift.status === "active" && predictedInvSO.slice(1, 10).map((inv, i) => {
                         const auth = predictedAuthSO[i + 1] || "";
                         return (
                           <tr key={`slot-so-${i}`} className="border-b border-border/40 opacity-60">
