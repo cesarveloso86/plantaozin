@@ -117,29 +117,41 @@ export function useShift() {
   const addOccurrence = useCallback(
     async (occ: Partial<ShiftOccurrence>) => {
       if (!user || !activeShift) return;
-      const { error } = await supabase.from("shift_occurrences").insert({
-        shift_id: activeShift.id,
-        status: occ.status || "em_atendimento",
-        bu_number: occ.bu_number || "",
-        tramitation_time: occ.tramitation_time || null,
-        procedure_type: occ.procedure_type || null,
-        procedure_type_2: occ.procedure_type_2 || null,
-        procedure_type_3: occ.procedure_type_3 || null,
-        investigator: occ.investigator || null,
-        authority: occ.authority || null,
-        regional: occ.regional || null,
-        has_report: occ.has_report || false,
-        num_hearings: occ.num_hearings || 0,
-        observations: occ.observations || null,
-        conducted_names: occ.conducted_names || null,
-        victim_names: occ.victim_names || null,
-        suspect_names: occ.suspect_names || null,
-        tipification: occ.tipification || null,
-        po_status: occ.po_status || null,
-        analysis_id: occ.analysis_id || null,
-        created_by: user.id,
-      });
+      const { data, error } = await supabase
+        .from("shift_occurrences")
+        .insert({
+          shift_id: activeShift.id,
+          status: occ.status || "em_atendimento",
+          bu_number: occ.bu_number || "",
+          tramitation_time: occ.tramitation_time || null,
+          procedure_type: occ.procedure_type || null,
+          procedure_type_2: occ.procedure_type_2 || null,
+          procedure_type_3: occ.procedure_type_3 || null,
+          investigator: occ.investigator || null,
+          authority: occ.authority || null,
+          regional: occ.regional || null,
+          has_report: occ.has_report || false,
+          num_hearings: occ.num_hearings || 0,
+          observations: occ.observations || null,
+          conducted_names: occ.conducted_names || null,
+          victim_names: occ.victim_names || null,
+          suspect_names: occ.suspect_names || null,
+          tipification: occ.tipification || null,
+          po_status: occ.po_status || null,
+          analysis_id: occ.analysis_id || null,
+          created_by: user.id,
+        })
+        .select()
+        .single();
       if (error) throw error;
+      // Atualização otimista: insere localmente sem aguardar realtime.
+      if (data) {
+        setOccurrences((prev) =>
+          prev.some((o) => o.id === (data as ShiftOccurrence).id)
+            ? prev
+            : [...prev, data as unknown as ShiftOccurrence]
+        );
+      }
     },
     [user, activeShift]
   );
