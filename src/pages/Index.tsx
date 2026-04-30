@@ -56,15 +56,20 @@ const Index = () => {
   const pickNextAssignees = () => {
      const active = shift.activeShift;
      if (!active) return { investigator: "", authority: "" };
-     const completed = shift.occurrences.filter((o) => o.status !== "em_atendimento");
+     // Considera TODAS as ocorrências (em_atendimento, atendida, sem_oitiva) para
+     // computar carga, igual à fila preditiva da OccurrencesTab. Filtrar só as
+     // atendidas fazia o algoritmo repetir o mesmo OIP/Autoridade que já tinha
+     // BU em andamento (carga zerada artificialmente).
+     // Excluímos apenas "sem_oitiva", pois é uma fila paralela independente.
+     const all = shift.occurrences.filter((o) => o.status !== "sem_oitiva");
      const now = new Date();
-     const invSub = predictSubteamQueue(active.oip_subteams || [], completed, [], "investigator", 1, now);
-     const authSub = predictSubteamQueue(active.delegado_subteams || [], completed, [], "authority", 1, now);
+     const invSub = predictSubteamQueue(active.oip_subteams || [], all, [], "investigator", 1, now);
+     const authSub = predictSubteamQueue(active.delegado_subteams || [], all, [], "authority", 1, now);
      const investigator = invSub[0]?.memberPick
-       ?? predictQueue(active.investigators || [], completed, [], "investigator", 1, now)[0]
+       ?? predictQueue(active.investigators || [], all, [], "investigator", 1, now)[0]
        ?? "";
      const authority = authSub[0]?.memberPick
-       ?? predictQueue(active.authorities || [], completed, [], "authority", 1, now)[0]
+       ?? predictQueue(active.authorities || [], all, [], "authority", 1, now)[0]
        ?? "";
      return { investigator, authority };
   };
