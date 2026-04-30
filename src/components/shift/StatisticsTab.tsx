@@ -21,7 +21,7 @@ export function StatisticsTab({ occurrences, shift }: Props) {
 
   const stats = useMemo(() => {
     // Apenas ocorrências atendidas contam nas estatísticas oficiais.
-    const finalOccs = occurrences.filter((o) => o.status !== "em_atendimento");
+    const finalOccs = occurrences.filter((o) => o.status === "atendida");
     const byType: Record<string, number> = {};
     const byRegional: Record<string, number> = {};
     const byInvestigator: Record<string, number> = {};
