@@ -171,6 +171,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const suggestedInvestigatorSO = predictedInvSO[0] || "";
   const suggestedAuthoritySO = predictedAuthSO[0] || "";
 
+  const dupMsg = (status: string) =>
+    status === "em_atendimento" ? "em distribuição"
+    : status === "sem_oitiva" ? "em sem oitiva"
+    : "já atendida";
+
   /** Adiciona a ocorrência DIRETO ao card "Em Atendimento" com OIP/Autoridade
    * já preenchidos pela fila preditiva. */
   const addToQueue = async () => {
@@ -178,8 +183,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     if (!bu) { toast.error("Informe o número do BU"); return; }
     const dup = findExistingBu(bu);
     if (dup) {
-      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
-      toast.error(`BU ${bu} já está ${where} neste plantão.`);
+      toast.error(`BU ${bu} já está ${dupMsg(dup.status)} neste plantão.`);
       return;
     }
 
@@ -203,6 +207,39 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       toast.error("Erro ao adicionar à fila");
     } finally {
       setAdding(false);
+    }
+  };
+
+  /** Adiciona a ocorrência à fila "Sem Oitiva" (procedimentos sem ordem rígida). */
+  const addToQueueSO = async () => {
+    const bu = normBu(newBuSO);
+    if (!bu) { toast.error("Informe o número do BU"); return; }
+    const dup = findExistingBu(bu);
+    if (dup) {
+      toast.error(`BU ${bu} já está ${dupMsg(dup.status)} neste plantão.`);
+      return;
+    }
+
+    const today = shift.shift_date;
+    const timeVal = newTimeSO || new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const tramitationIso = new Date(`${today}T${timeVal}`).toISOString();
+
+    setAddingSO(true);
+    try {
+      await onAdd({
+        status: "sem_oitiva",
+        bu_number: bu,
+        tramitation_time: tramitationIso,
+        investigator: suggestedInvestigatorSO,
+        authority: suggestedAuthoritySO,
+      });
+      toast.success(`BU ${bu} adicionado em Sem Oitiva`);
+      setNewBuSO("");
+      setNewTimeSO("");
+    } catch {
+      toast.error("Erro ao adicionar à fila");
+    } finally {
+      setAddingSO(false);
     }
   };
 
