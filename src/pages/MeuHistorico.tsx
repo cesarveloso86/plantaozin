@@ -203,7 +203,19 @@ const MeuHistorico = () => {
     }
   };
 
+  /** Remove o PDF do bucket (se ainda existir) e zera pdf_storage_path. */
+  const purgePdfsForOccurrences = async (occRows: Row[]) => {
+    const analysisIds = occRows.map((r) => r.analysis_id).filter((x): x is string => !!x);
+    if (analysisIds.length === 0) return;
+    const paths = occRows.map((r) => r.pdf_storage_path).filter((p): p is string => !!p);
+    if (paths.length > 0) {
+      await supabase.storage.from("bo-pdfs").remove(paths);
+    }
+    await supabase.from("analyses").update({ pdf_storage_path: null } as never).in("id", analysisIds);
+  };
+
   const handleDeleteOne = async (row: Row) => {
+    await purgePdfsForOccurrences([row]);
     const { error } = await supabase.from("shift_occurrences").delete().eq("id", row.id);
     if (error) {
       toast.error("Erro ao excluir ocorrência.");
@@ -216,8 +228,9 @@ const MeuHistorico = () => {
   const handleClearAll = async () => {
     const targetName = isAdmin && filterName ? filterName : myName;
     if (!targetName) return;
+    if (rows.length === 0) return;
+    await purgePdfsForOccurrences(rows);
     const ids = rows.map((r) => r.id);
-    if (ids.length === 0) return;
     const { error } = await supabase.from("shift_occurrences").delete().in("id", ids);
     if (error) {
       toast.error("Erro ao limpar histórico.");
