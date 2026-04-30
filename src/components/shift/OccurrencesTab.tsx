@@ -278,7 +278,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     <div className="space-y-4">
       <Tabs defaultValue="distribuicao" className="w-full">
         <TabsList>
-          <TabsTrigger value="distribuicao">Em Distribuição ({pendingQueue.length + inAttendance.length})</TabsTrigger>
+          <TabsTrigger value="distribuicao">Em Distribuição ({inAttendance.length})</TabsTrigger>
           <TabsTrigger value="atendidas">Já Atendidas ({completed.length})</TabsTrigger>
         </TabsList>
 
