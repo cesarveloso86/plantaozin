@@ -163,12 +163,8 @@ export function useAnalysis() {
           } as never)
           .eq("id", analysisId);
 
-        // LGPD: descarta PDF imediatamente após gerar depoimentos.
-        await supabase.storage.from("bo-pdfs").remove([storagePath]);
-        await supabase
-          .from("analyses")
-          .update({ pdf_storage_path: null } as never)
-          .eq("id", analysisId);
+        // LGPD: PDF mantido por até 24h após a triagem (cleanup-expired-pdfs)
+        // ou até exclusão manual pelo servidor no "Meu Histórico".
 
         setResult(full);
         setStatus("done");
