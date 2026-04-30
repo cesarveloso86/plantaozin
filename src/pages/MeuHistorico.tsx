@@ -203,6 +203,35 @@ const MeuHistorico = () => {
     }
   };
 
+  const handleDeleteOne = async (row: Row) => {
+    const { error } = await supabase.from("shift_occurrences").delete().eq("id", row.id);
+    if (error) {
+      toast.error("Erro ao excluir ocorrência.");
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    toast.success("Ocorrência excluída do histórico.");
+  };
+
+  const handleClearAll = async () => {
+    const targetName = isAdmin && filterName ? filterName : myName;
+    if (!targetName) return;
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("shift_occurrences").delete().in("id", ids);
+    if (error) {
+      toast.error("Erro ao limpar histórico.");
+      return;
+    }
+    setRows([]);
+    toast.success(`Histórico limpo (${ids.length} ocorrências removidas).`);
+  };
+
+  const isPdfExpiredByTime = (createdAt?: string | null) => {
+    if (!createdAt) return false;
+    return Date.now() - new Date(createdAt).getTime() > 24 * 3600 * 1000;
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
