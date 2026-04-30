@@ -116,30 +116,60 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const oipSubteams = shift.oip_subteams || [];
   const delSubteams = shift.delegado_subteams || [];
 
+  // Ocorrências que contam para a fila "Em Distribuição" (exclui sem_oitiva).
+  const mainQueueOccs = useMemo(
+    () => occurrences.filter((o) => o.status !== "sem_oitiva"),
+    [occurrences],
+  );
+
   const predictedInvSub = useMemo(
-    () => predictSubteamQueue(oipSubteams, occurrences, [], "investigator", 5, now),
-    [oipSubteams, occurrences, now],
+    () => predictSubteamQueue(oipSubteams, mainQueueOccs, [], "investigator", 5, now),
+    [oipSubteams, mainQueueOccs, now],
   );
   const predictedAuthSub = useMemo(
-    () => predictSubteamQueue(delSubteams, occurrences, [], "authority", 5, now),
-    [delSubteams, occurrences, now],
+    () => predictSubteamQueue(delSubteams, mainQueueOccs, [], "authority", 5, now),
+    [delSubteams, mainQueueOccs, now],
   );
 
   const predictedInv = useMemo(
     () => predictedInvSub.length > 0
       ? predictedInvSub.map((p) => p.memberPick)
-      : predictQueue(allInvestigators, occurrences, [], "investigator", 5, now),
-    [predictedInvSub, allInvestigators, occurrences, now],
+      : predictQueue(allInvestigators, mainQueueOccs, [], "investigator", 5, now),
+    [predictedInvSub, allInvestigators, mainQueueOccs, now],
   );
   const predictedAuth = useMemo(
     () => predictedAuthSub.length > 0
       ? predictedAuthSub.map((p) => p.memberPick)
-      : predictQueue(allAuthorities, occurrences, [], "authority", 5, now),
-    [predictedAuthSub, allAuthorities, occurrences, now],
+      : predictQueue(allAuthorities, mainQueueOccs, [], "authority", 5, now),
+    [predictedAuthSub, allAuthorities, mainQueueOccs, now],
   );
 
   const suggestedInvestigator = predictedInv[0] || "";
   const suggestedAuthority = predictedAuth[0] || "";
+
+  // Fila preditiva independente para "Sem Oitiva" — só conta ocorrências sem_oitiva.
+  const predictedInvSubSO = useMemo(
+    () => predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now),
+    [oipSubteams, semOitiva, now],
+  );
+  const predictedAuthSubSO = useMemo(
+    () => predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now),
+    [delSubteams, semOitiva, now],
+  );
+  const predictedInvSO = useMemo(
+    () => predictedInvSubSO.length > 0
+      ? predictedInvSubSO.map((p) => p.memberPick)
+      : predictQueue(allInvestigators, semOitiva, [], "investigator", 5, now),
+    [predictedInvSubSO, allInvestigators, semOitiva, now],
+  );
+  const predictedAuthSO = useMemo(
+    () => predictedAuthSubSO.length > 0
+      ? predictedAuthSubSO.map((p) => p.memberPick)
+      : predictQueue(allAuthorities, semOitiva, [], "authority", 5, now),
+    [predictedAuthSubSO, allAuthorities, semOitiva, now],
+  );
+  const suggestedInvestigatorSO = predictedInvSO[0] || "";
+  const suggestedAuthoritySO = predictedAuthSO[0] || "";
 
   /** Adiciona a ocorrência DIRETO ao card "Em Atendimento" com OIP/Autoridade
    * já preenchidos pela fila preditiva. */
