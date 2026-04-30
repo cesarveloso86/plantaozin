@@ -247,16 +247,17 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
     setShowForm(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (finalize = true) => {
     const bu = normBu(form.bu_number || "");
     if (!bu) { toast.error("Informe o número do BU"); return; }
     setSaving(true);
     try {
       if (editingId) {
         const updates = { ...form };
-        if (isInAttendance) updates.status = "atendida";
+        if (isInAttendance && finalize) updates.status = "atendida";
+        else if (isInAttendance) updates.status = "em_atendimento";
         await onUpdate(editingId, updates);
-        toast.success(isInAttendance ? "Atendimento concluído" : "Ocorrência atualizada");
+        toast.success(isInAttendance ? (finalize ? "Atendimento concluído" : "Progresso salvo") : "Ocorrência atualizada");
       } else {
         const existing = findExistingBu(bu);
         if (existing) {
