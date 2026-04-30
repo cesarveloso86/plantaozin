@@ -1,56 +1,42 @@
 ## Plano
 
-### 1. `MeuHistorico.tsx` — card sem rolagem horizontal e regeneração individual
+### 1. Fila preditiva como tabela compacta (estilo planilha)
 
-**Bug do scroll horizontal**: o `<DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">` não força wrap nos textos longos (despacho, depoimentos com palavras grandes). Vou:
+Em `src/components/shift/OccurrencesTab.tsx` (aba "Em Distribuição"):
 
-- Adicionar `overflow-x-hidden` ao `DialogContent`.
-- Em `AnalysisResult.tsx`, trocar `whitespace-pre-wrap` puro pelo combinado com `break-words` (ou `overflow-wrap: anywhere`) nos blocos de texto longo (despacho `<p>`, conteúdo do depoimento, alertas). Adicionar `min-w-0` nos pais dos textos para evitar que filhos com conteúdo longo expandam o flex/grid pai.
-- Reduzir `max-w-5xl` para `max-w-4xl` no Dialog não é necessário; o problema é wrap.
+- **Remover** o parágrafo de instrução (`"Próximos OIPs e Autoridades já pré-distribuídos..."`) — deixar só o título "Em Atendimento" + relógio.
+- **Remover** os rótulos repetidos `OIP:` / `Autoridade:` em cada linha.
+- **Remover** os badges `Slot 2`, `Slot 3`, `Slot 4` e o texto `aguardando BU`.
+- Reformular a seção como uma **tabela única** (cabeçalho fixo: `BU` · `Hora` · `OIP` · `Autoridade` · `Ações`):
+  - **Linhas 1..N**: ocorrências reais já em atendimento (com selects inline editáveis para OIP/Autoridade, botão Continuar/Remover, igual ao atual mas em formato `<tr>`).
+  - **Linha "Próximo"**: input de Nº BU + input de hora + OIP/Autoridade pré-preenchidos (como texto, sem rótulo) + botão Confirmar.
+  - **Linhas seguintes (slots preview)**: apenas mostram OIP / Autoridade previstos como texto simples, sem badge "Slot N" e sem o texto "aguardando BU". Estilo `opacity-60` para distinguir.
+- Resultado visual: parece uma planilha enxuta, com colunas alinhadas e sem repetição de rótulos linha a linha.
 
-**Regenerar individual por depoimento (a partir de Meu Histórico)**:
+### 2. Editar horário de tramitação em ocorrências em atendimento
 
-- Hoje, `AnalysisResult.tsx` já tem o botão "Corrigir" por depoimento (`FieldEditButton field="depoimento" index={i}`), mas não é exibido em `MeuHistorico` porque `onReanalyze` não é passado.
-- Em `MeuHistorico.tsx`, passar `onReanalyze` ao `<AnalysisResultView>` que delega para uma nova função `useAnalysis.reanalyzeFromAnalysis(analysisId, instructions, field, depoimentoIndex)`.
-- Em `useAnalysis.ts`, criar `reanalyzeFromAnalysis`:
-  - Lê o `pdf_storage_path` e `result` da `analyses` row.
-  - Busca `signature_style` do usuário logado (já existe `fetchSignatureStyle`).
-  - Chama `analyze-bo` com `mode: "full"`, `pdf_storage_path`, `previous_result`, `instructions`, `field`, `depoimento_index`, `signature_style`.
-  - Atualiza a row `analyses.result` com o novo resultado.
-  - Atualiza `setResult` e retorna o resultado.
-- `MeuHistorico` consome o `result`/`status` retornados, atualiza `resultData` e mostra spinner enquanto reanalyzing.
+Hoje a hora aparece como texto somente leitura na linha em atendimento (`fmtTime(occ.tramitation_time)`). Vou trocar por um `<input type="time" step="1">` inline que, ao alterar (`onBlur` ou `onChange` debounced), chama `onUpdate(occ.id, { tramitation_time: ISO })`. O ISO é construído com `shift.shift_date` + horário escolhido. Mostrar "—" quando vazio e permitir limpar.
 
-**Geração conforme perfil do usuário**: já funciona — `generateFullFromAnalysis` chama `fetchSignatureStyle(user.id)` do usuário logado (não do criador da análise). Sem mudança necessária. Vou apenas confirmar e remover comentário enganoso, se houver.
+A mesma edição inline também valerá na aba "Já Atendidas" (coluna Horário), trocando o `<td>` estático por input de hora.
 
-### 2. `OccurrencesTab.tsx` — fila preditiva pré-preenchida em "Em Atendimento"
+### 3. Remover preenchimento automático de `tramitation_time` ao enviar ao plantão
 
-**Comportamento novo**:
+O usuário esclareceu que esse horário vem de outro sistema; o app não deve mais inserir um valor automático. Mudanças em `src/pages/Index.tsx`:
 
-- Remover o card "Fila Preditiva — Disponíveis Agora" com badges dos próximos OIPs/Autoridades.
-- Em vez disso, no card "Em Atendimento", **adicionar slots vazios pré-preenchidos** (placeholders virtuais) para os próximos N (=3 ou 5) atendimentos previstos:
-  - Cada slot mostra: OIP sugerido + Autoridade sugerida + um campo de input para "Nº BU" e "Horário".
-  - Ao preencher o BU e dar Enter (ou clicar "Confirmar"), chama `onAdd` com o BU e os OIP/Autoridade do slot, virando uma ocorrência real.
-  - Os slots virtuais recalculam automaticamente conforme novas ocorrências entram.
-- O botão único atual de "Inline add" (Nº BU / Horário / Adicionar à Em Atendimento) é substituído por essa lista de slots — o primeiro slot é equivalente ao add inline atual.
-- Manter o cabeçalho do card com o relógio e a frase explicativa (compactada).
+- Linha 82 (envio da triagem ao plantão, fluxo principal): remover `tramitation_time: new Date().toISOString()` do payload — deixar o campo `null`.
+- Linha 194 (segundo fluxo análogo de envio ao plantão): mesma remoção.
+- Os blocos que removem `tramitation_time` no merge (linhas 122 e 201) continuam corretos e ficam.
 
-**Aumentar fonte dos nomes dos servidores**:
+Em `src/components/shift/OccurrencesTab.tsx`:
 
-- Selects inline na seção "Em Atendimento" (linhas ~367-378): trocar `text-sm` por `text-base` no `SelectTrigger` e nos `SelectItem`. Aumentar largura de `w-[150px]` para `w-[180px]` para acomodar.
-- Nos slots virtuais novos, mostrar nomes em `text-base font-medium` em vez de badges pequenas.
+- Linha 228 (cadastro manual concluído via modal): remover o fallback `|| new Date().toISOString()`, enviando apenas `form.tramitation_time` (pode ser `null/undefined`).
+- A entrada via slot "Próximo" (linha 148–156) **mantém** o uso de `newTime || agora`, pois ali o usuário está digitando manualmente o horário no momento da entrada à fila — é o caso legítimo de input direto. Mas como o usuário quer poder editar depois (item 2), isso já fica resolvido.
 
-**Predição**:
-
-- A função `predictSubteamQueue`/`predictQueue` recebe `count = N` e retorna a sequência. Cada slot virtual `i` consome `predictedInv[i]` e `predictedAuth[i]`.
-- Ao confirmar um slot, a próxima ocorrência real entra no array `occurrences`, e os slots se reordenam naturalmente porque a predição já considera carga.
-
-### 3. Arquivos alterados
+### 4. Arquivos alterados
 
 ```text
-src/hooks/useAnalysis.ts                      — nova função reanalyzeFromAnalysis
-src/pages/MeuHistorico.tsx                    — overflow-x-hidden no Dialog, passar onReanalyze
-src/components/AnalysisResult.tsx             — break-words / min-w-0 nos blocos de texto
-src/components/shift/OccurrencesTab.tsx       — remover card "Fila Preditiva"; slots virtuais em "Em Atendimento" com OIP/Autoridade pré-preenchidos; aumentar tamanho dos nomes
+src/components/shift/OccurrencesTab.tsx   — refatorar "Em Atendimento" para tabela; input de hora editável; remover fallback de tramitation_time no save
+src/pages/Index.tsx                       — não setar tramitation_time automaticamente ao enviar ao plantão (2 ocorrências)
 ```
 
-Sem mudanças em DB, edge functions ou tipos.
+Sem mudanças em DB, edge functions, tipos ou hooks.
