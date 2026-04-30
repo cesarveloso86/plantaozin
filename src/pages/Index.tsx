@@ -79,7 +79,6 @@ const Index = () => {
       conducted_names: (t.interrogados_nomes || []).join(", "),
       victim_names: (t.vitimas_nomes || []).join(", "),
       regional: resolveRegional(t),
-      tramitation_time: new Date().toISOString(),
       investigator,
       authority,
     };
@@ -191,7 +190,6 @@ const Index = () => {
       conducted_names: result.depoimentos?.filter((d) => d.tipo === "interrogado").map((d) => d.nome).join(", ") || "",
       victim_names: result.depoimentos?.filter((d) => d.tipo === "vitima").map((d) => d.nome).join(", ") || "",
       regional,
-      tramitation_time: new Date().toISOString(),
       investigator,
       authority,
     };
