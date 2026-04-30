@@ -1,68 +1,61 @@
-## Problemas e plano
+## Diagnóstico
 
-### 1. Bug: distribuição repete servidor que já está em atendimento
+1. **Erro ao confirmar em "Sem Oitiva"**: a tabela `shift_occurrences` tem um CHECK constraint antigo:
+   ```
+   CHECK (status = ANY (ARRAY['em_atendimento', 'atendida']))
+   ```
+   Quando o `addToQueueSO` envia `status: "sem_oitiva"`, o Postgres rejeita o INSERT. Por isso o botão Confirmar falha. Precisa migration para liberar o terceiro valor.
 
-**Causa**: em `src/pages/Index.tsx` a função `pickNextAssignees` (linha 56) calcula a fila usando apenas `occurrences.filter(o => o.status !== "em_atendimento")` — ou seja, ignora a carga das ocorrências em andamento. Se o OIP X já tem 1 BU em atendimento, ele aparece com carga 0 e é escolhido de novo no próximo BU.
+2. **Fila preditiva**: hoje o código pede `count=5` em `predictSubteamQueue` / `predictQueue` e renderiza apenas 1 linha de input + 3 slots-preview (`predictedInv.slice(1,4)`). O usuário quer 10 slots pré-preenchidos.
 
-A `OccurrencesTab` (que mostra a tabela em distribuição) usa `occurrences` inteiro, por isso a previsão lá está correta. Daí a divergência: a tabela mostra um nome, mas ao enviar pela triagem é gravado outro (ou o mesmo de novo).
+3. **Exportação**: `exportShiftXlsx` filtra `status !== "em_atendimento"` (já inclui `sem_oitiva` e `atendida`). `exportPODocx` recebe todas as ocorrências, mas `ResumoTab` (prévia da PO) já filtra somente `atendida`. Para garantir que Sem Oitiva vire registro oficial sem precisar de oitiva real, a UI de "Confirmar" da aba Sem Oitiva passará a gravar **direto como `atendida`** (mesmo comportamento de "atendida" para fins de relatório), com BU + servidores escolhidos. Isso atende ao requisito: "Não precisam entrar na fila em atendimento. Podem entrar em Já Atendidas após preenchimento."
 
-**Correção**: passar `shift.occurrences` (todas) para `predictSubteamQueue` / `predictQueue` em `pickNextAssignees`, exatamente como `OccurrencesTab.tsx` faz. Remover o `.filter(o => o.status !== "em_atendimento")`.
+4. **Dropdown na linha de confirmação**: hoje os nomes dos servidores na linha "Próximo" são apenas texto. Trocar por `<Select>` editável (mantendo a sugestão como valor padrão) tanto na aba Em Distribuição quanto na Sem Oitiva.
 
-```ts
-// src/pages/Index.tsx — pickNextAssignees
-const all = shift.occurrences;          // antes: completed = filter !== em_atendimento
-const invSub  = predictSubteamQueue(active.oip_subteams || [], all, [], "investigator", 1, now);
-const authSub = predictSubteamQueue(active.delegado_subteams || [], all, [], "authority", 1, now);
+## Plano
+
+### Migration (Lovable Cloud)
+Substituir o CHECK constraint da tabela `shift_occurrences` para permitir os três valores:
+
+```sql
+ALTER TABLE public.shift_occurrences DROP CONSTRAINT shift_occurrences_status_check;
+ALTER TABLE public.shift_occurrences ADD CONSTRAINT shift_occurrences_status_check
+  CHECK (status IN ('em_atendimento','atendida','sem_oitiva'));
 ```
 
-### 2. Nova aba "Sem Oitiva" (procedimentos sem ordem rígida)
+### `src/components/shift/OccurrencesTab.tsx`
 
-**Modelo de dados**
+- Aumentar a fila preditiva para 10 slots:
+  - Trocar `predictSubteamQueue(..., 5, ...)` → `..., 10, ...` em `predictedInvSub`, `predictedAuthSub`, `predictedInvSubSO`, `predictedAuthSubSO`.
+  - O mesmo para os fallbacks `predictQueue(..., 5, ...)` → `10`.
+  - Renderizar `predictedInv.slice(1, 10)` em vez de `slice(1, 4)` (e idem para SO).
 
-Adicionar um novo valor ao status da ocorrência: `sem_oitiva`. É um plantão paralelo ao "em atendimento", com sua própria fila independente, mas usando os mesmos OIPs/Autoridades do plantão (a flexibilidade fica por conta do usuário, que pode editar OIP/Autoridade inline).
+- **Linha "Próximo" (Em Distribuição e Sem Oitiva)**: substituir as células de OIP/Autoridade (texto puro) por `<Select>` controlado por estado local (`pickInv`, `pickAuth`, `pickInvSO`, `pickAuthSO`), inicializado com `suggestedInvestigator` / `suggestedAuthority`. Quando a sugestão muda (porque a fila recalculou) e o usuário não editou manualmente, o pick segue a sugestão; ao editar, fixa a escolha até confirmar.
+  - Reset desses picks ao terminar `addToQueue`/`addToQueueSO` para que voltem a seguir a sugestão.
 
-Migração SQL (Cloud):
-- Não há CHECK constraint em `shift_occurrences.status` hoje — basta ampliar o tipo TS. Adicionar `sem_oitiva` ao enum TS `OccurrenceStatus` em `src/types/shift.ts`.
-- RLS já cobre (por `created_by`). Sem alteração.
+- **`addToQueueSO`**: gravar a ocorrência **direto como `status: "atendida"`** (não como `sem_oitiva`), preservando BU, hora, OIP e Autoridade escolhidos. Assim, ela aparece imediatamente em "Já Atendidas" e entra naturalmente na PO (DOCX) e na planilha (XLSX). Manter o nome da aba "Sem Oitiva" e o card como espaço de **registro rápido** desses procedimentos.
 
-**UI — `src/components/shift/OccurrencesTab.tsx`**
+- **Aba Sem Oitiva — listagem das ocorrências existentes**: como agora elas viram `atendida`, a aba não precisa mais listá-las (ficam em "Já Atendidas"). Manter a aba apenas com a tabela de entrada (10 slots de fila preditiva + linha de confirmação). O contador na TabsTrigger pode ficar em 0 ou ser removido — seguiremos exibindo só o título "Sem Oitiva" sem contador.
+  - Remover dependência do tipo `sem_oitiva` no filtro `semOitiva` (não vai mais existir no banco para casos novos). Para legado: manter o filtro só para retrocompatibilidade visual, escondendo a seção se vazio.
 
-Renomear/reordenar as abas:
+- **Fila preditiva da aba Sem Oitiva**: como agora as ocorrências entram como `atendida`, a fila independente passa a contar a carga apenas dessas atendidas marcadas como sem-oitiva. Para distinguir sem mudar schema, registrar `po_status` ou `observations` não é confiável. Solução simples: a aba Sem Oitiva usa **a mesma lista de subequipes** mas mantém uma fila própria considerando todas as ocorrências do plantão (em atendimento + atendidas), distribuindo de forma independente do card "Em Atendimento". O usuário pode trocar via dropdown qualquer servidor antes de confirmar.
+
+  Como cada confirmação aumenta a carga real (atendida), a fila se reequilibra organicamente sem precisar de campo extra.
+
+### `src/types/shift.ts`
+Manter `sem_oitiva` no enum por compatibilidade com dados legados, mas o fluxo novo não cria mais esse status.
+
+### Sem mudanças
+- `src/lib/exportDocx.ts` e `src/lib/exportXlsx.ts` — já filtram corretamente (`atendida` entra).
+- `src/components/shift/ResumoTab.tsx` e `StatisticsTab.tsx` — já contam `atendida`.
+- `src/pages/Plantao.tsx` — header já cobre os três status.
+
+## Resumo dos arquivos
 
 ```text
-[ Em Distribuição (N) ]  [ Sem Oitiva (M) ]  [ Já Atendidas (K) ]
+supabase migration                              — relaxar CHECK status (sem_oitiva permitido por compat.)
+src/components/shift/OccurrencesTab.tsx         — 10 slots, Select editável na linha de confirmação,
+                                                  Sem Oitiva grava direto como atendida
 ```
 
-A aba "Sem Oitiva" replica visualmente o card "Em Atendimento" (mesma tabela: BU · Hora · OIP · Autoridade · Ações), com:
-
-- Lista das ocorrências `status === "sem_oitiva"` (editáveis inline igual à aba em distribuição: hora, OIP, autoridade via Select, skip, Continuar, Remover).
-- Linha de entrada (input BU + hora + OIP/Autoridade pré-preenchidos pela fila preditiva) para registrar uma ocorrência diretamente como `sem_oitiva`.
-- A fila preditiva é calculada **considerando apenas as ocorrências `sem_oitiva`** (ordem independente da aba "em distribuição"), usando os mesmos `oip_subteams` / `delegado_subteams`.
-
-```ts
-const inAttendance  = occurrences.filter(o => o.status === "em_atendimento");
-const semOitiva     = occurrences.filter(o => o.status === "sem_oitiva");
-const completed     = occurrences.filter(o => o.status === "atendida");
-
-// Fila preditiva independente para Sem Oitiva
-const predictedInvSO  = predictSubteamQueue(oipSubteams, semOitiva, [], "investigator", 5, now);
-const predictedAuthSO = predictSubteamQueue(delSubteams, semOitiva, [], "authority", 5, now);
-```
-
-**Continuar atendimento (botão "Continuar")**: ao salvar com finalize, status passa para `atendida` (move para "Já Atendidas"), igual à aba em distribuição. Também permitir "mover para em distribuição" via select de status (caso o usuário decida que o procedimento precisa de oitiva).
-
-**Triagem → Sem Oitiva (opcional, fora deste loop)**: por enquanto a triagem continua mandando para `em_atendimento`. O usuário pode mover manualmente. Se quiser detecção automática (ex.: TC/BOC entram direto em sem_oitiva), fica para iteração futura.
-
-**Resumo / Estatísticas**: rapidamente verificar `ResumoTab.tsx` e `StatisticsTab.tsx` — onde houver distinção `em_atendimento` vs `atendida`, tratar `sem_oitiva` como "ainda não finalizada" (mesmo bucket de em atendimento, ou contador próprio se útil). Sem mudança comportamental significativa esperada.
-
-### Arquivos alterados
-
-```text
-src/pages/Index.tsx                        — corrigir pickNextAssignees (usar todas as occurrences)
-src/types/shift.ts                         — adicionar "sem_oitiva" ao OccurrenceStatus
-src/components/shift/OccurrencesTab.tsx    — nova aba + fila preditiva independente
-src/components/shift/ResumoTab.tsx         — incluir sem_oitiva como pendente (revisar)
-src/components/shift/StatisticsTab.tsx     — idem (revisar)
-```
-
-Sem migração de banco, sem edge functions, sem mudanças em hooks.
+Sem alterações em hooks, edge functions, tipos do banco ou exports.
