@@ -13,12 +13,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, SkipForward, Send, Users, Clock } from "lucide-react";
+import { Plus, Trash2, Edit, SkipForward, Clock } from "lucide-react";
 import { toast } from "sonner";
 import type { Shift, ShiftOccurrence, ShiftMember, ShiftSubteam } from "@/types/shift";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { Switch } from "@/components/ui/switch";
-import { predictQueue, predictSubteamQueue, getAvailableMembers, nextSkipping } from "@/lib/availability";
+import { predictQueue, predictSubteamQueue, nextSkipping } from "@/lib/availability";
 import { useNow } from "@/hooks/useNow";
 import { fmtTime } from "@/lib/utils";
 
@@ -102,8 +102,6 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   );
 
   const now = useNow(30_000);
-  const availableInv = useMemo(() => getAvailableMembers(allInvestigators, now).map(m => m.name), [allInvestigators, now]);
-  const availableAuth = useMemo(() => getAvailableMembers(allAuthorities, now).map(m => m.name), [allAuthorities, now]);
 
   // Fila preditiva por subequipe (v5). Fallback: fila plana legada.
   const oipSubteams = shift.oip_subteams || [];
@@ -278,83 +276,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
 
         {/* ── Aba: Em Distribuição ── */}
         <TabsContent value="distribuicao" className="space-y-4 mt-4">
-          {shift.status === "active" && (
-            <Card className="border-primary/20 bg-accent/30">
+          {(shift.status === "active" || inAttendance.length > 0) && (
+            <Card className="border-primary/40 bg-primary/5">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Fila Preditiva — Disponíveis Agora
+                  <Clock className="w-4 h-4 text-primary" />
+                  Em Atendimento ({inAttendance.length})
                   <Badge variant="outline" className="ml-2 gap-1 font-normal">
                     <Clock className="w-3 h-3" />
                     {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                   </Badge>
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Round-robin entre subequipes ativas (menor carga, desempate por ordem de cadastro). Atualiza em tempo real conforme registros chegam.
+                  Próximos OIPs e Autoridades já pré-distribuídos pelo round-robin. Informe apenas o nº do BU para confirmar.
                 </p>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Próximos OIPs ({availableInv.length} disponível{availableInv.length !== 1 ? "is" : ""})</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {predictedInvSub.length > 0 ? predictedInvSub.map((p, i) => (
-                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
-                          {i + 1}. [{p.subteamLabel}] {displayLabel(p.memberPick)}
-                        </Badge>
-                      )) : predictedInv.length > 0 ? predictedInv.map((n, i) => (
-                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
-                          {i + 1}. {displayLabel(n)}
-                        </Badge>
-                      )) : <span className="text-xs text-muted-foreground">Nenhum OIP disponível neste horário</span>}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Próximas Autoridades ({availableAuth.length} disponível{availableAuth.length !== 1 ? "is" : ""})</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {predictedAuthSub.length > 0 ? predictedAuthSub.map((p, i) => (
-                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
-                          {i + 1}. [{p.subteamLabel}] {displayLabel(p.memberPick)}
-                        </Badge>
-                      )) : predictedAuth.length > 0 ? predictedAuth.map((n, i) => (
-                        <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
-                          {i + 1}. {displayLabel(n)}
-                        </Badge>
-                      )) : <span className="text-xs text-muted-foreground">Nenhuma Autoridade disponível neste horário</span>}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Inline add */}
-                <div className="flex gap-3 items-end pt-2 border-t border-border">
-                  <div className="flex-1">
-                    <Label className="text-sm font-medium">Nº BU</Label>
-                    <Input value={newBu} onChange={(e) => setNewBu(e.target.value)} placeholder="99999999" className="h-10 text-sm"
-                      onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }} />
-                  </div>
-                  <div className="w-[160px]">
-                    <Label className="text-sm font-medium">Horário</Label>
-                    <Input type="time" step="1" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-10 text-sm" />
-                  </div>
-                  <Button size="default" onClick={addToQueue} disabled={adding} className="h-10 gap-2 shrink-0">
-                    <Plus className="w-4 h-4" /> {adding ? "Adicionando..." : "Adicionar à Em Atendimento"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Em Atendimento (vindos da análise/IA, aguardando preenchimento) */}
-
-          {inAttendance.length > 0 && (
-            <Card className="border-primary/40 bg-primary/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  Em Atendimento ({inAttendance.length})
-                </CardTitle>
-              </CardHeader>
               <CardContent className="space-y-2">
+                {/* Ocorrências reais já em atendimento */}
                 {inAttendance.map((occ) => (
                   <div key={occ.id} className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border flex-wrap">
                     <Badge variant="outline" className="border-primary/60 text-primary text-xs shrink-0">
@@ -365,8 +303,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     {occ.regional && <span className="text-xs text-muted-foreground truncate max-w-[160px]">{occ.regional}</span>}
                     <div className="flex items-center gap-1">
                       <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
-                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="OIP" /></SelectTrigger>
-                        <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="h-9 text-base w-[180px]"><SelectValue placeholder="OIP" /></SelectTrigger>
+                        <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
                       </Select>
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular OIP" onClick={() => handleSkipInv(occ)}>
                         <SkipForward className="w-3.5 h-3.5" />
@@ -374,8 +312,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </div>
                     <div className="flex items-center gap-1">
                       <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
-                        <SelectTrigger className="h-9 text-sm w-[150px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
-                        <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="h-9 text-base w-[180px]"><SelectValue placeholder="Autoridade" /></SelectTrigger>
+                        <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
                       </Select>
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
                         <SkipForward className="w-3.5 h-3.5" />
@@ -412,6 +350,70 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </div>
                   </div>
                 ))}
+
+                {/* Slot pré-preenchido aguardando BU (primeiro da fila preditiva) */}
+                {shift.status === "active" && (predictedInv.length > 0 || predictedAuth.length > 0) && (
+                  <div className="flex items-center gap-2 bg-accent/20 rounded-lg px-3 py-2 border border-dashed border-primary/40 flex-wrap">
+                    <Badge variant="secondary" className="text-xs shrink-0">Próximo</Badge>
+                    <Input
+                      value={newBu}
+                      onChange={(e) => setNewBu(e.target.value)}
+                      placeholder="Nº BU"
+                      className="h-9 text-base w-[140px] font-mono"
+                      onKeyDown={(e) => { if (e.key === "Enter") addToQueue(); }}
+                    />
+                    <Input
+                      type="time"
+                      step="1"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      className="h-9 text-sm w-[120px]"
+                      title="Horário (opcional, padrão: agora)"
+                    />
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">OIP:</span>
+                      <span className="text-base font-medium text-foreground">{suggestedInvestigator ? displayLabel(suggestedInvestigator) : "—"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Autoridade:</span>
+                      <span className="text-base font-medium text-foreground">{suggestedAuthority ? displayLabel(suggestedAuthority) : "—"}</span>
+                    </div>
+                    <Button size="sm" onClick={addToQueue} disabled={adding || !newBu.trim()} className="h-9 gap-1 ml-auto shrink-0">
+                      <Plus className="w-4 h-4" /> {adding ? "..." : "Confirmar"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Slots seguintes (somente preview, sem input) */}
+                {shift.status === "active" && predictedInv.slice(1, 4).map((inv, i) => {
+                  const auth = predictedAuth[i + 1] || "";
+                  const subInv = predictedInvSub[i + 1];
+                  const subAuth = predictedAuthSub[i + 1];
+                  return (
+                    <div key={`slot-${i}`} className="flex items-center gap-2 rounded-lg px-3 py-1.5 border border-dashed border-border/60 flex-wrap opacity-70">
+                      <Badge variant="outline" className="text-xs shrink-0">Slot {i + 2}</Badge>
+                      <span className="text-xs text-muted-foreground">aguardando BU</span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <span className="text-xs text-muted-foreground">OIP:</span>
+                        <span className="text-base font-medium text-foreground">
+                          {subInv ? `[${subInv.subteamLabel}] ${displayLabel(subInv.memberPick)}` : (inv ? displayLabel(inv) : "—")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Autoridade:</span>
+                        <span className="text-base font-medium text-foreground">
+                          {subAuth ? `[${subAuth.subteamLabel}] ${displayLabel(subAuth.memberPick)}` : (auth ? displayLabel(auth) : "—")}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {inAttendance.length === 0 && predictedInv.length === 0 && predictedAuth.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum servidor disponível neste horário.
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

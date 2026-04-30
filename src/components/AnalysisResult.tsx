@@ -130,7 +130,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-5xl mx-auto space-y-6 pb-8">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-5xl mx-auto space-y-6 pb-8 min-w-0">
       {/* Header */}
       <motion.div {...fadeUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -200,7 +200,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             <Separator />
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Resumo dos Fatos</h4>
-              <p className="text-sm leading-relaxed text-foreground">{triagem.resumo}</p>
+              <p className="text-sm leading-relaxed text-foreground break-words">{triagem.resumo}</p>
             </div>
             {alertas.length > 0 && (
               <div>
@@ -235,7 +235,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{despacho.texto}</p>
+              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">{despacho.texto}</p>
               {despacho.tipificacoes?.length > 0 && (
                 <>
                   <Separator />
@@ -322,7 +322,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-4">
+                    <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words bg-muted/30 rounded-md p-4">
                       {dep.texto}
                     </div>
                   </CardContent>

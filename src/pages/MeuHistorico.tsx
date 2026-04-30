@@ -60,6 +60,7 @@ const MeuHistorico = () => {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState<AnalysisResult | null>(null);
+  const [resultAnalysisId, setResultAnalysisId] = useState<string | null>(null);
 
   // Quem é "eu" para filtragem por nome (investigator/authority).
   const myName = profile?.full_name || "";
@@ -185,6 +186,7 @@ const MeuHistorico = () => {
     setGeneratingFor(null);
     if (full) {
       setResultData(full);
+      setResultAnalysisId(row.analysis_id);
       setResultOpen(true);
       toast.success("Depoimentos gerados.");
       // PDF permanece disponível por 24h após a triagem (ou até exclusão manual).
@@ -199,6 +201,7 @@ const MeuHistorico = () => {
   const handleView = (row: Row) => {
     if (row.full_result) {
       setResultData(row.full_result);
+      setResultAnalysisId(row.analysis_id);
       setResultOpen(true);
     }
   };
@@ -449,12 +452,33 @@ const MeuHistorico = () => {
         )}
 
         <Dialog open={resultOpen} onOpenChange={setResultOpen}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle>Depoimentos e despacho</DialogTitle>
             </DialogHeader>
             {resultData && (
-              <AnalysisResultView data={resultData} onReset={() => setResultOpen(false)} />
+              <AnalysisResultView
+                data={resultData}
+                onReset={() => setResultOpen(false)}
+                reanalyzing={analysis.status === "analyzing"}
+                onReanalyze={async (instructions, field, depoimentoIndex) => {
+                  if (!resultAnalysisId) return;
+                  const updated = await analysis.reanalyzeFromAnalysis(
+                    resultAnalysisId, instructions, field, depoimentoIndex,
+                  );
+                  if (updated) {
+                    setResultData(updated);
+                    setRows((prev) => prev.map((r) =>
+                      r.analysis_id === resultAnalysisId
+                        ? { ...r, has_full_result: true, full_result: updated }
+                        : r,
+                    ));
+                    toast.success("Atualizado.");
+                  } else {
+                    toast.error("Não foi possível reanalisar.");
+                  }
+                }}
+              />
             )}
           </DialogContent>
         </Dialog>
