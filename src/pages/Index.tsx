@@ -313,6 +313,131 @@ const Index = () => {
           />
         </div>
       )}
+
+      <Dialog open={showRegister} onOpenChange={setShowRegister}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Registrar Ocorrência</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted/40 p-3 space-y-1 text-sm">
+              <p><span className="text-muted-foreground">BU:</span> {result?.triagem.numero_bo || "—"}</p>
+              <p><span className="text-muted-foreground">Regional:</span> {result?.triagem.regional_codigo || "—"}</p>
+              {result?.triagem.natureza && (
+                <p><span className="text-muted-foreground">Natureza:</span> {result.triagem.natureza}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Tipo de Procedimento *</Label>
+              {result?.triagem.natureza && (
+                <p className="text-xs text-muted-foreground">
+                  Natureza extraída pelo IA: {result.triagem.natureza}
+                </p>
+              )}
+              <Select
+                value={regForm.procedure_type}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, procedure_type: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PROCEDURE_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">OIP</Label>
+              <Select
+                value={regForm.investigator}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, investigator: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(shift.activeShift?.investigators ?? []).map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.nickname || m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Autoridade</Label>
+              <Select
+                value={regForm.authority}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, authority: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(shift.activeShift?.authorities ?? []).map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.nickname || m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Status PO</Label>
+              <Select
+                value={regForm.po_status}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, po_status: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aguardando">Aguardando</SelectItem>
+                  <SelectItem value="Comunicado">Comunicado</SelectItem>
+                  <SelectItem value="Tramitado">Tramitado</SelectItem>
+                  <SelectItem value="Tramitado e comunicado">Tramitado e comunicado</SelectItem>
+                  <SelectItem value="Enviado">Enviado</SelectItem>
+                  <SelectItem value="Arquivado">Arquivado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Relatório</Label>
+                <Switch
+                  checked={regForm.has_report}
+                  onCheckedChange={(v) => setRegForm((p) => ({ ...p, has_report: v }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Fiança aplicada</Label>
+                <Switch
+                  checked={regForm.has_fianca}
+                  onCheckedChange={(v) =>
+                    setRegForm((p) => ({ ...p, has_fianca: v, fianca_paga: v ? p.fianca_paga : false }))
+                  }
+                />
+              </div>
+              {regForm.has_fianca && (
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Fiança paga</Label>
+                  <Switch
+                    checked={regForm.fianca_paga}
+                    onCheckedChange={(v) => setRegForm((p) => ({ ...p, fianca_paga: v }))}
+                  />
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              A ocorrência será enviada para a fila de atendimento. Conclua o registro na aba Plantão.
+            </p>
+
+            <Button onClick={handleConfirmRegister} disabled={registering} className="w-full">
+              {registering ? "Enviando..." : "Enviar para Fila"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
