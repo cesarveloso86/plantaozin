@@ -45,6 +45,8 @@ const emptyForm = (): Partial<ShiftOccurrence> => ({
   victim_names: "",
   tipification: "",
   po_status: "",
+  has_fianca: false,
+  fianca_paga: false,
 });
 
 export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }: Props) {
@@ -942,6 +944,24 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                   <SelectItem value="Arquivado">Arquivado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.has_fianca || false}
+                  onCheckedChange={(v) => setField("has_fianca", v)}
+                />
+                <Label className="text-sm">Fiança aplicada</Label>
+              </div>
+              {form.has_fianca && (
+                <div className="flex items-center gap-2 pl-4">
+                  <Switch
+                    checked={form.fianca_paga || false}
+                    onCheckedChange={(v) => setField("fianca_paga", v)}
+                  />
+                  <Label className="text-sm">Fiança paga</Label>
+                </div>
+              )}
             </div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
             {isInAttendance ? (
