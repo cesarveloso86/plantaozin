@@ -6,11 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -93,16 +92,16 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: "Senha muito curta", description: "Mínimo de 6 caracteres.", variant: "destructive" });
+    if (password.length < 8) {
+      toast.error("Mínimo de 8 caracteres.");
       return;
     }
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast.error(error.message);
     } else {
-      toast({ title: "Senha alterada!", description: "Você já pode usar a nova senha." });
+      toast.success("Você já pode usar a nova senha.");
       await supabase.auth.signOut();
       navigate("/auth");
     }

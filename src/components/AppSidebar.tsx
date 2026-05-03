@@ -47,10 +47,10 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-semibold text-foreground leading-tight truncate">
-                Flagrante Digital
+                Plantão Digital
               </h1>
               <p className="text-[10px] text-muted-foreground truncate">
-                Processamento de BOs
+                Análise de BOs
               </p>
             </div>
           )}
@@ -131,7 +131,7 @@ export function AppSidebar() {
             <p className="text-sm font-medium text-foreground truncate">
               {profile.full_name || "Usuário"}
             </p>
-            <p className="text-xs text-muted-foreground">{profile.role}</p>
+            <p className="text-xs text-muted-foreground">{isAdmin ? "Administrador" : "Analista"}</p>
           </div>
         )}
         <div className="flex items-center gap-1">

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAIN, isValidInstitutionalEmail } from "@/lib/constants";
 import { maskNF } from "@/lib/masks";
 
@@ -15,7 +15,6 @@ type AuthMode = "login" | "signup" | "forgot";
 
 const Auth = () => {
   const { user, loading } = useAuth();
-  const { toast } = useToast();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,25 +54,23 @@ const Auth = () => {
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      toast({
-        title: "Erro ao entrar",
-        description: error.message === "Invalid login credentials"
+      toast.error(
+        error.message === "Invalid login credentials"
           ? "Email ou senha incorretos."
           : error.message,
-        variant: "destructive",
-      });
+      );
     }
     setSubmitting(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: "Senha muito curta", description: "Mínimo de 6 caracteres.", variant: "destructive" });
+    if (password.length < 8) {
+      toast.error("Mínimo de 8 caracteres.");
       return;
     }
     if (!isValidInstitutionalEmail(email)) {
-      toast({ title: "Domínio não autorizado", description: `Apenas e-mails institucionais (${ALLOWED_EMAIL_DOMAIN}) são permitidos para cadastro.`, variant: "destructive" });
+      toast.error(`Apenas e-mails institucionais (${ALLOWED_EMAIL_DOMAIN}) são permitidos para cadastro.`);
       return;
     }
     setSubmitting(true);
@@ -81,12 +78,9 @@ const Auth = () => {
       body: { email, password, full_name: fullName, nf, cargo },
     });
     if (error || data?.error) {
-      toast({ title: "Erro no cadastro", description: data?.error || error?.message || "Erro desconhecido", variant: "destructive" });
+      toast.error(data?.error || error?.message || "Erro desconhecido");
     } else {
-      toast({
-        title: "Conta criada!",
-        description: "Verifique seu email para confirmar o cadastro.",
-      });
+      toast.success("Verifique seu email para confirmar o cadastro.");
       setMode("login");
     }
     setSubmitting(false);
@@ -99,12 +93,9 @@ const Auth = () => {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast.error(error.message);
     } else {
-      toast({
-        title: "Email enviado",
-        description: "Verifique sua caixa de entrada para redefinir a senha.",
-      });
+      toast.success("Verifique sua caixa de entrada para redefinir a senha.");
       setMode("login");
     }
     setSubmitting(false);
@@ -126,7 +117,7 @@ const Auth = () => {
             </div>
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                Flagrante Digital
+                Plantão Digital
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 {mode === "login" && "Entre na sua conta"}
@@ -225,7 +216,7 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
