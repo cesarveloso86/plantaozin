@@ -309,7 +309,7 @@ const Index = () => {
             onReset={reset}
             onReanalyze={reanalyze}
             reanalyzing={isProcessing}
-            onSendToShift={handleSendFullToShift}
+            onRegister={handleOpenRegister}
           />
         </div>
       )}
