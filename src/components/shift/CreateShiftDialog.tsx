@@ -15,6 +15,7 @@ import { TEAM_NAMES } from "./shiftConstants";
 import { useAllShiftMembers } from "@/hooks/useTeamMembers";
 import { ShiftWizardSteps } from "./ShiftWizardSteps";
 import { applyRotation, getTeamRule } from "./rotation";
+import { HourSelect } from "./HourSelect";
 
 interface Props {
   open: boolean;
