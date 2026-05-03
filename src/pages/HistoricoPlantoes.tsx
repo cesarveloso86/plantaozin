@@ -84,6 +84,30 @@ const HistoricoPlantoes = () => {
     navigate("/plantao");
   };
 
+  const handleDelete = async (shift: Shift) => {
+    setDeletingId(shift.id);
+    try {
+      const { error: occErr } = await supabase
+        .from("shift_occurrences")
+        .delete()
+        .eq("shift_id", shift.id);
+      if (occErr) throw occErr;
+      const { error } = await supabase.from("shifts").delete().eq("id", shift.id);
+      if (error) throw error;
+      setRows((prev) => prev.filter((r) => r.id !== shift.id));
+      setTotal((t) => Math.max(0, t - 1));
+      toast({ title: "Plantão excluído", description: shift.team_name });
+    } catch (e) {
+      toast({
+        title: "Erro ao excluir",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="flex-1 p-6 max-w-5xl mx-auto w-full">
       <div className="mb-6">
@@ -163,13 +187,54 @@ const HistoricoPlantoes = () => {
                     {formatLocalDateBR(s.shift_date)}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleSelect(s)}
-                >
-                  Selecionar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSelect(s)}
+                  >
+                    Selecionar
+                  </Button>
+                  {isAdmin && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={deletingId === s.id}
+                          title="Excluir plantão"
+                        >
+                          {deletingId === s.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação removerá permanentemente o plantão{" "}
+                            <span className="font-medium">{s.team_name}</span>{" "}
+                            ({formatLocalDateBR(s.shift_date)}) e todas as
+                            ocorrências vinculadas. Não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(s)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
