@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DropZone from "@/components/DropZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
@@ -10,10 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RotateCcw, Send, Sparkles, AlertTriangle, Calendar, Building2, MapPin, Scale } from "lucide-react";
 import { toast } from "sonner";
-import { REGIONALS } from "@/types/shift";
+import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
 import { predictSubteamQueue, predictQueue } from "@/lib/availability";
 import type { TriageResult, AnalysisResult } from "@/types/analysis";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 const Index = () => {
   const {
@@ -21,9 +25,34 @@ const Index = () => {
     analyzeTriage, persistTriageForShift,
     analyze, reanalyze, reset,
   } = useAnalysis();
+  const {
+    status, result, triageResult, error, fileName, analysisId,
+    analyzeTriage, persistTriageForShift,
+    analyze, reanalyze, reset,
+  } = useAnalysis();
   const shift = useShift();
   const navigate = useNavigate();
   const isProcessing = ["reading", "validating", "analyzing", "generating"].includes(status);
+
+  const [showRegister, setShowRegister] = useState(false);
+  const [regForm, setRegForm] = useState<{
+    procedure_type: string;
+    po_status: string;
+    investigator: string;
+    authority: string;
+    has_report: boolean;
+    has_fianca: boolean;
+    fianca_paga: boolean;
+  }>({
+    procedure_type: "",
+    po_status: "",
+    investigator: "",
+    authority: "",
+    has_report: false,
+    has_fianca: false,
+    fianca_paga: false,
+  });
+  const [registering, setRegistering] = useState(false);
 
   const handleUpload = useCallback(async (file: File) => {
     await analyzeTriage(file);
