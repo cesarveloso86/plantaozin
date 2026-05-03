@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Shift } from "@/types/shift";
 import { formatLocalDateBR } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ShiftSelector({ shifts, onSelect }: Props) {
+  const navigate = useNavigate();
   const ativos = shifts.filter((s) => s.status === "active");
   const encerradosAll = shifts.filter((s) => s.status !== "active");
   const encerrados = encerradosAll.slice(0, 5);
@@ -53,7 +55,7 @@ export function ShiftSelector({ shifts, onSelect }: Props) {
               </DropdownMenuItem>
             ))}
             {encerradosAll.length > 5 && (
-              <DropdownMenuItem disabled>
+              <DropdownMenuItem onClick={() => navigate("/historico-plantoes")}>
                 Ver todos em Histórico de Plantões
               </DropdownMenuItem>
             )}
