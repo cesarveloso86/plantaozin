@@ -45,6 +45,8 @@ const emptyForm = (): Partial<ShiftOccurrence> => ({
   victim_names: "",
   tipification: "",
   po_status: "",
+  final_time: null,
+  first_hearing_time: null,
   has_fianca: false,
   fianca_paga: false,
 });
@@ -387,6 +389,15 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
       setForm((prev) => ({ ...prev, [key]: value })),
     [],
   );
+
+  const setTimeField = useCallback((key: "final_time" | "first_hearing_time", timeStr: string) => {
+    if (!timeStr) {
+      setField(key, null);
+      return;
+    }
+    const hms = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+    setField(key, new Date(`${shift.shift_date}T${hms}`).toISOString());
+  }, [setField, shift.shift_date]);
 
   return (
     <div className="space-y-4">
@@ -945,6 +956,26 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                 </SelectContent>
               </Select>
             </div>
+            {isInAttendance && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm">Hora 1ª Oitiva</Label>
+                  <Input
+                    type="time"
+                    value={isoToTimeInput(form.first_hearing_time ?? null)}
+                    onChange={(e) => setTimeField("first_hearing_time", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm">Hora Finalização</Label>
+                  <Input
+                    type="time"
+                    value={isoToTimeInput(form.final_time ?? null)}
+                    onChange={(e) => setTimeField("final_time", e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Switch
