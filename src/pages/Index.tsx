@@ -197,51 +197,85 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triageResult, shift, navigate, persistTriageForShift, reset]);
 
-  const handleSendFullToShift = useCallback(async () => {
-    if (!result || !shift.activeShift) {
-      if (!shift.activeShift) {
-        toast.error("Nenhum plantão ativo. Crie um plantão antes de enviar.");
-        navigate("/plantao");
-      }
+  const handleOpenRegister = useCallback(() => {
+    if (!shift.activeShift) {
+      toast.error("Nenhum plantão ativo. Crie um plantão antes.");
+      navigate("/plantao");
       return;
     }
-    const regional = resolveRegional(result.triagem);
-    const buNum = (result.triagem.numero_bo || "").trim();
-    const existing = buNum
-      ? shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum)
-      : null;
+    const firstInv = shift.activeShift.investigators[0]?.name ?? "";
+    const firstAuth = shift.activeShift.authorities[0]?.name ?? "";
+    setRegForm({
+      procedure_type: "",
+      po_status: "",
+      investigator: firstInv,
+      authority: firstAuth,
+      has_report: false,
+      has_fianca: false,
+      fianca_paga: false,
+    });
+    setShowRegister(true);
+  }, [shift.activeShift, navigate]);
 
-    const { investigator, authority } = pickNextAssignees();
-    const incoming = {
-      status: "em_atendimento" as const,
-      bu_number: buNum,
-      tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
-      conducted_names: result.depoimentos?.filter((d) => d.tipo === "interrogado").map((d) => d.nome).join(", ") || "",
-      victim_names: result.depoimentos?.filter((d) => d.tipo === "vitima").map((d) => d.nome).join(", ") || "",
-      regional,
-      investigator,
-      authority,
-    };
-
-    try {
-      if (existing) {
-        const { investigator: _i, authority: _a, tramitation_time: _t, status: _s, ...rest } =
-          incoming as Record<string, unknown>;
-        const mergeFields = onlyEmptyFields(existing as unknown as Record<string, unknown>, rest);
-        if (Object.keys(mergeFields).length > 0) {
-          await shift.updateOccurrence(existing.id, mergeFields as Partial<typeof existing>);
-          toast.success(`Ocorrência ${buNum} atualizada com dados da análise.`);
-        } else {
-          toast.info(`BU ${buNum} já estava completo — nada a mesclar.`);
-        }
-      } else {
-        await shift.addOccurrence(incoming);
-        toast.success("Ocorrência enviada ao plantão.");
-      }
-    } catch {
-      toast.error("Erro ao enviar ao plantão");
+  const handleConfirmRegister = useCallback(async () => {
+    if (!result || !shift.activeShift) return;
+    if (!regForm.procedure_type) {
+      toast.error("Selecione o tipo de procedimento.");
+      return;
     }
-  }, [result, shift, navigate]);
+    const buNum = (result.triagem.numero_bo || "").trim();
+    const dup = shift.occurrences.find(
+      (o) => (o.bu_number || "").trim() === buNum
+    );
+    if (dup) {
+      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+      toast.error(`BU ${buNum} já está ${where} neste plantão.`);
+      return;
+    }
+    let regional = result.triagem.regional_codigo || "";
+    if (!regional || !REGIONALS.includes(regional as typeof REGIONALS[number])) {
+      regional = matchRegionalByKeyword(
+        result.triagem.unidade_registro || result.triagem.delegacia
+      );
+    }
+    setRegistering(true);
+    try {
+      await shift.addOccurrence({
+        status: "em_atendimento",
+        bu_number: buNum,
+        procedure_type: regForm.procedure_type,
+        po_status: regForm.po_status || null,
+        investigator: regForm.investigator || null,
+        authority: regForm.authority || null,
+        has_report: regForm.has_report,
+        has_fianca: regForm.has_fianca,
+        fianca_paga: regForm.fianca_paga,
+        tipification:
+          result.despacho?.tipificacoes
+            ?.map((t) => `${t.artigo} - ${t.descricao}`)
+            .join("; ") || "",
+        conducted_names:
+          result.depoimentos
+            ?.filter((d) => d.tipo === "interrogado")
+            .map((d) => d.nome)
+            .join(", ") || "",
+        victim_names:
+          result.depoimentos
+            ?.filter((d) => d.tipo === "vitima")
+            .map((d) => d.nome)
+            .join(", ") || "",
+        regional,
+        tramitation_time: new Date().toISOString(),
+        analysis_id: analysisId ?? null,
+      } as unknown as Parameters<typeof shift.addOccurrence>[0]);
+      toast.success("Ocorrência enviada para fila de atendimento.");
+      setShowRegister(false);
+    } catch {
+      toast.error("Erro ao registrar ocorrência.");
+    } finally {
+      setRegistering(false);
+    }
+  }, [result, shift, regForm, analysisId, navigate]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
