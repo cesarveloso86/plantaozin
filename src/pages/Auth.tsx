@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { motion } from "framer-motion";
+
 import { Shield, Mail, Lock, User, Eye, EyeOff, Loader2, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -104,10 +104,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+        <div
           className="w-full max-w-sm space-y-8"
         >
           {/* Branding */}
@@ -269,7 +266,7 @@ const Auth = () => {
               </>
             )}
           </p>
-        </motion.div>
+        </div>
       </div>
 
       <footer className="border-t border-border py-3">

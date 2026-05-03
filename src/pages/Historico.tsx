@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import AnalysisResultView from "@/components/AnalysisResult";
 import type { AnalysisResult } from "@/types/analysis";
-import { motion } from "framer-motion";
+
 import { fmtDateTime } from "@/lib/utils";
 
 interface AnalysisRow {
@@ -110,11 +110,8 @@ const Historico = () => {
       ) : (
         <div className="space-y-3">
           {filtered.map((row, i) => (
-            <motion.div
+            <div
               key={row.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04, duration: 0.3 }}
             >
               <Card className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center justify-between gap-4">
@@ -157,7 +154,7 @@ const Historico = () => {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}
