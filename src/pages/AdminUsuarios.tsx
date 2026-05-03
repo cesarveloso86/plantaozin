@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { motion } from "framer-motion";
+
 import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAIN, isValidInstitutionalEmail } from "@/lib/constants";
 import { maskNF, maskPhone } from "@/lib/masks";
@@ -413,7 +413,7 @@ const AdminUsuarios = () => {
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <div>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -490,7 +490,7 @@ const AdminUsuarios = () => {
               </Table>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       )}
 
       {/* Create dialog */}

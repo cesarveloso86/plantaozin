@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+
 import { Loader2, User as UserIcon, Sparkles, RotateCcw, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ export default function Perfil() {
       </div>
 
       {/* Meus Dados */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+      <div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Meus Dados</CardTitle>
@@ -190,10 +190,10 @@ export default function Perfil() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Agente de Análise */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }}>
+      <div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function Perfil() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     </div>
   );
 }

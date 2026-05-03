@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+
 import { Shield, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -137,9 +137,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="w-full max-w-sm space-y-8"
       >
         <div className="flex flex-col items-center gap-3">
@@ -179,7 +177,7 @@ const ResetPassword = () => {
             Salvar nova senha
           </Button>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 };

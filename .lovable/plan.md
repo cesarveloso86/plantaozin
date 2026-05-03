@@ -1,21 +1,46 @@
-## Ajuste de largura nos Selects de OIP e Autoridade
+## Remover uso de framer-motion (sem desinstalar)
 
-### Observação importante
-Após inspecionar `src/components/shift/OccurrencesTab.tsx`, **não existem `SelectTrigger` com `w-[150px]`** no arquivo. Os únicos `SelectTrigger` com largura fixa são os de OIP e Autoridade na **tabela de "Já Atendidas"** (linhas 776 e 787), que usam `w-[140px]`.
+Substituir todos os `motion.X` por elementos HTML equivalentes e remover os atributos de animação (`initial`, `animate`, `exit`, `transition`, `variants`, `whileHover`) e `AnimatePresence`. Manter todas as classes Tailwind. Pacote `framer-motion` permanece no `package.json`.
 
-Os demais `SelectTrigger` de OIP/Autoridade (fila pendente e em atendimento, linhas 444, 455, 524, 533, 619, 625, 689, 698) **não têm largura fixa** — usam apenas `h-9 text-base` e já se expandem naturalmente.
+### Arquivos afetados (8)
 
-Vou tratar `w-[140px]` como o alvo real do pedido (provável engano de digitação na largura citada), aplicando a substituição apenas onde existe largura fixa nos selects de OIP/Autoridade.
+**1. `src/components/AnalysisResult.tsx`**
+- Remover `import { motion } from "framer-motion";` (linha 2).
+- Remover constante `fadeUp` (linhas 45–49).
+- Trocar 7 `motion.div` por `div` (linhas 133, 135, 167, 176, 223, 281, 299) e seus fechamentos correspondentes (163, 172, 219, 277, 330, 334, 365). Remover `initial`, `animate`, `transition`, `{...fadeUp}`.
 
-### Mudança
-Em `src/components/shift/OccurrencesTab.tsx`:
+**2. `src/components/ProcessingStatus.tsx`**
+- Remover import de `motion`.
+- `motion.div` (l.17) → `div`; remover `initial`/`animate`. Fechamento l.74.
+- `motion.p` (l.65) → `p`; remover `initial`/`animate`. Fechamento l.71.
 
-- Linha 776 (Select OIP, tabela completed):
-  - `className="h-8 text-xs w-[140px]"` → `className="h-8 text-xs w-auto min-w-[80px]"`
-- Linha 787 (Select Autoridade, tabela completed):
-  - `className="h-8 text-xs w-[140px]"` → `className="h-8 text-xs w-auto min-w-[80px]"`
+**3. `src/components/DropZone.tsx`**
+- Remover `import { motion, AnimatePresence } from "framer-motion";`.
+- `motion.div` externo (l.48) → `div`; remover `initial`/`animate`/`transition`. Fechamento l.96.
+- Remover wrapper `<AnimatePresence mode="wait">` (l.70 e l.94) — manter apenas filho.
+- `motion.div` interno (l.71) → `div`; remover `initial`/`animate`/`exit`. Manter `key`. Fechamento l.93.
 
-Nada mais será alterado (placeholder, lógica, demais atributos e demais SelectTriggers permanecem intactos).
+**4. `src/pages/AdminUsuarios.tsx`**
+- Remover import de `motion`.
+- `motion.div` (l.416) → `div`; remover `initial`/`animate`/`transition`. Fechamento l.493.
 
-### Confirmação necessária
-Se você realmente quis dizer `w-[150px]` literalmente e existe outro arquivo/local em mente, me avise. Caso contrário, ao aprovar este plano aplicarei a troca nas duas linhas acima.
+**5. `src/pages/Historico.tsx`**
+- Remover import de `motion`.
+- `motion.div` (l.113) → `div`; remover `initial`/`animate`/`transition`. Manter `key`. Fechamento l.160.
+
+**6. `src/pages/Perfil.tsx`**
+- Remover import de `motion`.
+- 2 `motion.div` (l.105, l.196) → `div`; remover `initial`/`animate`/`transition`. Fechamentos l.193 e l.280.
+
+**7. `src/pages/Auth.tsx`**
+- Remover import de `motion`.
+- `motion.div` (l.107) → `div`; remover `initial`/`animate`/`transition`. Fechamento l.272.
+
+**8. `src/pages/ResetPassword.tsx`**
+- Remover import de `motion`.
+- `motion.div` (l.140) → `div`; remover `initial`/`animate`/`transition`. Fechamento l.182.
+
+### Não será alterado
+- Lógica de negócio, classes Tailwind, `key`, `className`, handlers.
+- `package.json` (framer-motion permanece instalado).
+- Nenhum outro arquivo.

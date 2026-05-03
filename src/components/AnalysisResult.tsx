@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+
 import {
   Copy, Check, RotateCcw, FileText, User, AlertTriangle,
   Shield, Scale, ChevronRight, MapPin, Calendar, Building2, Gavel,
@@ -40,12 +40,6 @@ const TIPO_CONFIG: Record<string, { icon: typeof User; label: string; color: str
   testemunha: { icon: User, label: "Testemunha", color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" },
   interrogado: { icon: AlertTriangle, label: "Interrogado", color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20" },
   vitima: { icon: User, label: "Vítima", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" },
-};
-
-const fadeUp = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4 },
 };
 
 type ReanalyzeField = "triagem" | "despacho" | "depoimentos" | "depoimento" | null;
@@ -130,9 +124,9 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-5xl mx-auto space-y-6 pb-8 min-w-0">
+    <div className="w-full max-w-5xl mx-auto space-y-6 pb-8 min-w-0">
       {/* Header */}
-      <motion.div {...fadeUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="font-mono text-xs">
@@ -160,20 +154,20 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             Nova Ocorrência
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* CEP Alert */}
       {!triagem.cep_valido && (
-        <motion.div {...fadeUp} transition={{ delay: 0.1 }}>
+        <div>
           <div className="flex items-center gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
             <AlertTriangle className="w-5 h-5 shrink-0" />
             <p className="text-sm font-medium">CEP informado não pôde ser validado. Verifique o endereço do local do fato.</p>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Triagem Card */}
-      <motion.div {...fadeUp} transition={{ delay: 0.15 }}>
+      <div>
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -216,11 +210,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Despacho Card */}
       {despacho && (
-        <motion.div {...fadeUp} transition={{ delay: 0.2 }}>
+        <div>
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -274,11 +268,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       )}
 
       {/* Depoimentos */}
-      <motion.div {...fadeUp} transition={{ delay: 0.25 }}>
+      <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
             <User className="w-4 h-4 text-primary" />
@@ -296,12 +290,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
             ].join("\n");
 
             return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.08 }}
-              >
+              <div key={i}>
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-3">
@@ -327,11 +316,11 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             );
           })}
         </div>
-      </motion.div>
+      </div>
 
       {/* Per-field Re-analyze Dialog */}
       <Dialog open={!!reanalyzeField} onOpenChange={(v) => { if (!v) { setReanalyzeField(null); setReanalyzeIndex(null); } }}>
@@ -362,7 +351,7 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
           </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+    </div>
   );
 };
 
