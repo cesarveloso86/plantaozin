@@ -773,7 +773,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <td className="p-2.5">
                       <div className="flex items-center gap-1">
                         <Select value={occ.investigator || ""} onValueChange={(v) => handleInlineChange(occ.id, "investigator", v)}>
-                          <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs w-auto min-w-[80px]"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                         </Select>
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular OIP" aria-label="Pular OIP" onClick={() => handleSkipInv(occ)}>
@@ -784,7 +784,7 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     <td className="p-2.5">
                       <div className="flex items-center gap-1">
                         <Select value={occ.authority || ""} onValueChange={(v) => handleInlineChange(occ.id, "authority", v)}>
-                          <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-xs w-auto min-w-[80px]"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                         </Select>
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular Autoridade" aria-label="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
