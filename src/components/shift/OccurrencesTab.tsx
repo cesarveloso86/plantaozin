@@ -444,8 +444,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                                 <SelectTrigger className="h-9 text-base"><SelectValue placeholder="OIP" /></SelectTrigger>
                                 <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
                               </Select>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="Pular OIP" onClick={() => handleSkipInv(occ)}>
-                                <SkipForward className="w-3.5 h-3.5" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="Pular OIP" aria-label="Pular OIP" onClick={() => handleSkipInv(occ)}>
+                                <SkipForward className="w-3.5 h-3.5" aria-hidden="true" />
                               </Button>
                             </div>
                           </td>
@@ -455,20 +455,20 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                                 <SelectTrigger className="h-9 text-base"><SelectValue placeholder="Autoridade" /></SelectTrigger>
                                 <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n} className="text-base">{displayLabel(n)}</SelectItem>)}</SelectContent>
                               </Select>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
-                                <SkipForward className="w-3.5 h-3.5" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="Pular Autoridade" aria-label="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
+                                <SkipForward className="w-3.5 h-3.5" aria-hidden="true" />
                               </Button>
                             </div>
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1 justify-end">
-                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
-                                <Edit className="w-3.5 h-3.5" /> Continuar
+                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" aria-label="Continuar atendimento" onClick={() => openEdit(occ)}>
+                                <Edit className="w-3.5 h-3.5" aria-hidden="true" /> Continuar
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
-                                    <Trash2 className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" aria-label="Remover">
+                                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -628,13 +628,13 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1 justify-end">
-                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" onClick={() => openEdit(occ)}>
-                                <Edit className="w-3.5 h-3.5" /> Continuar
+                              <Button variant="default" size="sm" className="h-8 gap-1" title="Continuar atendimento" aria-label="Continuar atendimento" onClick={() => openEdit(occ)}>
+                                <Edit className="w-3.5 h-3.5" aria-hidden="true" /> Continuar
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover">
-                                    <Trash2 className="w-4 h-4" />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" aria-label="Remover">
+                                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -776,8 +776,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                           <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>{investigatorNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular OIP" onClick={() => handleSkipInv(occ)}>
-                          <SkipForward className="w-3.5 h-3.5" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular OIP" aria-label="Pular OIP" onClick={() => handleSkipInv(occ)}>
+                          <SkipForward className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>
                     </td>
@@ -787,8 +787,8 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                           <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>{authorityNames.map((n) => <SelectItem key={n} value={n}>{displayLabel(n)}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
-                          <SkipForward className="w-3.5 h-3.5" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Pular Autoridade" aria-label="Pular Autoridade" onClick={() => handleSkipAuth(occ)}>
+                          <SkipForward className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>
                     </td>
@@ -807,10 +807,10 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
                     </td>
                     <td className="p-2.5">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" aria-label="Editar" onClick={() => openEdit(occ)}><Edit className="w-4 h-4" aria-hidden="true" /></Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover" aria-label="Remover"><Trash2 className="w-4 h-4" aria-hidden="true" /></Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
