@@ -926,7 +926,23 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
             <div><Label className="text-sm">Conduzido(s) / Autuado(s)</Label><Input value={form.conducted_names || ""} onChange={(e) => setField("conducted_names", e.target.value)} /></div>
             <div><Label className="text-sm">Vítima(s)</Label><Input value={form.victim_names || ""} onChange={(e) => setField("victim_names", e.target.value)} /></div>
             <div><Label className="text-sm">Tipificação</Label><Input value={form.tipification || ""} onChange={(e) => setField("tipification", e.target.value)} placeholder="Art. 33 da Lei 11.343/06" /></div>
-            <div><Label className="text-sm">Status PO</Label><Input value={form.po_status || ""} onChange={(e) => setField("po_status", e.target.value)} placeholder="Anexado, tramitado e comunicado" /></div>
+            <div>
+              <Label className="text-sm">Status PO</Label>
+              <Select
+                value={form.po_status || ""}
+                onValueChange={(v) => setField("po_status", v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aguardando">Aguardando</SelectItem>
+                  <SelectItem value="Comunicado">Comunicado</SelectItem>
+                  <SelectItem value="Tramitado">Tramitado</SelectItem>
+                  <SelectItem value="Tramitado e comunicado">Tramitado e comunicado</SelectItem>
+                  <SelectItem value="Enviado">Enviado</SelectItem>
+                  <SelectItem value="Arquivado">Arquivado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-sm">Observações</Label><Textarea value={form.observations || ""} onChange={(e) => setField("observations", e.target.value)} rows={2} /></div>
             {isInAttendance ? (
               <div className="flex gap-2">
