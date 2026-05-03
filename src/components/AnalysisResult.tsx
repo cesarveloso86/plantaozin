@@ -3,7 +3,7 @@ import { useState } from "react";
 import {
   Copy, Check, RotateCcw, FileText, User, AlertTriangle,
   Shield, Scale, ChevronRight, MapPin, Calendar, Building2, Gavel,
-  RefreshCw, Send, MessageSquare, Pencil
+  RefreshCw, ClipboardCheck, MessageSquare, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ interface AnalysisResultProps {
   onReset: () => void;
   onReanalyze?: (instructions: string, field?: string, depoimentoIndex?: number) => void;
   reanalyzing?: boolean;
-  onSendToShift?: () => void;
+  onRegister?: () => void;
 }
 
 const CopyButton = ({ text, label = "Copiar" }: { text: string; label?: string }) => {
@@ -58,7 +58,7 @@ const FIELD_PLACEHOLDERS: Record<string, string> = {
   depoimento: "Ex: Corrigir o nome para 'João da Silva'. Reforçar que o depoente avistou o veículo se evadindo.",
 };
 
-const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToShift }: AnalysisResultProps) => {
+const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onRegister }: AnalysisResultProps) => {
   const { triagem, depoimentos: depoimentosRaw, despacho } = data;
   const depoimentos = depoimentosRaw ?? [];
   const alertas = triagem?.alertas ?? [];
@@ -137,10 +137,10 @@ const AnalysisResultView = ({ data, onReset, onReanalyze, reanalyzing, onSendToS
           <p className="text-sm text-muted-foreground">{triagem.delegacia}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {onSendToShift && (
-            <Button variant="default" size="sm" onClick={onSendToShift} className="gap-2">
-              <Send className="w-4 h-4" />
-              Enviar ao Plantão
+          {onRegister && (
+            <Button variant="default" size="sm" onClick={onRegister} className="gap-2">
+              <ClipboardCheck className="w-4 h-4" />
+              Registrar Ocorrência
             </Button>
           )}
           {reanalyzing && (
