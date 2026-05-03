@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { FileText, Upload } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 
 interface DropZoneProps {
   onFileSelected: (file: File) => void;
@@ -45,10 +45,7 @@ const DropZone = ({ onFileSelected, disabled }: DropZoneProps) => {
   }, [onFileSelected, disabled]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+    <div
       className="w-full max-w-2xl mx-auto"
     >
       <div
@@ -67,33 +64,28 @@ const DropZone = ({ onFileSelected, disabled }: DropZoneProps) => {
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isDragOver ? "drag" : "idle"}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="flex flex-col items-center gap-5"
-          >
-            <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
-              {isDragOver ? (
-                <Upload className="w-10 h-10 text-primary" />
-              ) : (
-                <FileText className="w-10 h-10 text-primary" />
-              )}
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-lg font-semibold text-foreground">
-                {isDragOver ? "Solte o arquivo aqui" : "Arraste o Boletim de Ocorrência"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Formato aceito: PDF • Clique para selecionar
-              </p>
-            </div>
-          </motion.div>
-        </AnimatePresence>
+        <div
+          key={isDragOver ? "drag" : "idle"}
+          className="flex flex-col items-center gap-5"
+        >
+          <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center">
+            {isDragOver ? (
+              <Upload className="w-10 h-10 text-primary" />
+            ) : (
+              <FileText className="w-10 h-10 text-primary" />
+            )}
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-semibold text-foreground">
+              {isDragOver ? "Solte o arquivo aqui" : "Arraste o Boletim de Ocorrência"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Formato aceito: PDF • Clique para selecionar
+            </p>
+          </div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

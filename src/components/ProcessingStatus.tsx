@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import type { AnalysisStatus } from "@/types/analysis";
 import { STATUS_MESSAGES } from "@/types/analysis";
@@ -14,11 +14,7 @@ const ProcessingStatus = ({ status, fileName }: ProcessingStatusProps) => {
   const currentIdx = STEPS.indexOf(status);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-lg mx-auto"
-    >
+    <div className="w-full max-w-lg mx-auto">
       <div className="bg-card border border-border rounded-lg p-8 space-y-6">
         {fileName && (
           <p className="text-sm text-muted-foreground text-center font-mono truncate">
@@ -62,16 +58,14 @@ const ProcessingStatus = ({ status, fileName }: ProcessingStatusProps) => {
         </div>
 
         {status === "done" && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <p
             className="text-center text-sm font-medium text-success"
           >
             ✓ Análise concluída com sucesso
-          </motion.p>
+          </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 
