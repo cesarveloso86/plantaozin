@@ -109,8 +109,10 @@ export type Database = {
           conducted_names: string | null
           created_at: string
           created_by: string
+          fianca_paga: boolean
           final_time: string | null
           first_hearing_time: string | null
+          has_fianca: boolean
           has_report: boolean
           id: string
           investigator: string | null
@@ -135,8 +137,10 @@ export type Database = {
           conducted_names?: string | null
           created_at?: string
           created_by: string
+          fianca_paga?: boolean
           final_time?: string | null
           first_hearing_time?: string | null
+          has_fianca?: boolean
           has_report?: boolean
           id?: string
           investigator?: string | null
@@ -161,8 +165,10 @@ export type Database = {
           conducted_names?: string | null
           created_at?: string
           created_by?: string
+          fianca_paga?: boolean
           final_time?: string | null
           first_hearing_time?: string | null
+          has_fianca?: boolean
           has_report?: boolean
           id?: string
           investigator?: string | null

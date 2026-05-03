@@ -66,6 +66,8 @@ export interface ShiftOccurrence {
   suspect_names: string | null;
   tipification: string | null;
   po_status: string | null;
+  has_fianca: boolean;
+  fianca_paga: boolean;
   analysis_id: string | null;
   created_by: string;
   created_at: string;

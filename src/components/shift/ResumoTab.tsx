@@ -309,6 +309,9 @@ export function ResumoTab({ shift, occurrences, onAddObservation, onUpdateObserv
                     {occ.tipification && (
                       <><br /><span className="ml-5 text-muted-foreground">Tipificação: {occ.tipification}</span></>
                     )}
+                    {occ.has_fianca && (
+                      <><br /><span className="ml-5 text-muted-foreground">FIANÇA: SIM — {occ.fianca_paga ? "PAGA" : "PENDENTE"}</span></>
+                    )}
                     {occ.observations && (
                       <><br /><span className="ml-5 text-muted-foreground italic">{occ.observations}</span></>
                     )}
