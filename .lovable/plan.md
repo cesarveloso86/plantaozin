@@ -1,61 +1,43 @@
-## Diagnóstico
+## Plano de Correções de Auditoria
 
-1. **Erro ao confirmar em "Sem Oitiva"**: a tabela `shift_occurrences` tem um CHECK constraint antigo:
-   ```
-   CHECK (status = ANY (ARRAY['em_atendimento', 'atendida']))
-   ```
-   Quando o `addToQueueSO` envia `status: "sem_oitiva"`, o Postgres rejeita o INSERT. Por isso o botão Confirmar falha. Precisa migration para liberar o terceiro valor.
+Aplicarei exatamente as 7 mudanças solicitadas, sem alterar lógica de negócio.
 
-2. **Fila preditiva**: hoje o código pede `count=5` em `predictSubteamQueue` / `predictQueue` e renderiza apenas 1 linha de input + 3 slots-preview (`predictedInv.slice(1,4)`). O usuário quer 10 slots pré-preenchidos.
+### Bloco 1 — CORS configurável nas Edge Functions
+Em cada uma das 5 funções (`analyze-bo`, `signup`, `admin-create-user`, `admin-delete-user`, `admin-list-emails`), substituir o `corsHeaders` por versão que lê `ALLOWED_ORIGIN` do ambiente (fallback `*`). Demais linhas intactas.
 
-3. **Exportação**: `exportShiftXlsx` filtra `status !== "em_atendimento"` (já inclui `sem_oitiva` e `atendida`). `exportPODocx` recebe todas as ocorrências, mas `ResumoTab` (prévia da PO) já filtra somente `atendida`. Para garantir que Sem Oitiva vire registro oficial sem precisar de oitiva real, a UI de "Confirmar" da aba Sem Oitiva passará a gravar **direto como `atendida`** (mesmo comportamento de "atendida" para fins de relatório), com BU + servidores escolhidos. Isso atende ao requisito: "Não precisam entrar na fila em atendimento. Podem entrar em Já Atendidas após preenchimento."
+### Bloco 2 — Senha mínima 8 caracteres
+- `supabase/functions/signup/index.ts`: `password.length < 6` → `< 8` e mensagem.
+- `src/pages/Auth.tsx` (`handleSignup`): mesmo ajuste e texto "Mínimo de 8 caracteres."
 
-4. **Dropdown na linha de confirmação**: hoje os nomes dos servidores na linha "Próximo" são apenas texto. Trocar por `<Select>` editável (mantendo a sugestão como valor padrão) tanto na aba Em Distribuição quanto na Sem Oitiva.
+### Bloco 3 — Unificar toasts no Sonner
+- `src/pages/Auth.tsx` e `src/pages/ResetPassword.tsx`:
+  - Remover `useToast` e `const { toast } = useToast();`
+  - Adicionar `import { toast } from "sonner";`
+  - `toast({ ..., variant: "destructive" })` → `toast.error(description)`
+  - `toast({ title, description })` sem variant → `toast.success(description)`
+- `src/App.tsx`: remover `import { Toaster } from "@/components/ui/toaster"` e o `<Toaster />` no JSX. Manter `<Sonner />`.
+- Não tocar em `toast.tsx`, `toaster.tsx`, `use-toast.ts`.
 
-## Plano
+### Bloco 4 — Nome do app
+Em `src/components/AppSidebar.tsx`:
+- "Flagrante Digital" → "Plantão Digital"
+- "Processamento de BOs" → "Análise de BOs"
 
-### Migration (Lovable Cloud)
-Substituir o CHECK constraint da tabela `shift_occurrences` para permitir os três valores:
+### Bloco 5 — Perfil no sidebar
+Em `src/components/AppSidebar.tsx`, substituir exibição de `profile.role` por `{isAdmin ? "Administrador" : "Analista"}`.
 
-```sql
-ALTER TABLE public.shift_occurrences DROP CONSTRAINT shift_occurrences_status_check;
-ALTER TABLE public.shift_occurrences ADD CONSTRAINT shift_occurrences_status_check
-  CHECK (status IN ('em_atendimento','atendida','sem_oitiva'));
-```
+### Bloco 6 — Acessibilidade em botões icon-only
+Em `src/components/shift/OccurrencesTab.tsx`, em todo `<Button size="icon">` com apenas ícone (Pular OIP, Pular Autoridade, Registrar, Remover, Continuar, Editar etc.):
+- Adicionar `aria-label` com o mesmo valor do `title`.
+- Adicionar `aria-hidden="true"` no ícone filho.
+Sem mudanças de lógica.
 
-### `src/components/shift/OccurrencesTab.tsx`
+### Bloco 7 — Tailwind content paths
+Em `tailwind.config.ts`: substituir o array `content` por `["./src/**/*.{ts,tsx}"]`. Resto do arquivo intacto.
 
-- Aumentar a fila preditiva para 10 slots:
-  - Trocar `predictSubteamQueue(..., 5, ...)` → `..., 10, ...` em `predictedInvSub`, `predictedAuthSub`, `predictedInvSubSO`, `predictedAuthSubSO`.
-  - O mesmo para os fallbacks `predictQueue(..., 5, ...)` → `10`.
-  - Renderizar `predictedInv.slice(1, 10)` em vez de `slice(1, 4)` (e idem para SO).
-
-- **Linha "Próximo" (Em Distribuição e Sem Oitiva)**: substituir as células de OIP/Autoridade (texto puro) por `<Select>` controlado por estado local (`pickInv`, `pickAuth`, `pickInvSO`, `pickAuthSO`), inicializado com `suggestedInvestigator` / `suggestedAuthority`. Quando a sugestão muda (porque a fila recalculou) e o usuário não editou manualmente, o pick segue a sugestão; ao editar, fixa a escolha até confirmar.
-  - Reset desses picks ao terminar `addToQueue`/`addToQueueSO` para que voltem a seguir a sugestão.
-
-- **`addToQueueSO`**: gravar a ocorrência **direto como `status: "atendida"`** (não como `sem_oitiva`), preservando BU, hora, OIP e Autoridade escolhidos. Assim, ela aparece imediatamente em "Já Atendidas" e entra naturalmente na PO (DOCX) e na planilha (XLSX). Manter o nome da aba "Sem Oitiva" e o card como espaço de **registro rápido** desses procedimentos.
-
-- **Aba Sem Oitiva — listagem das ocorrências existentes**: como agora elas viram `atendida`, a aba não precisa mais listá-las (ficam em "Já Atendidas"). Manter a aba apenas com a tabela de entrada (10 slots de fila preditiva + linha de confirmação). O contador na TabsTrigger pode ficar em 0 ou ser removido — seguiremos exibindo só o título "Sem Oitiva" sem contador.
-  - Remover dependência do tipo `sem_oitiva` no filtro `semOitiva` (não vai mais existir no banco para casos novos). Para legado: manter o filtro só para retrocompatibilidade visual, escondendo a seção se vazio.
-
-- **Fila preditiva da aba Sem Oitiva**: como agora as ocorrências entram como `atendida`, a fila independente passa a contar a carga apenas dessas atendidas marcadas como sem-oitiva. Para distinguir sem mudar schema, registrar `po_status` ou `observations` não é confiável. Solução simples: a aba Sem Oitiva usa **a mesma lista de subequipes** mas mantém uma fila própria considerando todas as ocorrências do plantão (em atendimento + atendidas), distribuindo de forma independente do card "Em Atendimento". O usuário pode trocar via dropdown qualquer servidor antes de confirmar.
-
-  Como cada confirmação aumenta a carga real (atendida), a fila se reequilibra organicamente sem precisar de campo extra.
-
-### `src/types/shift.ts`
-Manter `sem_oitiva` no enum por compatibilidade com dados legados, mas o fluxo novo não cria mais esse status.
-
-### Sem mudanças
-- `src/lib/exportDocx.ts` e `src/lib/exportXlsx.ts` — já filtram corretamente (`atendida` entra).
-- `src/components/shift/ResumoTab.tsx` e `StatisticsTab.tsx` — já contam `atendida`.
-- `src/pages/Plantao.tsx` — header já cobre os três status.
-
-## Resumo dos arquivos
-
-```text
-supabase migration                              — relaxar CHECK status (sem_oitiva permitido por compat.)
-src/components/shift/OccurrencesTab.tsx         — 10 slots, Select editável na linha de confirmação,
-                                                  Sem Oitiva grava direto como atendida
-```
-
-Sem alterações em hooks, edge functions, tipos do banco ou exports.
+### Verificações
+Após aplicar, conferirei:
+- Cada função edge mantém seu fluxo (apenas headers mudaram).
+- `Auth.tsx` e `ResetPassword.tsx` compilam sem `useToast`.
+- `AppSidebar.tsx` exibe rótulo correto.
+- Nenhum import/arquivo de UI removido.
