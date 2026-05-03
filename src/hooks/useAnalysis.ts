@@ -23,6 +23,7 @@ export function useAnalysis() {
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
   const lastBase64 = useRef<string>("");
   const lastFileName = useRef<string>("");
   const pendingStoragePath = useRef<string>("");
@@ -232,15 +233,20 @@ export function useAnalysis() {
       const analysisResult = data as AnalysisResult;
 
       if (user) {
-        await supabase.from("analyses").insert({
-          user_id: user.id,
-          file_name: file.name,
-          numero_bo: analysisResult.triagem.numero_bo || null,
-          natureza: analysisResult.triagem.natureza || null,
-          delegacia: analysisResult.triagem.delegacia || null,
-          data_fato: analysisResult.triagem.data_fato || null,
-          result: analysisResult as unknown as Record<string, unknown>,
-        } as never);
+        const { data: savedRow } = await supabase
+          .from("analyses")
+          .insert({
+            user_id: user.id,
+            file_name: file.name,
+            numero_bo: analysisResult.triagem.numero_bo || null,
+            natureza: analysisResult.triagem.natureza || null,
+            delegacia: analysisResult.triagem.delegacia || null,
+            data_fato: analysisResult.triagem.data_fato || null,
+            result: analysisResult as unknown as Record<string, unknown>,
+          } as never)
+          .select("id")
+          .single();
+        setAnalysisId((savedRow as { id?: string } | null)?.id ?? null);
       }
 
       setResult(analysisResult);
@@ -355,13 +361,14 @@ export function useAnalysis() {
     setTriageResult(null);
     setError(null);
     setFileName("");
+    setAnalysisId(null);
     lastBase64.current = "";
     lastFileName.current = "";
     pendingStoragePath.current = "";
   }, []);
 
   return {
-    status, result, triageResult, error, fileName,
+    status, result, triageResult, error, fileName, analysisId,
     analyze, analyzeTriage, persistTriageForShift, generateFullFromAnalysis,
     reanalyzeFromAnalysis, reanalyze, reset,
   };
