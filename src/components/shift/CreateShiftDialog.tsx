@@ -228,7 +228,7 @@ export function CreateShiftDialog({ open, onOpenChange, onCreate, getLastShiftFo
 
             <div>
               <Label>Horário de Início</Label>
-              <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
+              <HourSelect value={startHour} onChange={setStartHour} />
               <p className="text-xs text-muted-foreground mt-1">Término padrão: +24h</p>
             </div>
 

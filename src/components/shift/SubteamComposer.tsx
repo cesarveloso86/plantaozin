@@ -285,18 +285,16 @@ export function SubteamComposer({
                 const endEditable = category === "ISEO" ? false : s.preset === "CUSTOM";
                 return (
                   <div key={wi} className="flex items-center gap-1.5">
-                    <Input
-                      type="time"
+                    <HourSelect
                       value={w.start}
-                      onChange={(e) => updateWindow(s.id, wi, { start: e.target.value })}
+                      onChange={(value) => updateWindow(s.id, wi, { start: value })}
                       className="h-7 text-xs w-[110px]"
                       disabled={!startEditable}
                     />
                     <span className="text-xs text-muted-foreground">→</span>
-                    <Input
-                      type="time"
+                    <HourSelect
                       value={w.end}
-                      onChange={(e) => updateWindow(s.id, wi, { end: e.target.value })}
+                      onChange={(value) => updateWindow(s.id, wi, { end: value })}
                       className="h-7 text-xs w-[110px]"
                       disabled={!endEditable}
                     />
