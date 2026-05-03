@@ -15,6 +15,7 @@ import {
   type SubteamPresetId,
   type ScheduleWindow,
 } from "./scheduleConstants";
+import { HourSelect } from "./HourSelect";
 
 interface UserProfile {
   id: string;
