@@ -154,6 +154,16 @@ export async function exportPODocx(shift: Shift, occurrences: ShiftOccurrence[])
           children: [new TextRun({ text: `TIPIFICAÇÃO: ${occ.tipification.toUpperCase()}`, size: 20, font: "Arial" })],
         }));
       }
+      if (occ.has_fianca) {
+        children.push(new Paragraph({
+          indent: { left: 360 },
+          children: [new TextRun({
+            text: `FIANÇA: SIM — ${occ.fianca_paga ? "PAGA" : "PENDENTE"}`,
+            size: 20,
+            font: "Arial",
+          })],
+        }));
+      }
       if (occ.observations) {
         children.push(new Paragraph({
           indent: { left: 360 },
