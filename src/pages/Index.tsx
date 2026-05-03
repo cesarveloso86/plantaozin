@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DropZone from "@/components/DropZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
@@ -10,20 +10,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RotateCcw, Send, Sparkles, AlertTriangle, Calendar, Building2, MapPin, Scale } from "lucide-react";
 import { toast } from "sonner";
-import { REGIONALS } from "@/types/shift";
+import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
 import { predictSubteamQueue, predictQueue } from "@/lib/availability";
 import type { TriageResult, AnalysisResult } from "@/types/analysis";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 const Index = () => {
   const {
-    status, result, triageResult, error, fileName,
+    status, result, triageResult, error, fileName, analysisId,
     analyzeTriage, persistTriageForShift,
     analyze, reanalyze, reset,
   } = useAnalysis();
   const shift = useShift();
   const navigate = useNavigate();
   const isProcessing = ["reading", "validating", "analyzing", "generating"].includes(status);
+
+  const [showRegister, setShowRegister] = useState(false);
+  const [regForm, setRegForm] = useState<{
+    procedure_type: string;
+    po_status: string;
+    investigator: string;
+    authority: string;
+    has_report: boolean;
+    has_fianca: boolean;
+    fianca_paga: boolean;
+  }>({
+    procedure_type: "",
+    po_status: "",
+    investigator: "",
+    authority: "",
+    has_report: false,
+    has_fianca: false,
+    fianca_paga: false,
+  });
+  const [registering, setRegistering] = useState(false);
 
   const handleUpload = useCallback(async (file: File) => {
     await analyzeTriage(file);
@@ -173,51 +197,85 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triageResult, shift, navigate, persistTriageForShift, reset]);
 
-  const handleSendFullToShift = useCallback(async () => {
-    if (!result || !shift.activeShift) {
-      if (!shift.activeShift) {
-        toast.error("Nenhum plantão ativo. Crie um plantão antes de enviar.");
-        navigate("/plantao");
-      }
+  const handleOpenRegister = useCallback(() => {
+    if (!shift.activeShift) {
+      toast.error("Nenhum plantão ativo. Crie um plantão antes.");
+      navigate("/plantao");
       return;
     }
-    const regional = resolveRegional(result.triagem);
-    const buNum = (result.triagem.numero_bo || "").trim();
-    const existing = buNum
-      ? shift.occurrences.find((o) => (o.bu_number || "").trim() === buNum)
-      : null;
+    const firstInv = shift.activeShift.investigators[0]?.name ?? "";
+    const firstAuth = shift.activeShift.authorities[0]?.name ?? "";
+    setRegForm({
+      procedure_type: "",
+      po_status: "",
+      investigator: firstInv,
+      authority: firstAuth,
+      has_report: false,
+      has_fianca: false,
+      fianca_paga: false,
+    });
+    setShowRegister(true);
+  }, [shift.activeShift, navigate]);
 
-    const { investigator, authority } = pickNextAssignees();
-    const incoming = {
-      status: "em_atendimento" as const,
-      bu_number: buNum,
-      tipification: formatTipificacoesShort(result.despacho?.tipificacoes),
-      conducted_names: result.depoimentos?.filter((d) => d.tipo === "interrogado").map((d) => d.nome).join(", ") || "",
-      victim_names: result.depoimentos?.filter((d) => d.tipo === "vitima").map((d) => d.nome).join(", ") || "",
-      regional,
-      investigator,
-      authority,
-    };
-
-    try {
-      if (existing) {
-        const { investigator: _i, authority: _a, tramitation_time: _t, status: _s, ...rest } =
-          incoming as Record<string, unknown>;
-        const mergeFields = onlyEmptyFields(existing as unknown as Record<string, unknown>, rest);
-        if (Object.keys(mergeFields).length > 0) {
-          await shift.updateOccurrence(existing.id, mergeFields as Partial<typeof existing>);
-          toast.success(`Ocorrência ${buNum} atualizada com dados da análise.`);
-        } else {
-          toast.info(`BU ${buNum} já estava completo — nada a mesclar.`);
-        }
-      } else {
-        await shift.addOccurrence(incoming);
-        toast.success("Ocorrência enviada ao plantão.");
-      }
-    } catch {
-      toast.error("Erro ao enviar ao plantão");
+  const handleConfirmRegister = useCallback(async () => {
+    if (!result || !shift.activeShift) return;
+    if (!regForm.procedure_type) {
+      toast.error("Selecione o tipo de procedimento.");
+      return;
     }
-  }, [result, shift, navigate]);
+    const buNum = (result.triagem.numero_bo || "").trim();
+    const dup = shift.occurrences.find(
+      (o) => (o.bu_number || "").trim() === buNum
+    );
+    if (dup) {
+      const where = dup.status === "em_atendimento" ? "em distribuição" : "já atendida";
+      toast.error(`BU ${buNum} já está ${where} neste plantão.`);
+      return;
+    }
+    let regional = result.triagem.regional_codigo || "";
+    if (!regional || !REGIONALS.includes(regional as typeof REGIONALS[number])) {
+      regional = matchRegionalByKeyword(
+        result.triagem.unidade_registro || result.triagem.delegacia
+      );
+    }
+    setRegistering(true);
+    try {
+      await shift.addOccurrence({
+        status: "em_atendimento",
+        bu_number: buNum,
+        procedure_type: regForm.procedure_type,
+        po_status: regForm.po_status || null,
+        investigator: regForm.investigator || null,
+        authority: regForm.authority || null,
+        has_report: regForm.has_report,
+        has_fianca: regForm.has_fianca,
+        fianca_paga: regForm.fianca_paga,
+        tipification:
+          result.despacho?.tipificacoes
+            ?.map((t) => `${t.artigo} - ${t.descricao}`)
+            .join("; ") || "",
+        conducted_names:
+          result.depoimentos
+            ?.filter((d) => d.tipo === "interrogado")
+            .map((d) => d.nome)
+            .join(", ") || "",
+        victim_names:
+          result.depoimentos
+            ?.filter((d) => d.tipo === "vitima")
+            .map((d) => d.nome)
+            .join(", ") || "",
+        regional,
+        tramitation_time: new Date().toISOString(),
+        analysis_id: analysisId ?? null,
+      } as unknown as Parameters<typeof shift.addOccurrence>[0]);
+      toast.success("Ocorrência enviada para fila de atendimento.");
+      setShowRegister(false);
+    } catch {
+      toast.error("Erro ao registrar ocorrência.");
+    } finally {
+      setRegistering(false);
+    }
+  }, [result, shift, regForm, analysisId, navigate]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -251,10 +309,135 @@ const Index = () => {
             onReset={reset}
             onReanalyze={reanalyze}
             reanalyzing={isProcessing}
-            onSendToShift={handleSendFullToShift}
+            onRegister={handleOpenRegister}
           />
         </div>
       )}
+
+      <Dialog open={showRegister} onOpenChange={setShowRegister}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Registrar Ocorrência</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted/40 p-3 space-y-1 text-sm">
+              <p><span className="text-muted-foreground">BU:</span> {result?.triagem.numero_bo || "—"}</p>
+              <p><span className="text-muted-foreground">Regional:</span> {result?.triagem.regional_codigo || "—"}</p>
+              {result?.triagem.natureza && (
+                <p><span className="text-muted-foreground">Natureza:</span> {result.triagem.natureza}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Tipo de Procedimento *</Label>
+              {result?.triagem.natureza && (
+                <p className="text-xs text-muted-foreground">
+                  Natureza extraída pelo IA: {result.triagem.natureza}
+                </p>
+              )}
+              <Select
+                value={regForm.procedure_type}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, procedure_type: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PROCEDURE_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">OIP</Label>
+              <Select
+                value={regForm.investigator}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, investigator: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(shift.activeShift?.investigators ?? []).map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.nickname || m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Autoridade</Label>
+              <Select
+                value={regForm.authority}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, authority: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(shift.activeShift?.authorities ?? []).map((m) => (
+                    <SelectItem key={m.name} value={m.name}>
+                      {m.nickname || m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Status PO</Label>
+              <Select
+                value={regForm.po_status}
+                onValueChange={(v) => setRegForm((p) => ({ ...p, po_status: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aguardando">Aguardando</SelectItem>
+                  <SelectItem value="Comunicado">Comunicado</SelectItem>
+                  <SelectItem value="Tramitado">Tramitado</SelectItem>
+                  <SelectItem value="Tramitado e comunicado">Tramitado e comunicado</SelectItem>
+                  <SelectItem value="Enviado">Enviado</SelectItem>
+                  <SelectItem value="Arquivado">Arquivado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Relatório</Label>
+                <Switch
+                  checked={regForm.has_report}
+                  onCheckedChange={(v) => setRegForm((p) => ({ ...p, has_report: v }))}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Fiança aplicada</Label>
+                <Switch
+                  checked={regForm.has_fianca}
+                  onCheckedChange={(v) =>
+                    setRegForm((p) => ({ ...p, has_fianca: v, fianca_paga: v ? p.fianca_paga : false }))
+                  }
+                />
+              </div>
+              {regForm.has_fianca && (
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Fiança paga</Label>
+                  <Switch
+                    checked={regForm.fianca_paga}
+                    onCheckedChange={(v) => setRegForm((p) => ({ ...p, fianca_paga: v }))}
+                  />
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              A ocorrência será enviada para a fila de atendimento. Conclua o registro na aba Plantão.
+            </p>
+
+            <Button onClick={handleConfirmRegister} disabled={registering} className="w-full">
+              {registering ? "Enviando..." : "Enviar para Fila"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
