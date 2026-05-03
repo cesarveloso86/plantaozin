@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 
 const Index = () => {
   const {
@@ -38,6 +39,8 @@ const Index = () => {
     has_report: boolean;
     has_fianca: boolean;
     fianca_paga: boolean;
+    final_time: string;
+    first_hearing_time: string;
   }>({
     procedure_type: "",
     po_status: "",
@@ -46,6 +49,8 @@ const Index = () => {
     has_report: false,
     has_fianca: false,
     fianca_paga: false,
+    final_time: "",
+    first_hearing_time: "",
   });
   const [registering, setRegistering] = useState(false);
 
@@ -197,6 +202,12 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triageResult, shift, navigate, persistTriageForShift, reset]);
 
+  const toShiftIso = useCallback((timeStr: string) => {
+    if (!shift.activeShift || !timeStr) return null;
+    const hms = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+    return new Date(`${shift.activeShift.shift_date}T${hms}`).toISOString();
+  }, [shift.activeShift]);
+
   const handleOpenRegister = useCallback(() => {
     if (!shift.activeShift) {
       toast.error("Nenhum plantão ativo. Crie um plantão antes.");
@@ -266,6 +277,8 @@ const Index = () => {
             .join(", ") || "",
         regional,
         tramitation_time: new Date().toISOString(),
+        final_time: toShiftIso(regForm.final_time),
+        first_hearing_time: toShiftIso(regForm.first_hearing_time),
         analysis_id: analysisId ?? null,
       } as unknown as Parameters<typeof shift.addOccurrence>[0]);
       toast.success("Ocorrência enviada para fila de atendimento.");
@@ -275,7 +288,7 @@ const Index = () => {
     } finally {
       setRegistering(false);
     }
-  }, [result, shift, regForm, analysisId, navigate]);
+  }, [result, shift, regForm, analysisId, navigate, toShiftIso]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -323,6 +336,9 @@ const Index = () => {
             <div className="rounded-md bg-muted/40 p-3 space-y-1 text-sm">
               <p><span className="text-muted-foreground">BU:</span> {result?.triagem.numero_bo || "—"}</p>
               <p><span className="text-muted-foreground">Regional:</span> {result?.triagem.regional_codigo || "—"}</p>
+              {result?.triagem.fim_lavratura_recebimento && (
+                <p><span className="text-muted-foreground">Fim da lavratura/Recebimento:</span> {result.triagem.fim_lavratura_recebimento}</p>
+              )}
               {result?.triagem.natureza && (
                 <p><span className="text-muted-foreground">Natureza:</span> {result.triagem.natureza}</p>
               )}
@@ -398,6 +414,25 @@ const Index = () => {
                   <SelectItem value="Arquivado">Arquivado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Hora Finalização</Label>
+                <Input
+                  type="time"
+                  value={regForm.final_time}
+                  onChange={(e) => setRegForm((p) => ({ ...p, final_time: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Hora 1ª Oitiva</Label>
+                <Input
+                  type="time"
+                  value={regForm.first_hearing_time}
+                  onChange={(e) => setRegForm((p) => ({ ...p, first_hearing_time: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="space-y-3">
