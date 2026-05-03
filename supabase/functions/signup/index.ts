@@ -33,8 +33,8 @@ serve(async (req) => {
       });
     }
 
-    if (password.length < 6) {
-      return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres." }), {
+    if (password.length < 8) {
+      return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 8 caracteres." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
