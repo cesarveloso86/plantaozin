@@ -224,9 +224,11 @@ const Index = () => {
       has_report: false,
       has_fianca: false,
       fianca_paga: false,
+      final_time: result?.triagem.fim_lavratura_recebimento || "",
+      first_hearing_time: "",
     });
     setShowRegister(true);
-  }, [shift.activeShift, navigate]);
+  }, [shift.activeShift, navigate, result]);
 
   const handleConfirmRegister = useCallback(async () => {
     if (!result || !shift.activeShift) return;
