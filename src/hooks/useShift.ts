@@ -138,6 +138,8 @@ export function useShift() {
           suspect_names: occ.suspect_names || null,
           tipification: occ.tipification || null,
           po_status: occ.po_status || null,
+          has_fianca: occ.has_fianca ?? false,
+          fianca_paga: occ.fianca_paga ?? false,
           analysis_id: occ.analysis_id || null,
           created_by: user.id,
         })
