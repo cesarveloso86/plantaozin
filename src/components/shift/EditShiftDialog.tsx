@@ -10,6 +10,7 @@ import { AbsenceSelector } from "./AbsenceSelector";
 import { SubteamComposer, flattenSubteams } from "./SubteamComposer";
 import { TEAM_NAMES } from "./shiftConstants";
 import { useAllShiftMembers } from "@/hooks/useTeamMembers";
+import { HourSelect, normalizeToHour } from "./HourSelect";
 
 interface Props {
   open: boolean;
@@ -124,11 +125,11 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Horário de Início</Label>
-              <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
+              <HourSelect value={startHour} onChange={setStartHour} />
             </div>
             <div>
               <Label>Horário de Término</Label>
-              <Input type="time" value={endHour} onChange={(e) => setEndHour(e.target.value)} placeholder="Padrão: +24h" />
+              <HourSelect value={endHour} onChange={setEndHour} placeholder="Padrão: +24h" />
             </div>
           </div>
 
