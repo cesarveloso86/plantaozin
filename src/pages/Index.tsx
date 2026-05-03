@@ -21,11 +21,6 @@ import { Switch } from "@/components/ui/switch";
 
 const Index = () => {
   const {
-    status, result, triageResult, error, fileName,
-    analyzeTriage, persistTriageForShift,
-    analyze, reanalyze, reset,
-  } = useAnalysis();
-  const {
     status, result, triageResult, error, fileName, analysisId,
     analyzeTriage, persistTriageForShift,
     analyze, reanalyze, reset,
