@@ -132,6 +132,8 @@ export function useShift() {
           regional: occ.regional || null,
           has_report: occ.has_report || false,
           num_hearings: occ.num_hearings || 0,
+          final_time: occ.final_time || null,
+          first_hearing_time: occ.first_hearing_time || null,
           observations: occ.observations || null,
           conducted_names: occ.conducted_names || null,
           victim_names: occ.victim_names || null,

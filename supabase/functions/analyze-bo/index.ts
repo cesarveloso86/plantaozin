@@ -35,6 +35,7 @@ Extraia:
 - vitimas_nomes: lista com nomes das vítimas
 - interrogados_nomes: lista com nomes dos interrogados/averiguados/indiciados
 - tipificacoes_sugeridas: tipificações penais aplicáveis (artigo, descrição, lei) — sugestão preliminar
+- fim_lavratura_recebimento: extraia o horário que aparece no FINAL do PDF logo após o campo "Fim da lavratura/Recebimento"; retorne no formato HH:mm, ou "" se ausente/ilegível
 
 REGIONAIS OFICIAIS (use EXATAMENTE este texto):
 ${REGIONAIS_OFICIAIS.join("\n")}
@@ -57,7 +58,8 @@ Responda EXCLUSIVAMENTE com JSON válido (sem markdown), no formato:
     "interrogados_nomes": ["string"],
     "tipificacoes_sugeridas": [
       { "artigo": "string", "descricao": "string", "lei": "string" }
-    ]
+    ],
+    "fim_lavratura_recebimento": "string"
   }
 }`;
 
@@ -76,6 +78,7 @@ Ao receber o conteúdo de um PDF de Boletim de Ocorrência, você deve:
    - Lista de alertas relevantes (ex: menor envolvido, arma de fogo, drogas)
    - **unidade_registro**: texto LITERAL do campo "Unidade de Registro" do BU (copie exatamente como aparece)
    - **regional_codigo**: tente mapear a unidade_registro para UMA das regionais oficiais abaixo. Se NÃO casar com nenhuma, retorne string vazia "" e adicione um alerta: "Unidade de Registro fora da lista oficial — verifique o BU".
+   - **fim_lavratura_recebimento**: extraia no FINAL do PDF o horário logo após o campo "Fim da lavratura/Recebimento". Retorne em HH:mm, ou string vazia se ausente/ilegível.
 
    REGIONAIS OFICIAIS (use EXATAMENTE este texto):
    ${REGIONAIS_OFICIAIS.join("\n   ")}
@@ -116,7 +119,8 @@ Responda EXCLUSIVAMENTE com um JSON válido no seguinte formato (sem markdown, s
     "unidade_registro": "string (texto literal do BU)",
     "regional_codigo": "string (uma das oficiais ou vazio)",
     "resumo": "string",
-    "alertas": ["string"]
+    "alertas": ["string"],
+    "fim_lavratura_recebimento": "string"
   },
   "depoimentos": [
     {

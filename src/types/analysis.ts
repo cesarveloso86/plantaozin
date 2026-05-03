@@ -37,6 +37,8 @@ export interface RelatorioTriagem {
   interrogados_nomes?: string[];
   /** Tipificações sugeridas na triagem (apenas modo "triage") */
   tipificacoes_sugeridas?: Tipificacao[];
+  /** Horário extraído do campo "Fim da lavratura/Recebimento" no final do PDF */
+  fim_lavratura_recebimento?: string;
 }
 
 export interface AnalysisResult {

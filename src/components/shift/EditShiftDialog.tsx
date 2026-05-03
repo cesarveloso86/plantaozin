@@ -10,6 +10,7 @@ import { AbsenceSelector } from "./AbsenceSelector";
 import { SubteamComposer, flattenSubteams } from "./SubteamComposer";
 import { TEAM_NAMES } from "./shiftConstants";
 import { useAllShiftMembers } from "@/hooks/useTeamMembers";
+import { HourSelect, normalizeToHour } from "./HourSelect";
 
 interface Props {
   open: boolean;
@@ -26,11 +27,11 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
   const [teamName, setTeamName] = useState(shift.team_name);
   const [shiftDate, setShiftDate] = useState(shift.shift_date);
   const [startHour, setStartHour] = useState(
-    new Date(shift.start_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })
+    normalizeToHour(new Date(shift.start_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }))
   );
   const [endHour, setEndHour] = useState(
     shift.end_time
-      ? new Date(shift.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })
+      ? normalizeToHour(new Date(shift.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }))
       : ""
   );
   const [saving, setSaving] = useState(false);
@@ -45,8 +46,8 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
     if (!open) return;
     setTeamName(shift.team_name);
     setShiftDate(shift.shift_date);
-    setStartHour(new Date(shift.start_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }));
-    setEndHour(shift.end_time ? new Date(shift.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "");
+    setStartHour(normalizeToHour(new Date(shift.start_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })));
+    setEndHour(shift.end_time ? normalizeToHour(new Date(shift.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })) : "");
     setOipSubteams(shift.oip_subteams || []);
     setDelSubteams(shift.delegado_subteams || []);
     setIseoSubteams(shift.iseo_subteams || []);
@@ -124,11 +125,11 @@ export function EditShiftDialog({ open, onOpenChange, shift, onUpdate }: Props) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Horário de Início</Label>
-              <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
+              <HourSelect value={startHour} onChange={setStartHour} />
             </div>
             <div>
               <Label>Horário de Término</Label>
-              <Input type="time" value={endHour} onChange={(e) => setEndHour(e.target.value)} placeholder="Padrão: +24h" />
+              <HourSelect value={endHour} onChange={setEndHour} placeholder="Padrão: +24h" />
             </div>
           </div>
 
