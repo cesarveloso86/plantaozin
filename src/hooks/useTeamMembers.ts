@@ -31,46 +31,42 @@ export function useAllShiftMembers(enabled: boolean) {
   const load = useCallback(async () => {
     setLoading(true);
     const [profilesRes, teamRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, full_name, nickname, nf, cargo, telefone, lotacao, equipe, role")
-        .order("full_name"),
-      supabase
-        .from("team_members")
-        .select("*")
-        .eq("is_active", true)
-        .order("full_name"),
+      supabase.rpc("list_safe_profiles"),
+      supabase.rpc("list_safe_team_members"),
     ]);
 
     const profiles: UserProfile[] = ((profilesRes.data as any[]) || []).map((p) => ({
       id: p.id,
       full_name: p.full_name,
       nickname: p.nickname ?? null,
-      nf: p.nf,
-      cargo: p.cargo,
-      telefone: p.telefone ?? null,
+      nf: null,
+      cargo: null,
+      telefone: null,
       lotacao: p.lotacao ?? null,
       equipe: p.equipe ?? null,
       role: p.role,
       is_operational: false,
     }));
 
-    const operationals: UserProfile[] = ((teamRes.data as any[]) || []).map((t) => ({
-      id: t.id,
-      full_name: t.full_name,
-      nickname: t.nickname ?? null,
-      nf: t.nf,
-      cargo: t.cargo,
-      telefone: t.telefone ?? null,
-      lotacao: t.lotacao ?? null,
-      equipe: t.equipe ?? null,
-      role: "operacional",
-      is_operational: true,
-    }));
+    const operationals: UserProfile[] = ((teamRes.data as any[]) || [])
+      .filter((t) => t.is_active !== false)
+      .map((t) => ({
+        id: t.id,
+        full_name: t.full_name,
+        nickname: t.nickname ?? null,
+        nf: null,
+        cargo: t.cargo ?? null,
+        telefone: null,
+        lotacao: t.lotacao ?? null,
+        equipe: t.equipe ?? null,
+        role: "operacional",
+        is_operational: true,
+      }));
 
     setUsers([...profiles, ...operationals]);
     setLoading(false);
   }, []);
+
 
   useEffect(() => {
     if (enabled) load();

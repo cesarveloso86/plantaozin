@@ -335,6 +335,30 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_safe_profiles: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          equipe: string
+          full_name: string
+          id: string
+          lotacao: string
+          nickname: string
+          role: string
+        }[]
+      }
+      list_safe_team_members: {
+        Args: never
+        Returns: {
+          cargo: string
+          equipe: string
+          full_name: string
+          id: string
+          is_active: boolean
+          lotacao: string
+          nickname: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "analista"
