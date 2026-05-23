@@ -325,66 +325,7 @@ export type Database = {
       }
     }
     Views: {
-      profiles_public: {
-        Row: {
-          avatar_url: string | null
-          equipe: string | null
-          full_name: string | null
-          id: string | null
-          lotacao: string | null
-          nickname: string | null
-          role: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          equipe?: string | null
-          full_name?: string | null
-          id?: string | null
-          lotacao?: string | null
-          nickname?: string | null
-          role?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          equipe?: string | null
-          full_name?: string | null
-          id?: string | null
-          lotacao?: string | null
-          nickname?: string | null
-          role?: string | null
-        }
-        Relationships: []
-      }
-      team_members_public: {
-        Row: {
-          cargo: string | null
-          equipe: string | null
-          full_name: string | null
-          id: string | null
-          is_active: boolean | null
-          lotacao: string | null
-          nickname: string | null
-        }
-        Insert: {
-          cargo?: string | null
-          equipe?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          lotacao?: string | null
-          nickname?: string | null
-        }
-        Update: {
-          cargo?: string | null
-          equipe?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          lotacao?: string | null
-          nickname?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {
@@ -393,6 +334,30 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_safe_profiles: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          equipe: string
+          full_name: string
+          id: string
+          lotacao: string
+          nickname: string
+          role: string
+        }[]
+      }
+      list_safe_team_members: {
+        Args: never
+        Returns: {
+          cargo: string
+          equipe: string
+          full_name: string
+          id: string
+          is_active: boolean
+          lotacao: string
+          nickname: string
+        }[]
       }
     }
     Enums: {
