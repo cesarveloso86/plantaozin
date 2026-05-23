@@ -327,6 +327,7 @@ const Index = () => {
       {status === "triage_done" && triageResult && (
         <TriageQuickCard
           triage={triageResult}
+          tipoOitiva={classifyTriagem(triageResult.triagem)}
           onSend={handleSendTriageToShift}
           onReset={reset}
         />
