@@ -129,9 +129,11 @@ export function OccurrencesTab({ shift, occurrences, onAdd, onUpdate, onDelete }
   const oipSubteams = shift.oip_subteams || [];
   const delSubteams = shift.delegado_subteams || [];
 
-  // Ocorrências que contam para a fila "Em Distribuição" (exclui sem_oitiva).
+  // Carga para a fila "Em Distribuição": considera TODAS as ocorrências
+  // (incluindo sem_oitiva), pois cada atendimento — com ou sem oitiva —
+  // ocupa o OIP/Autoridade e deve empurrá-lo para o fim do round-robin.
   const mainQueueOccs = useMemo(
-    () => occurrences.filter((o) => o.status !== "sem_oitiva"),
+    () => occurrences,
     [occurrences],
   );
 
