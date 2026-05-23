@@ -497,12 +497,15 @@ const Index = () => {
 
 interface QuickProps {
   triage: TriageResult;
+  tipoOitiva: TipoOitiva;
   onSend: () => void;
   onReset: () => void;
 }
 
-const TriageQuickCard = ({ triage, onSend, onReset }: QuickProps) => {
+const TriageQuickCard = ({ triage, tipoOitiva, onSend, onReset }: QuickProps) => {
   const t = triage.triagem;
+  const procType = (t as { procedure_type?: string }).procedure_type;
+  const isTC = procType === "TC";
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
       <Card className="border-primary/30">
