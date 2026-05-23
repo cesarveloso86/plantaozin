@@ -325,7 +325,66 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          avatar_url: string | null
+          equipe: string | null
+          full_name: string | null
+          id: string | null
+          lotacao: string | null
+          nickname: string | null
+          role: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          equipe?: string | null
+          full_name?: string | null
+          id?: string | null
+          lotacao?: string | null
+          nickname?: string | null
+          role?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          equipe?: string | null
+          full_name?: string | null
+          id?: string | null
+          lotacao?: string | null
+          nickname?: string | null
+          role?: string | null
+        }
+        Relationships: []
+      }
+      team_members_public: {
+        Row: {
+          cargo: string | null
+          equipe: string | null
+          full_name: string | null
+          id: string | null
+          is_active: boolean | null
+          lotacao: string | null
+          nickname: string | null
+        }
+        Insert: {
+          cargo?: string | null
+          equipe?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          lotacao?: string | null
+          nickname?: string | null
+        }
+        Update: {
+          cargo?: string | null
+          equipe?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          lotacao?: string | null
+          nickname?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
