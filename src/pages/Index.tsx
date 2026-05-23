@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
 import { predictSubteamQueue, predictQueue } from "@/lib/availability";
+import { classificarOcorrencia, type TipoOitiva } from "@/lib/classificacao";
 import type { TriageResult, AnalysisResult } from "@/types/analysis";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
