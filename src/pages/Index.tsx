@@ -86,12 +86,9 @@ const Index = () => {
   const pickNextAssignees = () => {
      const active = shift.activeShift;
      if (!active) return { investigator: "", authority: "" };
-     // Considera TODAS as ocorrências (em_atendimento, atendida, sem_oitiva) para
-     // computar carga, igual à fila preditiva da OccurrencesTab. Filtrar só as
-     // atendidas fazia o algoritmo repetir o mesmo OIP/Autoridade que já tinha
-     // BU em andamento (carga zerada artificialmente).
-     // Excluímos apenas "sem_oitiva", pois é uma fila paralela independente.
-     const all = shift.occurrences.filter((o) => o.status !== "sem_oitiva");
+     // Considera TODAS as ocorrências (incluindo sem_oitiva) para computar carga,
+     // de forma que a sugestão preditiva distribua igualmente entre as duas filas.
+     const all = shift.occurrences;
      const now = new Date();
      const invSub = predictSubteamQueue(active.oip_subteams || [], all, [], "investigator", 1, now);
      const authSub = predictSubteamQueue(active.delegado_subteams || [], all, [], "authority", 1, now);
@@ -104,11 +101,28 @@ const Index = () => {
      return { investigator, authority };
   };
 
+  const classifyTriagem = (t: TriageResult["triagem"]): TipoOitiva => {
+    const procType = (t as { procedure_type?: string }).procedure_type;
+    const naturezaTxt = t.natureza || (t.tipificacoes_sugeridas || []).map((x) => x.descricao).join(", ");
+    return classificarOcorrencia({
+      procedure_type: procType,
+      tipificacoes: (t.tipificacoes_sugeridas || []).map((x) => `${x.artigo} ${x.descricao}`),
+      tem_conduzido: Array.isArray(t.interrogados_nomes) && t.interrogados_nomes.length > 0,
+      tem_menor:
+        procType === "BOC" ||
+        procType === "AAAI" ||
+        naturezaTxt.toLowerCase().includes("menor"),
+      natureza_texto: naturezaTxt,
+    });
+  };
+
   const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
     const tipification = formatTipificacoesShort(t.tipificacoes_sugeridas);
     const { investigator, authority } = pickNextAssignees();
+    const tipoOitiva = classifyTriagem(t);
+    const statusInicial = tipoOitiva === "sem_oitiva" ? "sem_oitiva" : "em_atendimento";
     return {
-      status: "em_atendimento" as const,
+      status: statusInicial as "em_atendimento" | "sem_oitiva",
       bu_number: (t.numero_bo || "").trim(),
       tipification,
       conducted_names: (t.interrogados_nomes || []).join(", "),
