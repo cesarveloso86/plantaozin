@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { PROCEDURE_TYPES, REGIONALS } from "@/types/shift";
 import { matchRegionalByKeyword } from "@/lib/constants";
 import { predictSubteamQueue, predictQueue } from "@/lib/availability";
+import { classificarOcorrencia, type TipoOitiva } from "@/lib/classificacao";
 import type { TriageResult, AnalysisResult } from "@/types/analysis";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -85,12 +86,9 @@ const Index = () => {
   const pickNextAssignees = () => {
      const active = shift.activeShift;
      if (!active) return { investigator: "", authority: "" };
-     // Considera TODAS as ocorrências (em_atendimento, atendida, sem_oitiva) para
-     // computar carga, igual à fila preditiva da OccurrencesTab. Filtrar só as
-     // atendidas fazia o algoritmo repetir o mesmo OIP/Autoridade que já tinha
-     // BU em andamento (carga zerada artificialmente).
-     // Excluímos apenas "sem_oitiva", pois é uma fila paralela independente.
-     const all = shift.occurrences.filter((o) => o.status !== "sem_oitiva");
+     // Considera TODAS as ocorrências (incluindo sem_oitiva) para computar carga,
+     // de forma que a sugestão preditiva distribua igualmente entre as duas filas.
+     const all = shift.occurrences;
      const now = new Date();
      const invSub = predictSubteamQueue(active.oip_subteams || [], all, [], "investigator", 1, now);
      const authSub = predictSubteamQueue(active.delegado_subteams || [], all, [], "authority", 1, now);
@@ -103,11 +101,28 @@ const Index = () => {
      return { investigator, authority };
   };
 
+  const classifyTriagem = (t: TriageResult["triagem"]): TipoOitiva => {
+    const procType = (t as { procedure_type?: string }).procedure_type;
+    const naturezaTxt = t.natureza || (t.tipificacoes_sugeridas || []).map((x) => x.descricao).join(", ");
+    return classificarOcorrencia({
+      procedure_type: procType,
+      tipificacoes: (t.tipificacoes_sugeridas || []).map((x) => `${x.artigo} ${x.descricao}`),
+      tem_conduzido: Array.isArray(t.interrogados_nomes) && t.interrogados_nomes.length > 0,
+      tem_menor:
+        procType === "BOC" ||
+        procType === "AAAI" ||
+        naturezaTxt.toLowerCase().includes("menor"),
+      natureza_texto: naturezaTxt,
+    });
+  };
+
   const buildOccurrenceFromTriage = (t: TriageResult["triagem"]) => {
     const tipification = formatTipificacoesShort(t.tipificacoes_sugeridas);
     const { investigator, authority } = pickNextAssignees();
+    const tipoOitiva = classifyTriagem(t);
+    const statusInicial = tipoOitiva === "sem_oitiva" ? "sem_oitiva" : "em_atendimento";
     return {
-      status: "em_atendimento" as const,
+      status: statusInicial as "em_atendimento" | "sem_oitiva",
       bu_number: (t.numero_bo || "").trim(),
       tipification,
       conducted_names: (t.interrogados_nomes || []).join(", "),
@@ -312,6 +327,7 @@ const Index = () => {
       {status === "triage_done" && triageResult && (
         <TriageQuickCard
           triage={triageResult}
+          tipoOitiva={classifyTriagem(triageResult.triagem)}
           onSend={handleSendTriageToShift}
           onReset={reset}
         />
@@ -481,29 +497,46 @@ const Index = () => {
 
 interface QuickProps {
   triage: TriageResult;
+  tipoOitiva: TipoOitiva;
   onSend: () => void;
   onReset: () => void;
 }
 
-const TriageQuickCard = ({ triage, onSend, onReset }: QuickProps) => {
+const TriageQuickCard = ({ triage, tipoOitiva, onSend, onReset }: QuickProps) => {
   const t = triage.triagem;
+  const procType = (t as { procedure_type?: string }).procedure_type;
+  const isTC = procType === "TC";
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
       <Card className="border-primary/30">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-mono text-xs">BO {t.numero_bo || "—"}</Badge>
                 <Badge variant="outline" className="text-xs">{t.natureza || "—"}</Badge>
                 <Badge variant="default" className="gap-1 text-xs">
                   <Sparkles className="w-3 h-3" /> Triagem rápida
                 </Badge>
+                {tipoOitiva === "com_oitiva" ? (
+                  <Badge className="text-xs bg-green-600 hover:bg-green-600 text-white border-transparent">
+                    🟢 COM OITIVA
+                  </Badge>
+                ) : (
+                  <Badge className="text-xs bg-yellow-500 hover:bg-yellow-500 text-black border-transparent">
+                    🟡 SEM OITIVA
+                  </Badge>
+                )}
               </div>
               <CardTitle className="text-base">Pronto para distribuir ao plantão</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Depoimentos e despacho serão gerados sob demanda pelo OIP responsável.
               </p>
+              {isTC && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  ⚠️ Sugestão: devolver à PM (crime de menor potencial ofensivo). Se apresentado pela Guarda Municipal, não é possível devolver.
+                </p>
+              )}
             </div>
           </div>
         </CardHeader>
