@@ -512,17 +512,31 @@ const TriageQuickCard = ({ triage, tipoOitiva, onSend, onReset }: QuickProps) =>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="font-mono text-xs">BO {t.numero_bo || "—"}</Badge>
                 <Badge variant="outline" className="text-xs">{t.natureza || "—"}</Badge>
                 <Badge variant="default" className="gap-1 text-xs">
                   <Sparkles className="w-3 h-3" /> Triagem rápida
                 </Badge>
+                {tipoOitiva === "com_oitiva" ? (
+                  <Badge className="text-xs bg-green-600 hover:bg-green-600 text-white border-transparent">
+                    🟢 COM OITIVA
+                  </Badge>
+                ) : (
+                  <Badge className="text-xs bg-yellow-500 hover:bg-yellow-500 text-black border-transparent">
+                    🟡 SEM OITIVA
+                  </Badge>
+                )}
               </div>
               <CardTitle className="text-base">Pronto para distribuir ao plantão</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Depoimentos e despacho serão gerados sob demanda pelo OIP responsável.
               </p>
+              {isTC && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  ⚠️ Sugestão: devolver à PM (crime de menor potencial ofensivo). Se apresentado pela Guarda Municipal, não é possível devolver.
+                </p>
+              )}
             </div>
           </div>
         </CardHeader>
