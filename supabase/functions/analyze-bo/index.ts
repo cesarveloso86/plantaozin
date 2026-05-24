@@ -243,6 +243,28 @@ serve(async (req) => {
     // Resolve PDF: from body OR from storage path (used by "generate full from triage").
     let pdf_base64: string | null = pdfFromBody || null;
     if (!pdf_base64 && pdf_storage_path) {
+      // Ownership check: path must start with the caller's uid, AND an
+      // analyses row owned by the caller must reference this exact path.
+      const expectedPrefix = `${user.id}/`;
+      if (typeof pdf_storage_path !== "string" || !pdf_storage_path.startsWith(expectedPrefix)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: ownRow, error: ownErr } = await anonClient
+        .from("analyses")
+        .select("id")
+        .eq("pdf_storage_path", pdf_storage_path)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (ownErr || !ownRow) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
