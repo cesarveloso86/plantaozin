@@ -82,6 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setProfile(nextProfile);
         setIsAdmin(nextIsAdmin);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching auth context:", error);
 
@@ -91,6 +92,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
       }
     };
 
@@ -105,14 +107,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
         if (!session?.user) {
           setProfile(null);
           setIsAdmin(false);
+          setLoading(false);
           return;
         }
 
+        setLoading(true);
         setProfile(null);
         setIsAdmin(false);
         void syncUserContext(session.user.id, requestId);
