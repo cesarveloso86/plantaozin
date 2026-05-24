@@ -55,13 +55,13 @@ export function useProfile() {
         ...current,
         id: authProfile.id,
         full_name: authProfile.full_name,
-        nickname: current?.nickname ?? null,
+        nickname: current?.nickname ?? authProfile.nickname,
         nf: authProfile.nf,
-        cargo: current?.cargo ?? null,
-        telefone: current?.telefone ?? null,
-        lotacao: current?.lotacao ?? null,
-        equipe: current?.equipe ?? null,
-        signature_style: current?.signature_style ?? DEFAULT_SIGNATURE_STYLE,
+        cargo: current?.cargo ?? authProfile.cargo,
+        telefone: current?.telefone ?? authProfile.telefone,
+        lotacao: current?.lotacao ?? authProfile.lotacao,
+        equipe: current?.equipe ?? authProfile.equipe,
+        signature_style: current?.signature_style ?? ((authProfile.signature_style as SignatureStyle) || DEFAULT_SIGNATURE_STYLE),
       }));
     }
     void load();
