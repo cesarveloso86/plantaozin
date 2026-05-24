@@ -8,6 +8,12 @@ interface Profile {
   role: string;
   avatar_url: string | null;
   nf: string | null;
+  nickname: string | null;
+  cargo: string | null;
+  telefone: string | null;
+  lotacao: string | null;
+  equipe: string | null;
+  signature_style: Record<string, unknown>;
 }
 
 interface AuthContextType {
