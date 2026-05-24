@@ -27,13 +27,13 @@ export const DEFAULT_SIGNATURE_STYLE: SignatureStyle = {
 };
 
 export function useProfile() {
-  const { user } = useAuth();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user || authLoading) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
@@ -47,11 +47,25 @@ export function useProfile() {
       } as FullProfile);
     }
     setLoading(false);
-  }, [user]);
+  }, [authLoading, user]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (authProfile) {
+      setProfile((current) => ({
+        ...current,
+        id: authProfile.id,
+        full_name: authProfile.full_name,
+        nickname: current?.nickname ?? null,
+        nf: authProfile.nf,
+        cargo: current?.cargo ?? null,
+        telefone: current?.telefone ?? null,
+        lotacao: current?.lotacao ?? null,
+        equipe: current?.equipe ?? null,
+        signature_style: current?.signature_style ?? DEFAULT_SIGNATURE_STYLE,
+      }));
+    }
+    void load();
+  }, [authProfile, load]);
 
   const save = useCallback(
     async (updates: Partial<Omit<FullProfile, "id">>) => {
@@ -68,5 +82,5 @@ export function useProfile() {
     [user, load]
   );
 
-  return { profile, loading, saving, save, reload: load };
+  return { profile, loading: authLoading || loading, saving, save, reload: load };
 }
