@@ -8,6 +8,12 @@ interface Profile {
   role: string;
   avatar_url: string | null;
   nf: string | null;
+  nickname: string | null;
+  cargo: string | null;
+  telefone: string | null;
+  lotacao: string | null;
+  equipe: string | null;
+  signature_style: Record<string, unknown>;
 }
 
 interface AuthContextType {
@@ -82,6 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setProfile(nextProfile);
         setIsAdmin(nextIsAdmin);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching auth context:", error);
 
@@ -91,6 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
       }
     };
 
@@ -105,14 +113,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
         if (!session?.user) {
           setProfile(null);
           setIsAdmin(false);
+          setLoading(false);
           return;
         }
 
+        setLoading(true);
         setProfile(null);
         setIsAdmin(false);
         void syncUserContext(session.user.id, requestId);
