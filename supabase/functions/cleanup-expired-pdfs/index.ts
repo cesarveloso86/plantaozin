@@ -11,6 +11,16 @@ const RETENTION_HOURS = 24;
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Require shared secret to prevent unauthenticated public invocation.
+  const expected = Deno.env.get("CLEANUP_SECRET");
+  const provided = req.headers.get("x-cleanup-secret");
+  if (!expected || provided !== expected) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const service = createClient(
       Deno.env.get("SUPABASE_URL")!,
